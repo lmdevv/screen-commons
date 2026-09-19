@@ -1,24 +1,23 @@
-import { SignInButton, useUser } from "@clerk/tanstack-react-start";
-import { Outlet, createFileRoute } from "@tanstack/react-router";
+import { auth } from "@clerk/tanstack-react-start/server";
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+
+const requireAuthenticatedUser = createServerFn({ method: "GET" }).handler(async () => {
+  const session = await auth();
+  return session.isAuthenticated;
+});
 
 export const Route = createFileRoute("/_auth")({
+  beforeLoad: async ({ location }) => {
+    if (await requireAuthenticatedUser()) return;
+
+    throw redirect({
+      href: `/sign-in?redirect_url=${encodeURIComponent(location.href)}`,
+    });
+  },
   component: AuthLayout,
 });
 
 function AuthLayout() {
-  const user = useUser();
-
-  if (!user.isLoaded) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  if (!user.user) {
-    return (
-      <div className="p-6">
-        <SignInButton />
-      </div>
-    );
-  }
-
   return <Outlet />;
 }

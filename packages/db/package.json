@@ -8,7 +8,8 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:deploy": "drizzle-kit migrate"
+    "db:migrate:deploy": "drizzle-kit migrate",
+    "db:check": "node --experimental-strip-types ./scripts/check-migration.ts"
   },
   "dependencies": {
     "@libsql/client": "catalog:",

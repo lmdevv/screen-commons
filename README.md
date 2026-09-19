@@ -3,8 +3,9 @@
 Open UI is an open-source, account-gated reference library for studying products, standalone
 screens, and ordered user flows across product versions.
 
-The repository currently contains the production-oriented application scaffold. Product browsing,
-contribution, moderation, and publication slices will be implemented incrementally.
+The repository contains the working MVP: authenticated browsing, product/version collections,
+ordered flows, standalone and multi-screen contribution, private media delivery, durable automated
+review, a reviewer queue, atomic publication, explicit analytics, and release runbooks.
 
 ## Stack
 
@@ -30,11 +31,14 @@ The architectural decisions and deliberate deferrals are summarized in
 ```bash
 pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env
-pnpm dev
+pnpm dev:web
 ```
 
 Populate `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in `apps/web/.env`. Environment files
-are ignored; schemas are committed. The app runs at <http://localhost:3001>.
+are ignored; schemas are committed. Local end-to-end media, moderation, and analytics work also uses
+`MEDIA_SIGNING_KEY`, `OPENAI_API_KEY`, `POSTHOG_API_KEY`, and `POSTHOG_HOST`; see
+`apps/web/.env.example`. `pnpm dev:web` runs the application shell at <http://localhost:3001> with
+a Vite compatibility shim. Use `pnpm dev` for full Alchemy-managed D1, R2, and Workflow bindings.
 
 Useful commands:
 
@@ -43,6 +47,8 @@ pnpm check          # lint, formatting check, and type checking
 pnpm build          # production build
 pnpm format         # write formatting changes
 pnpm db:generate    # generate Drizzle migrations
+pnpm --filter @open-ui/domain test
+pnpm --filter @open-ui/db db:check
 ```
 
 ## Repository layout
@@ -73,6 +79,9 @@ pnpm exec alchemy deploy --stage production
 ```
 
 Preview and production credentials must use isolated Cloudflare, Clerk, and analytics resources.
+The operational checklist and rollback procedure are in [`docs/operations.md`](docs/operations.md).
+Contribution, privacy, and takedown behavior are defined in [`docs/policies.md`](docs/policies.md),
+and the invited MVP test is defined in [`docs/validation-plan.md`](docs/validation-plan.md).
 
 ## License
 

@@ -1,7 +1,10 @@
 import { ClerkProvider } from "@clerk/tanstack-react-start";
 import { Toaster } from "@open-ui/ui/components/sonner";
+import { HotkeysProvider } from "@tanstack/react-hotkeys";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { useState } from "react";
 
 import Header from "../components/header";
 
@@ -20,7 +23,12 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "My App",
+        title: "Open UI — Complete interface flows",
+      },
+      {
+        name: "description",
+        content:
+          "A free, community-maintained library of complete, ordered product interface flows.",
       },
     ],
     links: [
@@ -35,22 +43,34 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { refetchOnWindowFocus: false, retry: 1, staleTime: 30_000 },
+        },
+      }),
+  );
   return (
     <ClerkProvider>
-      <html lang="en" className="dark">
-        <head>
-          <HeadContent />
-        </head>
-        <body>
-          <div className="grid h-svh grid-rows-[auto_1fr]">
-            <Header />
-            <Outlet />
-          </div>
-          <Toaster richColors />
-          <TanStackRouterDevtools position="bottom-left" />
-          <Scripts />
-        </body>
-      </html>
+      <QueryClientProvider client={queryClient}>
+        <HotkeysProvider>
+          <html lang="en" className="dark">
+            <head>
+              <HeadContent />
+            </head>
+            <body>
+              <div className="grid h-svh grid-rows-[auto_1fr]">
+                <Header />
+                <Outlet />
+              </div>
+              <Toaster richColors />
+              {import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-left" /> : null}
+              <Scripts />
+            </body>
+          </html>
+        </HotkeysProvider>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 }

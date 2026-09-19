@@ -7,7 +7,7 @@ design dated 2026-09-18.
 
 TanStack Start is the only application and backend. It will serve pre-rendered marketing and blog
 routes, the authenticated client-rendered library, server functions, API and media routes, and the
-Cloudflare Workflow entry point. 
+Cloudflare Workflow entry point.
 
 Cloudflare D1 is authoritative for metadata, permissions, submission state, search indexes, and
 audit records. Private R2 will hold immutable full-size and thumbnail WebP variants. Clerk provides

@@ -1,0 +1,69 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ vars.CLOUDFLARE_ACCOUNT_ID != '' && github.event.action != 'closed' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ALCHEMY_STAGE: ${{ github.event_name == 'push' && 'production' || format('preview-{0}', github.event.pull_request.number) }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+      MEDIA_SIGNING_KEY: ${{ secrets.MEDIA_SIGNING_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+      POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm --filter @open-ui/domain test
+      - run: pnpm --filter @open-ui/db db:check
+      - run: pnpm build
+      - run: pnpm --filter @open-ui/infra exec alchemy deploy --stage "$ALCHEMY_STAGE"
+
+  destroy-preview:
+    if: ${{ vars.CLOUDFLARE_ACCOUNT_ID != '' && github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ALCHEMY_STAGE: preview-${{ github.event.pull_request.number }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @open-ui/infra exec alchemy destroy --stage "$ALCHEMY_STAGE"

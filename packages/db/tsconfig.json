@@ -1,6 +1,8 @@
 {
   "extends": "@open-ui/config/tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
-  }
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src", "scripts", "drizzle.config.ts"]
 }
