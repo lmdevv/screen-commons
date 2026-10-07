@@ -2,6 +2,7 @@ import {
   AppHeader,
   Button,
   Container,
+  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -45,7 +46,7 @@ export function AppDetailPage({ route }: { route: Route }) {
       <AppHeader
         app={app}
         back={
-          <a href={href("/discover")} className={`${textLinkClassName} inline-flex items-center gap-1.5 text-base no-underline`}>
+          <a href={href("/discover")} className={cn(textLinkClassName, "inline-flex items-center gap-1.5 text-base no-underline")}>
             <ArrowLeft className="size-4" aria-hidden />
             Discover
           </a>
