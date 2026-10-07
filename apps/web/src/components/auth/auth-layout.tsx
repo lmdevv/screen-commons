@@ -11,9 +11,12 @@ import type { LandingData } from "../marketing/landing.functions";
 export function AuthLayout({
   children,
   screens = [],
+  size = "sm",
 }: {
   children: ReactNode;
   screens?: LandingData["screens"];
+  /** Column width: `sm` (auth forms) or `md` (longer content, e.g. extension connect). */
+  size?: "sm" | "md";
 }) {
   const collage = screens.length >= 4;
   return (
@@ -25,7 +28,7 @@ export function AuthLayout({
           </Link>
         </div>
         <div className="flex flex-1 items-start justify-center pt-12 pb-20 sm:items-center sm:pt-6">
-          <div className="w-full max-w-sm">{children}</div>
+          <div className={size === "sm" ? "w-full max-w-sm" : "w-full max-w-md"}>{children}</div>
         </div>
       </main>
       {collage ? <Collage screens={screens} /> : null}
