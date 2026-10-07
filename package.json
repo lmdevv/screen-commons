@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "turbo run dev --filter=web",
+    "dev": "turbo run dev --filter=@open-ui/web",
     "dev:extension": "pnpm --filter @open-ui/extension dev",
     "build": "turbo run build",
     "check-types": "turbo run check-types",

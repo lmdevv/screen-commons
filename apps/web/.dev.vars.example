@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development (never commit .dev.vars).
+# Generate with: node -e "console.log(crypto.randomBytes(32).toString('base64'))"
+BETTER_AUTH_SECRET=change-me-to-a-long-random-string
+# Optional: enables "Continue with GitHub" (callback: http://localhost:5173/api/auth/callback/github)
+# GITHUB_CLIENT_ID=
+# GITHUB_CLIENT_SECRET=

@@ -1,0 +1,47 @@
+{
+  "name": "@open-ui/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm db:migrate:local && vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check-types": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@open-ui/core": "workspace:*",
+    "@open-ui/db": "workspace:*",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "catalog:",
+    "@tanstack/react-router-ssr-query": "^1.167.3",
+    "@tanstack/react-start": "catalog:",
+    "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
+    "@cloudflare/workers-types": "^5.20261007.1",
+    "@open-ui/config": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}
