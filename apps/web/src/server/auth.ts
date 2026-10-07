@@ -1,17 +1,16 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { authSchema } from "@open-ui/db";
+import { authSchema, user } from "@open-ui/db";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
+import { eq } from "drizzle-orm";
 
+import { resolveAuthSecret } from "./auth-config";
 import { env, getDb } from "./env";
-
-const DEV_SECRET = "open-ui-insecure-development-secret-change-me";
 
 function createAuth() {
   const db = getDb();
   const baseURL = env.APP_URL || "http://localhost:5173";
-  const secret =
-    env.BETTER_AUTH_SECRET || (baseURL.startsWith("http://localhost") ? DEV_SECRET : "");
-  if (!secret) throw new Error("BETTER_AUTH_SECRET is not set");
+  const secret = resolveAuthSecret(baseURL, env.BETTER_AUTH_SECRET);
   const github =
     env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
       ? { github: { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET } }
@@ -31,6 +30,19 @@ function createAuth() {
         // `user_bootstrap_admin` database trigger (packages/db/migrations/0002_integrity.sql).
         role: { type: "string", required: false, defaultValue: "member", input: false },
       },
+    },
+    hooks: {
+      // The role is set by a trigger *after* the insert, so the user object Better Auth returns
+      // from sign-up is stale; re-read it so the first account sees "admin" right away.
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/sign-up/email") return;
+        const returned = ctx.context.returned as { user?: { id?: string; role?: string } } | null;
+        const id = returned && typeof returned === "object" ? returned.user?.id : undefined;
+        if (!id) return;
+        const [row] = await db.select({ role: user.role }).from(user).where(eq(user.id, id));
+        if (!row || row.role === returned!.user!.role) return;
+        return ctx.json({ ...returned, user: { ...returned!.user, role: row.role } });
+      }),
     },
     advanced: { useSecureCookies: baseURL.startsWith("https://") },
   });
