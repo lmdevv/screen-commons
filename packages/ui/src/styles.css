@@ -1,0 +1,499 @@
+/*
+ * Open UI design tokens + base styles.
+ *
+ * Consumers import this file ONCE from their app stylesheet, instead of `@import "tailwindcss"`:
+ *
+ *   @import "@open-ui/ui/styles.css";
+ *
+ * It brings Tailwind v4, the Inter Variable font (optical sizes, self-hosted, font-display: swap),
+ * the semantic color tokens for light/dark, and `@source` hints so Tailwind generates the classes
+ * used inside this package. Components only use semantic tokens (bg-bg, text-fg, bg-tile…), never
+ * `dark:` variants, so the `prefers-color-scheme` fallback works even without the theme script.
+ */
+@import "tailwindcss";
+@import "@fontsource-variable/inter/opsz.css";
+
+@source "./components";
+@source "./lib";
+
+/* `dark:` variant for app code: follows the `.dark` class set by ThemeProvider / themeScript. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -------------------------------------------------------------------------------------------- */
+/* Raw palette (CSS variables). Light is the default; `.dark` and the media query override.       */
+/* -------------------------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --ou-bg: #ffffff;
+  --ou-fg: #0a0a0a;
+  /* Secondary text: 5.3:1 on white, 4.9:1 on tile. */
+  --ou-fg-muted: #66666c;
+  /* Tertiary text/icons for non-essential info (placeholders, meta separators). 4.5:1 on white. */
+  --ou-fg-subtle: #75757b;
+  /* Disabled text/icons only — not for content. */
+  --ou-fg-faint: #b4b4b9;
+
+  --ou-tile: #f4f4f5;
+  --ou-tile-hover: #efeff0;
+  --ou-surface: #ffffff;
+  --ou-elevated: #ffffff;
+  --ou-muted: #f4f4f5;
+  --ou-muted-strong: #e9e9eb;
+
+  --ou-border: #ececee;
+  --ou-border-strong: #dcdce0;
+  /* Inset screenshot hairline (on top of the image, so slightly translucent). */
+  --ou-shot-border: rgb(10 10 10 / 0.07);
+
+  --ou-inverse: #0a0a0a;
+  --ou-inverse-fg: #ffffff;
+  --ou-inverse-muted: #a1a1a7;
+  /* Floating dark chrome (selection bar, tooltips) — dark in both themes. */
+  --ou-chrome: #1d1d20;
+  --ou-chrome-hover: #2a2a2e;
+  --ou-chrome-fg: #fafafa;
+  --ou-chrome-muted: #a1a1a7;
+
+  /* The single accent: focus rings, links, selection. */
+  --ou-accent: #2f5cf5;
+  --ou-accent-fg: #ffffff;
+  --ou-accent-soft: rgb(47 92 245 / 0.1);
+  --ou-ring: rgb(47 92 245 / 0.55);
+
+  --ou-danger: #c92a1e;
+  --ou-danger-soft: rgb(201 42 30 / 0.08);
+  --ou-success: #0f8a4c;
+  --ou-success-soft: rgb(15 138 76 / 0.09);
+  --ou-warning: #a35c00;
+  --ou-warning-soft: rgb(222 140 0 / 0.12);
+
+  --ou-scrim: rgb(10 10 10 / 0.36);
+  --ou-shadow-overlay: 0 0 0 1px rgb(10 10 10 / 0.05), 0 2px 4px rgb(10 10 10 / 0.03),
+    0 16px 40px -12px rgb(10 10 10 / 0.18);
+  --ou-shadow-raised: 0 1px 2px rgb(10 10 10 / 0.06), 0 0 0 1px rgb(10 10 10 / 0.04);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --ou-bg: #0b0b0c;
+  --ou-fg: #f2f2f3;
+  --ou-fg-muted: #9d9da4;
+  --ou-fg-subtle: #8a8a91;
+  --ou-fg-faint: #48484d;
+
+  --ou-tile: #161618;
+  --ou-tile-hover: #1a1a1d;
+  --ou-surface: #111113;
+  --ou-elevated: #18181b;
+  --ou-muted: #1a1a1d;
+  --ou-muted-strong: #252529;
+
+  --ou-border: #1f1f23;
+  --ou-border-strong: #2e2e33;
+  --ou-shot-border: rgb(255 255 255 / 0.07);
+
+  --ou-inverse: #f2f2f3;
+  --ou-inverse-fg: #0b0b0c;
+  --ou-inverse-muted: #5c5c63;
+  --ou-chrome: #232327;
+  --ou-chrome-hover: #2f2f34;
+  --ou-chrome-fg: #fafafa;
+  --ou-chrome-muted: #a1a1a7;
+
+  --ou-accent: #7896ff;
+  --ou-accent-fg: #0b0b0c;
+  --ou-accent-soft: rgb(120 150 255 / 0.14);
+  --ou-ring: rgb(120 150 255 / 0.6);
+
+  --ou-danger: #ff7a6e;
+  --ou-danger-soft: rgb(255 122 110 / 0.12);
+  --ou-success: #4ccf8a;
+  --ou-success-soft: rgb(76 207 138 / 0.12);
+  --ou-warning: #f0b14a;
+  --ou-warning-soft: rgb(240 177 74 / 0.12);
+
+  --ou-scrim: rgb(0 0 0 / 0.62);
+  --ou-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 48px -12px rgb(0 0 0 / 0.7);
+  --ou-shadow-raised: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+/* No-JS / pre-hydration fallback: honour the OS preference unless a theme class is set. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    color-scheme: dark;
+
+    --ou-bg: #0b0b0c;
+    --ou-fg: #f2f2f3;
+    --ou-fg-muted: #9d9da4;
+    --ou-fg-subtle: #8a8a91;
+    --ou-fg-faint: #48484d;
+
+    --ou-tile: #161618;
+    --ou-tile-hover: #1a1a1d;
+    --ou-surface: #111113;
+    --ou-elevated: #18181b;
+    --ou-muted: #1a1a1d;
+    --ou-muted-strong: #252529;
+
+    --ou-border: #1f1f23;
+    --ou-border-strong: #2e2e33;
+    --ou-shot-border: rgb(255 255 255 / 0.07);
+
+    --ou-inverse: #f2f2f3;
+    --ou-inverse-fg: #0b0b0c;
+    --ou-inverse-muted: #5c5c63;
+    --ou-chrome: #232327;
+    --ou-chrome-hover: #2f2f34;
+    --ou-chrome-fg: #fafafa;
+    --ou-chrome-muted: #a1a1a7;
+
+    --ou-accent: #7896ff;
+    --ou-accent-fg: #0b0b0c;
+    --ou-accent-soft: rgb(120 150 255 / 0.14);
+    --ou-ring: rgb(120 150 255 / 0.6);
+
+    --ou-danger: #ff7a6e;
+    --ou-danger-soft: rgb(255 122 110 / 0.12);
+    --ou-success: #4ccf8a;
+    --ou-success-soft: rgb(76 207 138 / 0.12);
+    --ou-warning: #f0b14a;
+    --ou-warning-soft: rgb(240 177 74 / 0.12);
+
+    --ou-scrim: rgb(0 0 0 / 0.62);
+    --ou-shadow-overlay: 0 0 0 1px rgb(255 255 255 / 0.07), 0 16px 48px -12px rgb(0 0 0 / 0.7);
+    --ou-shadow-raised: 0 0 0 1px rgb(255 255 255 / 0.06);
+  }
+}
+
+/* -------------------------------------------------------------------------------------------- */
+/* Tailwind theme: semantic utilities (bg-bg, text-fg-muted, bg-tile, border-border, …).          */
+/* -------------------------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-bg: var(--ou-bg);
+  --color-fg: var(--ou-fg);
+  --color-fg-muted: var(--ou-fg-muted);
+  --color-fg-subtle: var(--ou-fg-subtle);
+  --color-fg-faint: var(--ou-fg-faint);
+  --color-tile: var(--ou-tile);
+  --color-tile-hover: var(--ou-tile-hover);
+  --color-surface: var(--ou-surface);
+  --color-elevated: var(--ou-elevated);
+  --color-muted: var(--ou-muted);
+  --color-muted-strong: var(--ou-muted-strong);
+  --color-border: var(--ou-border);
+  --color-border-strong: var(--ou-border-strong);
+  --color-shot-border: var(--ou-shot-border);
+  --color-inverse: var(--ou-inverse);
+  --color-inverse-fg: var(--ou-inverse-fg);
+  --color-inverse-muted: var(--ou-inverse-muted);
+  --color-chrome: var(--ou-chrome);
+  --color-chrome-hover: var(--ou-chrome-hover);
+  --color-chrome-fg: var(--ou-chrome-fg);
+  --color-chrome-muted: var(--ou-chrome-muted);
+  --color-accent: var(--ou-accent);
+  --color-accent-fg: var(--ou-accent-fg);
+  --color-accent-soft: var(--ou-accent-soft);
+  --color-ring: var(--ou-ring);
+  --color-danger: var(--ou-danger);
+  --color-danger-soft: var(--ou-danger-soft);
+  --color-success: var(--ou-success);
+  --color-success-soft: var(--ou-success-soft);
+  --color-warning: var(--ou-warning);
+  --color-warning-soft: var(--ou-warning-soft);
+  --color-scrim: var(--ou-scrim);
+
+  --shadow-overlay: var(--ou-shadow-overlay);
+  --shadow-raised: var(--ou-shadow-raised);
+}
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Type scale — 12 / 13 / 14 / 16 / 20 / 28 / 40 / 56. UI text is 13–14px. */
+  --text-*: initial;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-md: 16px;
+  --text-md--line-height: 24px;
+  --text-md--letter-spacing: -0.006em;
+  --text-lg: 20px;
+  --text-lg--line-height: 26px;
+  --text-lg--letter-spacing: -0.014em;
+  --text-xl: 28px;
+  --text-xl--line-height: 34px;
+  --text-xl--letter-spacing: -0.022em;
+  --text-2xl: 40px;
+  --text-2xl--line-height: 44px;
+  --text-2xl--letter-spacing: -0.03em;
+  --text-3xl: 56px;
+  --text-3xl--line-height: 58px;
+  --text-3xl--letter-spacing: -0.036em;
+
+  /* Radii. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-shot: 8px;
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-tile: 20px;
+  --radius-overlay: 20px;
+  --radius-pill: 999px;
+
+  /* Motion: 120–180ms, ease-out. Opacity/transform only. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.25, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: var(--ease-out);
+
+  --animate-ou-spin: ou-spin 0.7s linear infinite;
+  --animate-ou-pulse: ou-pulse 1.6s var(--ease-in-out) infinite;
+
+  @keyframes ou-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes ou-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  /* Layout. */
+  --spacing-topbar: 56px;
+  --container-page: 1760px;
+  --container-prose: 720px;
+}
+
+/* -------------------------------------------------------------------------------------------- */
+/* Base.                                                                                          */
+/* -------------------------------------------------------------------------------------------- */
+
+@layer base {
+  html {
+    background-color: var(--ou-bg);
+    color: var(--ou-fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    font-optical-sizing: auto;
+    /* Inter: lowercase l with tail, so l/I/1 stay distinct in UI copy. */
+    font-feature-settings: "cv05" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--ou-bg);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background-color: var(--ou-accent-soft);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ou-accent);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+/* Shared focus ring for interactive components (outline follows border-radius). */
+@utility ou-focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--ou-accent);
+    outline-offset: 2px;
+  }
+}
+@utility ou-focus-ring-inset {
+  &:focus-visible {
+    outline: 2px solid var(--ou-accent);
+    outline-offset: -2px;
+  }
+}
+@utility ou-scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+@utility ou-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ou-border-strong) transparent;
+}
+/*
+ * Skip layout/paint for off-screen items in very long lists. Note: implies paint containment, so
+ * focus rings / shadows that overflow the item are clipped — only use on items with inset rings.
+ */
+@utility ou-cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* -------------------------------------------------------------------------------------------- */
+/* Prose (docs, markdown). Wrap rendered markdown in <Prose> or `.ou-prose`.                      */
+/* -------------------------------------------------------------------------------------------- */
+
+@layer components {
+  .ou-prose {
+    color: var(--ou-fg);
+    font-size: 15px;
+    line-height: 26px;
+    max-width: var(--container-prose);
+
+    & > * + * {
+      margin-top: 16px;
+    }
+    & h1 {
+      font-size: 40px;
+      line-height: 44px;
+      letter-spacing: -0.03em;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    & h2 {
+      font-size: 24px;
+      line-height: 30px;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      margin-top: 48px;
+      scroll-margin-top: 80px;
+    }
+    & h3 {
+      font-size: 18px;
+      line-height: 26px;
+      letter-spacing: -0.012em;
+      font-weight: 600;
+      margin-top: 32px;
+      scroll-margin-top: 80px;
+    }
+    & p,
+    & li {
+      color: color-mix(in srgb, var(--ou-fg) 86%, transparent);
+    }
+    & a {
+      color: var(--ou-fg);
+      text-decoration: underline;
+      text-decoration-color: var(--ou-border-strong);
+      text-underline-offset: 3px;
+      transition: text-decoration-color 150ms var(--ease-out);
+      &:hover {
+        text-decoration-color: currentColor;
+      }
+    }
+    & strong {
+      font-weight: 600;
+      color: var(--ou-fg);
+    }
+    & ul,
+    & ol {
+      padding-left: 20px;
+    }
+    & ul {
+      list-style: disc;
+    }
+    & ol {
+      list-style: decimal;
+    }
+    & li + li {
+      margin-top: 6px;
+    }
+    & li::marker {
+      color: var(--ou-fg-subtle);
+    }
+    & :not(pre) > code {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: var(--ou-muted);
+      border: 1px solid var(--ou-border);
+    }
+    & pre {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 21px;
+      padding: 16px 18px;
+      border-radius: var(--radius-card);
+      background: var(--ou-tile);
+      overflow-x: auto;
+    }
+    & blockquote {
+      border-left: 2px solid var(--ou-border-strong);
+      padding-left: 16px;
+      color: var(--ou-fg-muted);
+    }
+    & hr {
+      border: 0;
+      border-top: 1px solid var(--ou-border);
+      margin: 40px 0;
+    }
+    & table {
+      width: 100%;
+      font-size: 14px;
+      border-collapse: collapse;
+    }
+    & th,
+    & td {
+      text-align: left;
+      padding: 10px 12px 10px 0;
+      border-bottom: 1px solid var(--ou-border);
+      vertical-align: top;
+    }
+    & th {
+      font-weight: 500;
+      color: var(--ou-fg-muted);
+    }
+    & img {
+      border-radius: var(--radius-card);
+      border: 1px solid var(--ou-border);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------------------------- */
+/* Reduced motion: keep state changes, drop movement.                                             */
+/* -------------------------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Applied by ThemeProvider for one frame while switching themes, so colours don't animate. */
+.ou-no-transitions,
+.ou-no-transitions * {
+  transition: none !important;
+}
