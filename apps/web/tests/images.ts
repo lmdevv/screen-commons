@@ -9,8 +9,16 @@ function chunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([length, body, crc]);
 }
 
-/** A real, decodable RGB PNG filled with a gradient-ish pattern seeded by `seed`. */
-export function makePng(width: number, height: number, seed = 0): Buffer {
+/**
+ * A real, decodable RGB PNG filled with a gradient-ish pattern seeded by `seed` (or
+ * incompressible noise with `noise: true`, for large-payload tests).
+ */
+export function makePng(
+  width: number,
+  height: number,
+  seed = 0,
+  options: { noise?: boolean } = {},
+): Buffer {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
@@ -18,15 +26,22 @@ export function makePng(width: number, height: number, seed = 0): Buffer {
   header[9] = 2; // colour type: truecolour
   const row = width * 3 + 1;
   const raw = Buffer.alloc(row * height);
-  for (let y = 0; y < height; y += 1) {
-    raw[y * row] = 0;
-    for (let x = 0; x < width; x += 1) {
-      const offset = y * row + 1 + x * 3;
-      raw[offset] = (x + seed * 37) & 0xff;
-      raw[offset + 1] = (y + seed * 91) & 0xff;
-      raw[offset + 2] = (seed * 53) & 0xff;
+  if (options.noise) {
+    let state = (Math.imul(seed, 2654435761) + 1) >>> 0;
+    for (let index = 0; index < raw.length; index += 1) {
+      state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+      raw[index] = index % row === 0 ? 0 : state >>> 24;
     }
-  }
+  } else
+    for (let y = 0; y < height; y += 1) {
+      raw[y * row] = 0;
+      for (let x = 0; x < width; x += 1) {
+        const offset = y * row + 1 + x * 3;
+        raw[offset] = (x + seed * 37) & 0xff;
+        raw[offset + 1] = (y + seed * 91) & 0xff;
+        raw[offset + 2] = (seed * 53) & 0xff;
+      }
+    }
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", header),

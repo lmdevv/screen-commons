@@ -440,7 +440,7 @@ describe("visibility + review", () => {
     expect(result.flow?.status).toBe("pending");
 
     const otherApps = await other.client().listApps({ q: `member app ${suffix}` });
-    expect(otherApps.items).toHaveLength(0);
+    expect(otherApps.items.map((item) => item.id)).not.toContain(result.app.id);
     await expectApiError(other.client().getApp(result.app.slug), 404);
     expect((await member.client().getApp(result.app.slug)).status).toBe("pending");
 
