@@ -1,10 +1,15 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
-import { authClient } from "../lib/auth-client";
+import { LibraryOverlays } from "../components/library/overlays";
+import { AppShell } from "../components/shell";
+import { overlaySearchSchema } from "../lib/search-params";
 
-/** Pathless layout for everything that requires sign-in. */
+/**
+ * Pathless layout for everything that requires sign-in. Owns the `?screen=` / `?flow=` overlay
+ * params so the screen and flow viewers can open on top of any signed-in page.
+ */
 export const Route = createFileRoute("/_app")({
+  validateSearch: overlaySearchSchema,
   beforeLoad: ({ context, location }) => {
     if (!context.user) throw redirect({ to: "/sign-in", search: { redirect: location.href } });
     return { user: context.user };
@@ -14,30 +19,10 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { user } = Route.useRouteContext();
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
-  async function signOut() {
-    await authClient.signOut();
-    queryClient.clear();
-    await router.invalidate();
-    await router.navigate({ to: "/sign-in" });
-  }
-
   return (
-    <div>
-      <header>
-        <nav>
-          <Link to="/browse/$platform" params={{ platform: "web" }}>
-            Open UI
-          </Link>{" "}
-          · <Link to="/settings">Settings</Link> · <span>{user.email}</span> ({user.role}) ·{" "}
-          <button type="button" onClick={signOut}>
-            Sign out
-          </button>
-        </nav>
-      </header>
+    <AppShell user={user}>
       <Outlet />
-    </div>
+      <LibraryOverlays />
+    </AppShell>
   );
 }

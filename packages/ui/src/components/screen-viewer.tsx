@@ -1,7 +1,7 @@
 import type { ElementSlug, PatternSlug } from "@open-ui/core/taxonomy";
 import { labelFor } from "@open-ui/core/taxonomy";
 import type { Screen, ScreenDetail } from "@open-ui/core/schemas";
-import { Bookmark, Copy, Download, ExternalLink, Workflow } from "lucide-react";
+import { Bookmark, Copy, Download, ExternalLink, Maximize2, Minimize2, Workflow } from "lucide-react";
 import { useRender } from "@base-ui/react/use-render";
 import type * as React from "react";
 
@@ -176,6 +176,13 @@ export interface ScreenViewerProps extends Omit<ScreenDetailsProps, "className">
   onDownload?: (screen: ViewerScreen) => void;
   /** Extra header actions (share, report…). */
   actions?: React.ReactNode;
+  /**
+   * `fill` (default): the image fills the column width and scrolls when tall.
+   * `fit`: the whole image fits the viewport (tall full-page captures become an overview).
+   */
+  zoom?: "fill" | "fit";
+  /** Shows the fit / fill toggle in the header. */
+  onZoomChange?: (zoom: "fill" | "fit") => void;
 }
 
 /**
@@ -193,15 +200,31 @@ export function ScreenViewer({
   onCopyImage,
   onDownload,
   actions,
+  zoom = "fill",
+  onZoomChange,
   ...detailsProps
 }: ScreenViewerProps) {
   const mobile = frameKind(screen.app.platform) === "mobile";
+  const fit = zoom === "fit";
   return (
     <Lightbox open={open} onOpenChange={onOpenChange}>
       <LightboxHeader
         actions={
           <>
             {actions}
+            {onZoomChange ? (
+              <Tooltip content={fit ? "Actual width" : "Fit to screen"} shortcut="Z">
+                <Button
+                  variant="ghost"
+                  icon
+                  aria-label={fit ? "Show at full width" : "Fit to screen"}
+                  aria-pressed={fit}
+                  onClick={() => onZoomChange(fit ? "fill" : "fit")}
+                >
+                  {fit ? <Maximize2 /> : <Minimize2 />}
+                </Button>
+              </Tooltip>
+            ) : null}
             {onCopyImage ? (
               <Tooltip content="Copy image">
                 <Button variant="ghost" icon aria-label="Copy image" onClick={() => onCopyImage(screen)}>
@@ -258,6 +281,7 @@ export function ScreenViewer({
           className={cn(
             "mx-auto px-4 py-6 md:px-16 md:py-10",
             mobile ? "max-w-[min(100%,420px)]" : "max-w-[1200px]",
+            fit && "flex min-h-full items-center justify-center md:py-8",
           )}
         >
           <ScreenImage
@@ -270,6 +294,14 @@ export function ScreenViewer({
             layout="natural"
             priority
             placeholderColor={screen.dominantColor}
+            style={
+              fit
+                ? {
+                    // Whole image within the viewport: header (64) + insets + padding ≈ 200px.
+                    width: `min(100%, calc((100dvh - 200px) * ${screen.width / Math.max(1, screen.height)}))`,
+                  }
+                : undefined
+            }
           />
         </div>
       </LightboxBody>

@@ -1,8 +1,17 @@
 import type { User } from "@open-ui/core";
+import { Button, EmptyState, ThemeProvider, TooltipProvider, themeScript } from "@open-ui/ui";
 import type { QueryClient } from "@tanstack/react-query";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Link,
+  Scripts,
+  createRootRouteWithContext,
+  type ErrorComponentProps,
+} from "@tanstack/react-router";
+import { CircleAlert, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { DeferredToaster } from "../components/shell/deferred-toaster";
 import { queries } from "../lib/queries";
 import styles from "../styles.css?url";
 
@@ -16,36 +25,78 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "color-scheme", content: "light dark" },
+      { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0b0b0c", media: "(prefers-color-scheme: dark)" },
       { title: "Open UI" },
+      {
+        name: "description",
+        content: "An open-source library of real product screens and flows.",
+      },
     ],
     links: [{ rel: "stylesheet", href: styles }],
   }),
   beforeLoad: async ({ context }) => ({
     user: await context.queryClient.fetchQuery(queries.session()),
   }),
-  component: RootComponent,
-  notFoundComponent: () => <p>Not found.</p>,
+  shellComponent: RootDocument,
+  notFoundComponent: NotFound,
+  errorComponent: RootError,
 });
-
-function RootComponent() {
-  return (
-    <RootDocument>
-      <Outlet />
-    </RootDocument>
-  );
-}
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Applies the stored theme before first paint: no flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <HeadContent />
       </head>
       <body>
-        {children}
+        <ThemeProvider>
+          <TooltipProvider>
+            {children}
+            <DeferredToaster />
+          </TooltipProvider>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>
+  );
+}
+
+/** Root-level 404 (unknown URLs and `notFound()` from loaders without their own handler). */
+export function NotFound() {
+  return (
+    <main className="grid min-h-[70dvh] place-items-center px-4">
+      <EmptyState
+        icon={<SearchX />}
+        title="Page not found"
+        description="The page you’re looking for doesn’t exist or isn’t visible to you."
+        actions={
+          <Button render={<Link to="/browse/$platform" params={{ platform: "web" }} />}>
+            Browse the library
+          </Button>
+        }
+      />
+    </main>
+  );
+}
+
+function RootError({ error, reset }: ErrorComponentProps) {
+  return (
+    <main className="grid min-h-[70dvh] place-items-center px-4">
+      <EmptyState
+        icon={<CircleAlert />}
+        title="Something went wrong"
+        description={error instanceof Error ? error.message : "An unexpected error occurred."}
+        actions={
+          <Button variant="outline" onClick={reset}>
+            Try again
+          </Button>
+        }
+      />
+    </main>
   );
 }
