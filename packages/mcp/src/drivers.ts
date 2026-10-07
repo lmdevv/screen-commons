@@ -35,11 +35,12 @@ export interface Shot {
   height: number;
   url: string;
   title: string;
+  /** Visible text of the captured area, when the driver provides it. */
+  text?: string;
 }
 
 export interface PageCapture extends Shot {
   metadata: PageMetadata & Partial<Pick<ExtractedMetadata, "icons">>;
-  text?: string;
 }
 
 export interface CaptureDriver {
@@ -96,6 +97,7 @@ export class ExtensionDriver implements CaptureDriver {
       height: size.height,
       url: result.url,
       title: result.title,
+      text: result.text,
     };
   }
 

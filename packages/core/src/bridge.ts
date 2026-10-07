@@ -46,6 +46,8 @@ export interface ScreenshotResult {
   height: number;
   url: string;
   title: string;
+  /** Visible text of the captured area (collapsed whitespace, ≤20k chars), when available. */
+  text?: string;
 }
 
 export interface TabInfo {

@@ -98,6 +98,7 @@ async function screenshot(
     height: raw.image.height,
     url: fresh.url ?? "",
     title: fresh.title ?? "",
+    text: raw.text || undefined,
   };
 }
 
