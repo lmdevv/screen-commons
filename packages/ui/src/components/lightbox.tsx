@@ -135,6 +135,9 @@ export function LightboxBody({
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable=true], [role=slider]")) return;
+      // Only when focus is in this overlay (not in a dialog stacked on top of it).
+      const dialog = mainRef.current?.closest("[role=dialog]");
+      if (dialog && target && target !== document.body && !dialog.contains(target)) return;
       if (event.key === "ArrowLeft" && onPrev) {
         event.preventDefault();
         onPrev();
@@ -143,8 +146,9 @@ export function LightboxBody({
         onNext();
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    // Capture phase: the dialog's focus management stops keydown propagation before it bubbles.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [onPrev, onNext]);
 
   // New item → scroll the image back to the top.

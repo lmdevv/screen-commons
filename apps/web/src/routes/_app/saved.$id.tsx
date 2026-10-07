@@ -78,7 +78,10 @@ function CollectionPage() {
     setDeleting(true);
     try {
       await deleteCollection({ data: { id } });
-      await queryClient.invalidateQueries({ queryKey: ["collections"] });
+      queryClient.setQueryData(queries.collections().queryKey, (current) =>
+        current ? { items: current.items.filter((item) => item.id !== id) } : current,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["collections"] });
       notify.message(`Deleted ${collection.name}`);
       void navigate({ to: "/saved" });
     } catch (error) {
