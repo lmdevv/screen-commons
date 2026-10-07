@@ -5,10 +5,12 @@ import type {
   SubmissionKind,
 } from "./types";
 
+import { createUuidV4 } from "../../lib/uuid";
+
 export const MAX_FLOW_IMAGES = 50;
 
 export function createId() {
-  return crypto.randomUUID();
+  return createUuidV4();
 }
 
 export function createDraft(kind: SubmissionKind): ContributionDraft {

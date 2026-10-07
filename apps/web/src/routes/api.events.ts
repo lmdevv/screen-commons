@@ -26,10 +26,12 @@ export const Route = createFileRoute("/api/events")({
         ) {
           return Response.json({ error: "Invalid analytics event" }, { status: 400 });
         }
-        if (!ENV.POSTHOG_API_KEY) return new Response(null, { status: 204 });
-        const response = await fetch(`${ENV.POSTHOG_HOST.replace(/\/$/u, "")}/capture/`, {
+        const runtimeEnv = ENV as Partial<typeof ENV> | undefined;
+        if (!runtimeEnv?.POSTHOG_API_KEY) return new Response(null, { status: 204 });
+        const posthogHost = runtimeEnv.POSTHOG_HOST ?? "https://us.i.posthog.com";
+        const response = await fetch(`${posthogHost.replace(/\/$/u, "")}/capture/`, {
           body: JSON.stringify({
-            api_key: ENV.POSTHOG_API_KEY,
+            api_key: runtimeEnv.POSTHOG_API_KEY,
             event: input.event,
             properties: {
               ...(input.properties as Record<string, unknown>),

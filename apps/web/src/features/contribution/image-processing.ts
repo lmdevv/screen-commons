@@ -1,5 +1,7 @@
 import type { ProcessedImage, ProcessingPhase } from "./types";
 
+import { createUuidV4 } from "../../lib/uuid";
+
 export const IMAGE_LIMITS = {
   acceptedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
   fullQuality: 0.9,
@@ -259,7 +261,7 @@ async function processWithWorker(file: File, onProgress: (progress: ImageProgres
   const worker = new Worker(new URL("../../workers/image-processing.worker.ts", import.meta.url), {
     type: "module",
   });
-  const id = crypto.randomUUID();
+  const id = createUuidV4();
   return new Promise<ProcessedImage>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<ImageWorkerResponse>) => {
       const message = event.data;

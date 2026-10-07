@@ -2,6 +2,8 @@
  * Vite-only stand-in so the application shell can run outside workerd.
  * Alchemy production builds externalize `cloudflare:workers` and use the real class.
  */
+export const env: Record<string, never> = {};
+
 export class WorkflowEntrypoint<Environment, Params> {
   protected readonly ctx: ExecutionContext;
   protected readonly env: Environment;

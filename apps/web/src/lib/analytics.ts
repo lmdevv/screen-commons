@@ -1,3 +1,5 @@
+import { createUuidV4 } from "./uuid";
+
 export const ANALYTICS_EVENTS = [
   "landing_viewed",
   "signup_started",
@@ -26,10 +28,10 @@ export function capture(event: AnalyticsEvent, properties: EventProperties = {})
   let distinctId: string;
   try {
     const storageKey = "open-ui:anonymous-id";
-    distinctId = window.localStorage.getItem(storageKey) ?? crypto.randomUUID();
+    distinctId = window.localStorage.getItem(storageKey) ?? createUuidV4();
     window.localStorage.setItem(storageKey, distinctId);
   } catch {
-    distinctId = crypto.randomUUID();
+    distinctId = createUuidV4();
   }
   void fetch("/api/events", {
     body: JSON.stringify({ distinctId, event, properties }),
