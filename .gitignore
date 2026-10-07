@@ -65,3 +65,6 @@ temp
 test-results
 playwright-report
 .seed-cache
+
+# Agent worktrees
+.claude/worktrees

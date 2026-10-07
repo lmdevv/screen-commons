@@ -200,6 +200,8 @@ export const screenMetaSchema = z.object({
   version: z.string().trim().max(40).optional(),
   dominantColor: hexColor.optional(),
   capturedAt: isoDate.optional(),
+  /** Visible text on the screen (DOM innerText or OCR), indexed for "text in screenshot" search. */
+  text: z.string().max(20_000).optional(),
   width: z.number().int().positive().max(LIMITS.maxImageWidth),
   height: z.number().int().positive().max(LIMITS.maxImageHeight),
 });
