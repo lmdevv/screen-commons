@@ -10,7 +10,7 @@
     "check-types": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "cf:deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "test": "vitest run"
   },
   "dependencies": {

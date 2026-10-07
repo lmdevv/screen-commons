@@ -59,9 +59,9 @@ APP_URL=http://localhost:5173
 ```
 
 > **Warning**
-> Don't deploy with `APP_URL` still set to `http://localhost:5173`. Sign-in won't work on your real domain, returned URLs will point to localhost, and the server will accept a missing `BETTER_AUTH_SECRET` by falling back to the public development secret.
+> Don't deploy with `APP_URL` still set to `http://localhost:5173`. Sign-in won't work on your real domain and returned URLs will point to localhost. When `APP_URL` is not localhost, a missing `BETTER_AUTH_SECRET` is a configuration error (the public development secret is only accepted for localhost).
 
-If you named the database or bucket differently, update `database_name` and `bucket_name` to match. Keep the `DB` and `MEDIA` binding names.
+If you named the database or bucket differently, update `database_name` and `bucket_name` to match. Keep the `DB`, `MEDIA` and `IMAGES` binding names. `IMAGES` (Cloudflare Images) generates thumbnails for uploads that don't include one, such as remote MCP `upload_screen`; without it those screens reuse the full image as their thumbnail.
 
 ## 3. Set secrets
 
@@ -97,15 +97,15 @@ Email and password sign-in is always on.
 ## 4. Deploy
 
 ```bash
-pnpm run deploy
+pnpm cf:deploy
 ```
 
-From the repository root, the equivalent is `pnpm --filter @open-ui/web run deploy`.
+From the repository root, the equivalent is `pnpm --filter @open-ui/web cf:deploy`.
 
 This builds the app, applies database migrations to the remote D1 database, and deploys the Worker. Run it again for every update; migrations that already ran are skipped.
 
 > **Note**
-> Include `run`. `pnpm deploy` without it is a built-in pnpm command that does something else entirely.
+> The script is named `cf:deploy` because `pnpm deploy` is a built-in pnpm command that does something else entirely.
 
 To apply migrations on their own, use `pnpm db:migrate:remote`.
 
@@ -150,4 +150,4 @@ Images live in R2 and everything else in D1.
 
 - **Logs.** Workers observability is enabled in `wrangler.jsonc`. Stream live logs with `pnpm exec wrangler tail`.
 - **Limits.** Uploads are capped at 40 MiB per request and 15 MiB per image; see [REST API limits](/docs/api#limits).
-- **Updating.** Pull the latest code, then `pnpm install` and `pnpm run deploy` in `apps/web`.
+- **Updating.** Pull the latest code, then `pnpm install` and `pnpm cf:deploy` in `apps/web`.
