@@ -123,6 +123,13 @@ export interface ApiResponses {
   captures: CaptureBatchResult;
   createFlow: { flow: FlowDetail };
   listCollections: { items: Collection[] };
+  createCollection: { collection: Collection };
+  getCollection: {
+    collection: Collection;
+    screens: Screen[];
+    flows: FlowSummary[];
+    apps: AppSummary[];
+  };
   listKeys: { items: ApiKey[] };
   /** `token` is only ever returned once, at creation. */
   createKey: { key: ApiKey; token: string };

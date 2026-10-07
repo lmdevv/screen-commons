@@ -121,6 +121,16 @@ export function createOpenUiClient(options: OpenUiClientOptions) {
       request<ApiResponses["createFlow"]>("POST", "/flows", input),
 
     listCollections: () => request<ApiResponses["listCollections"]>("GET", "/collections"),
+    createCollection: (name: string) =>
+      request<ApiResponses["createCollection"]>("POST", "/collections", { name }),
+    getCollection: (id: string) =>
+      request<ApiResponses["getCollection"]>("GET", `/collections/${encodeURIComponent(id)}`),
+    renameCollection: (id: string, name: string) =>
+      request<ApiResponses["createCollection"]>("PATCH", `/collections/${encodeURIComponent(id)}`, {
+        name,
+      }),
+    deleteCollection: (id: string) =>
+      request<void>("DELETE", `/collections/${encodeURIComponent(id)}`),
     save: (kind: SaveKind, id: string, collectionId?: string) =>
       request<void>("POST", "/saves", { kind, id, collectionId }),
     unsave: (kind: SaveKind, id: string, collectionId?: string) =>
