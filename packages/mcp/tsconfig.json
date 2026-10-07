@@ -1,0 +1,5 @@
+{
+  "extends": "@open-ui/config/tsconfig.base.json",
+  "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"], "types": ["node"] },
+  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
+}
