@@ -54,7 +54,11 @@ const landing = layout(
   <div class="custom-consent" style="position:fixed;bottom:140px;left:20px;width:320px;height:160px;background:#0f0;z-index:60">This site uses cookies to improve your experience. <button>OK</button></div>
   <div class="dim" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:40"></div>
   <div id="intercom-container" style="position:fixed;right:20px;bottom:20px;width:60px;height:60px;border-radius:30px;background:#00f;z-index:70"></div>
+  <button id="support-launcher" style="position:fixed;right:24px;bottom:24px;width:44px;height:44px;border-radius:22px;background:#f0f;z-index:80">?</button>
+  <div id="vendor-shadow-host"></div>
   <script>
+    const shadow = document.getElementById('vendor-shadow-host').attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<div id="inner" style="position:fixed;top:200px;left:200px;width:500px;height:200px;background:#ff0;z-index:90">Cookie Preferences: we use tracking technologies <button>Agree</button></div>';
     new IntersectionObserver((entries, observer) => {
       for (const entry of entries) if (entry.isIntersecting) {
         entry.target.src = entry.target.dataset.src; observer.unobserve(entry.target);

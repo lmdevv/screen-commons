@@ -65,6 +65,13 @@ describe.skipIf(!chrome)("capturePage (headless Chromium)", () => {
         ),
       );
       expect(hidden).toEqual(["none", "none", "none", "none"]);
+      const extra = await page.evaluate(() => [
+        getComputedStyle(document.getElementById("support-launcher")!).display,
+        getComputedStyle(
+          document.getElementById("vendor-shadow-host")!.shadowRoot!.getElementById("inner")!,
+        ).display,
+      ]);
+      expect(extra).toEqual(["none", "none"]);
       // Sticky header is still there at the top of the capture.
       expect(await pixel(result.png, 5, 5)).toEqual([17, 17, 17]);
       expect(result.text).toContain("Bottom text far below the fold");

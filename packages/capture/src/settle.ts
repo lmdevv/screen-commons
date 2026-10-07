@@ -34,6 +34,7 @@ export const CONSENT_SELECTORS = [
   "#ketch-consent-banner",
   "#lanyard_root",
   "#transcend-consent-manager",
+  "#transcend-shadow-root",
   ".cc-window",
   ".cc-banner",
   "#cc-main",
@@ -92,13 +93,15 @@ export const CHAT_SELECTORS = [
   ".woot-widget-holder",
   ".woot--bubble-holder",
   '[id^="kapa-widget"]',
-  "#qualified-chat",
+  "#qualified-multimodal-host",
+  "iframe#q-messenger-frame",
   'iframe[title*="chat widget" i]',
 ];
 
 /**
  * In-page: hide consent banners, their backdrops and chat launchers. Uses a stylesheet for known
- * vendors plus a heuristic for fixed/sticky elements whose text talks about cookies/consent.
+ * vendors plus heuristics for fixed/sticky elements (including inside open shadow roots) whose
+ * text talks about cookies/consent, and for small launchers floating in the bottom-right corner.
  * Never clicks anything. Returns the number of heuristically hidden elements.
  */
 export function hideOverlaysInPage(selectors: string[]): number {
@@ -111,43 +114,93 @@ export function hideOverlaysInPage(selectors: string[]): number {
   }
   const consentText =
     /\b(cookies?|consent|gdpr|ccpa|tracking technologies|privacy (preferences|settings|choices|center))\b/iu;
+  const launcherText = /\b(chat|help|support|question|assistant|ask|message|talk to|agent)\b/iu;
+  const isHidden = (element: Element): boolean => {
+    for (let node: Element | null = element; node;) {
+      if (node.hasAttribute("data-open-ui-hidden")) return true;
+      node = node.parentElement ?? ((node.getRootNode() as ShadowRoot).host || null);
+    }
+    return false;
+  };
   const hide = (element: HTMLElement) => {
     element.style.setProperty("display", "none", "important");
     element.setAttribute("data-open-ui-hidden", "");
   };
-  let hidden = 0;
-  const viewportArea = window.innerWidth * window.innerHeight;
+  const textOf = (element: HTMLElement) =>
+    (element.innerText || element.textContent || "").replace(/\s+/gu, " ").trim();
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const viewportArea = width * height;
   const fixed: HTMLElement[] = [];
-  for (const element of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
-    if (element.hasAttribute("data-open-ui-hidden")) continue;
-    const tag = element.tagName;
-    if (tag === "SCRIPT" || tag === "STYLE" || tag === "svg" || tag === "path") continue;
-    const position = getComputedStyle(element).position;
-    if (position === "fixed" || position === "sticky") fixed.push(element);
-  }
+  const collect = (root: Document | ShadowRoot, depth: number) => {
+    for (const element of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+      if (element.shadowRoot && depth < 3) collect(element.shadowRoot, depth + 1);
+      const tag = element.tagName;
+      if (
+        tag === "SCRIPT" ||
+        tag === "STYLE" ||
+        tag === "svg" ||
+        tag === "path" ||
+        tag === "HTML" ||
+        tag === "BODY"
+      )
+        continue;
+      const position = getComputedStyle(element).position;
+      if (position === "fixed" || position === "sticky") fixed.push(element);
+    }
+  };
+  collect(document, 0);
+
+  let hidden = 0;
   let foundConsent = false;
   for (const element of fixed) {
-    if (element.closest("[data-open-ui-hidden]")) continue;
-    const text = (element.innerText || "").slice(0, 4000);
-    if (!text || text.length > 3000 || !consentText.test(text)) continue;
+    if (isHidden(element)) continue;
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) continue;
-    // A sticky site header mentioning "privacy" is unlikely, but avoid hiding big nav bars.
-    const links = element.querySelectorAll("a").length;
-    if (rect.top <= 1 && rect.height < 140 && links > 6) continue;
-    hide(element);
-    hidden += 1;
-    foundConsent = true;
+    const text = textOf(element).slice(0, 4000);
+
+    // Consent banners / dialogs.
+    if (text && text.length <= 3000 && consentText.test(text)) {
+      // A sticky site header mentioning "privacy" is unlikely, but avoid hiding big nav bars.
+      const links = element.querySelectorAll("a").length;
+      if (!(rect.top <= 1 && rect.height < 140 && links > 6)) {
+        hide(element);
+        hidden += 1;
+        foundConsent = true;
+        continue;
+      }
+    }
+
+    // Floating launchers / chat bubbles anchored bottom-right (or bottom-left small buttons).
+    const bottomAnchored = rect.bottom > height - 160 && rect.top > height * 0.3;
+    const rightAnchored = rect.right > width - 160;
+    if (getComputedStyle(element).position !== "fixed") continue;
+    if (bottomAnchored && rightAnchored && rect.width <= 120 && rect.height <= 120) {
+      hide(element);
+      hidden += 1;
+      continue;
+    }
+    if (
+      bottomAnchored &&
+      rightAnchored &&
+      rect.width <= 440 &&
+      rect.height <= 560 &&
+      (element.tagName === "IFRAME" || launcherText.test(text))
+    ) {
+      hide(element);
+      hidden += 1;
+    }
   }
   // Full-screen dimming backdrops left behind by consent/marketing modals.
   for (const element of fixed) {
-    if (element.closest("[data-open-ui-hidden]")) continue;
+    if (isHidden(element)) continue;
     const rect = element.getBoundingClientRect();
     if (rect.width * rect.height < viewportArea * 0.6) continue;
     const style = getComputedStyle(element);
     const zIndex = Number.parseInt(style.zIndex, 10);
     if (!Number.isFinite(zIndex) || zIndex < 10) continue;
-    const text = (element.innerText || "").trim();
+    const text = textOf(element);
     const alpha = /rgba\([^)]*,\s*([\d.]+)\)/u.exec(style.backgroundColor)?.[1];
     const translucent = alpha !== undefined && Number(alpha) > 0.05 && Number(alpha) < 0.95;
     if (text.length < 20 && (translucent || style.backdropFilter !== "none")) {
@@ -321,6 +374,10 @@ export async function settlePage(page: Page, options: SettleOptions = {}): Promi
     .evaluate(waitForVisibleAssetsInPage, 5000)
     .catch(() => ({ pendingImages: -1 }));
   await page.waitForTimeout(options.quietTime ?? 500);
+  // Final pass right before capture for banners injected while we waited.
+  if (options.hideOverlays !== false) {
+    hiddenOverlays += await page.evaluate(hideOverlaysInPage, selectors).catch(() => 0);
+  }
 
   return {
     networkIdle,
