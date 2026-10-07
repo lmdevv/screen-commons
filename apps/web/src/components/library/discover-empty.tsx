@@ -2,13 +2,18 @@ import { labelFor } from "@open-ui/core/taxonomy";
 import { Button, Chip, EmptyState } from "@open-ui/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Plus, SearchX, Smartphone } from "lucide-react";
+import { Plus, SearchX, Shapes, Smartphone } from "lucide-react";
 
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
 import type { BrowseTab } from "../../lib/search-params";
 
-const FIELD = { apps: "category", screens: "pattern", elements: "element", flows: "flowType" } as const;
+const FIELD = {
+  apps: "category",
+  screens: "pattern",
+  elements: "element",
+  flows: "flowType",
+} as const;
 const FACET = {
   apps: "categories",
   screens: "patterns",
@@ -89,8 +94,39 @@ export function PlatformEmpty({ platform, className }: { platform: Platform; cla
             <Plus />
             Contribute
           </Button>
-          <Button variant="outline" render={<Link to="/docs/$slug" params={{ slug: "extension" }} />}>
+          <Button
+            variant="outline"
+            render={<Link to="/docs/$slug" params={{ slug: "extension" }} />}
+          >
             Browser extension guide
+          </Button>
+        </>
+      }
+    />
+  );
+}
+
+/** No screen on this platform carries UI element tags yet. */
+export function ElementsEmpty({ platform, className }: { platform: Platform; className?: string }) {
+  return (
+    <EmptyState
+      tone="tile"
+      className={className}
+      icon={<Shapes />}
+      title="No UI elements tagged yet"
+      description="Screens get UI element tags — Modal, Table, Tabs… — when contributors or reviewers add them. Browse by screen pattern in the meantime."
+      actions={
+        <>
+          <Button
+            variant="outline"
+            render={
+              <Link to="/browse/$platform" params={{ platform }} search={{ tab: "screens" }} />
+            }
+          >
+            Browse screens
+          </Button>
+          <Button variant="ghost" render={<Link to="/contribute" />}>
+            Contribute
           </Button>
         </>
       }

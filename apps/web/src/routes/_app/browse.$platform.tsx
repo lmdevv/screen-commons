@@ -1,4 +1,10 @@
-import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, type TaxonomyTerm } from "@open-ui/core/taxonomy";
+import {
+  CATEGORIES,
+  ELEMENTS,
+  FLOW_TYPES,
+  PATTERNS,
+  type TaxonomyTerm,
+} from "@open-ui/core/taxonomy";
 import {
   CategoryChips,
   Container,
@@ -11,23 +17,28 @@ import {
   Toolbar,
   cn,
 } from "@open-ui/ui";
-import { keepPreviousData, useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 
 import { AppResults } from "../../components/library/app-results";
-import { DiscoverEmpty, PlatformEmpty } from "../../components/library/discover-empty";
+import {
+  DiscoverEmpty,
+  ElementsEmpty,
+  PlatformEmpty,
+} from "../../components/library/discover-empty";
 import { FiltersButton } from "../../components/library/filters-button";
 import { FlowResults } from "../../components/library/flow-results";
 import { ScreenResults } from "../../components/library/screen-results";
 import { PlatformSwitch } from "../../components/shell/platform-switch";
 import { isPlatform, platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
-import {
-  validateBrowseSearch,
-  type BrowseSearch,
-  type BrowseTab,
-} from "../../lib/search-params";
+import { validateBrowseSearch, type BrowseSearch, type BrowseTab } from "../../lib/search-params";
 
 // --- queries (shared by the loader and the tabs, so SSR data is reused as-is) -----------------
 
@@ -161,7 +172,8 @@ function Discover() {
 
   const totals = facets.data?.totals;
   const empty = totals && totals.apps === 0 && totals.screens === 0;
-  const resultCount = useResultCount(tab, search, counts, totals);
+  const noElements = tab === "elements" && facets.data?.elements.length === 0;
+  const resultCount = useResultCount(tab, search, counts, noElements ? undefined : totals);
 
   return (
     <Container className="pt-10 pb-24 sm:pt-12">
@@ -197,6 +209,8 @@ function Discover() {
 
       {empty ? (
         <PlatformEmpty platform={platform} className="mt-10" />
+      ) : noElements ? (
+        <ElementsEmpty platform={platform} className="mt-10" />
       ) : (
         <>
           <CategoryChips
@@ -286,11 +300,18 @@ function Dimmed({ active, children }: { active: boolean; children: React.ReactNo
 }
 
 function AppsTab({ platform, search, onClear }: TabProps) {
-  const query = useInfiniteQuery({ ...appsQuery(platform, search), placeholderData: keepPreviousData });
+  const query = useInfiniteQuery({
+    ...appsQuery(platform, search),
+    placeholderData: keepPreviousData,
+  });
   const apps = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
   if (query.isPending) {
     return (
-      <ScreenGridSkeleton columns={platform === "web" ? "apps-web" : "apps-mobile"} count={8} withMeta />
+      <ScreenGridSkeleton
+        columns={platform === "web" ? "apps-web" : "apps-mobile"}
+        count={8}
+        withMeta
+      />
     );
   }
   if (apps.length === 0) {
@@ -344,7 +365,10 @@ function ScreensTab({ platform, search, tab, onClear }: TabProps & { tab: Browse
 }
 
 function FlowsTab({ platform, search, onClear }: TabProps) {
-  const query = useInfiniteQuery({ ...flowsQuery(platform, search), placeholderData: keepPreviousData });
+  const query = useInfiniteQuery({
+    ...flowsQuery(platform, search),
+    placeholderData: keepPreviousData,
+  });
   const flows = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
   if (query.isPending) return <ScreenGridSkeleton columns="flows" count={4} withMeta />;
   if (flows.length === 0) {

@@ -32,34 +32,42 @@ export function CollectionCard({
       {
         type: linkRender ? undefined : "button",
         onClick: () => onOpen?.(collection),
-        className: cn("group/col ou-focus-ring block w-full min-w-0 rounded-tile text-left", className),
+        className: cn(
+          "group/col ou-focus-ring block w-full min-w-0 rounded-tile text-left",
+          className,
+        ),
         children: (
           <>
-            <div className="grid aspect-[4/3] grid-cols-2 grid-rows-2 gap-1.5 overflow-hidden rounded-tile bg-tile p-1.5 transition-colors duration-150 group-hover/col:bg-tile-hover">
+            <div
+              className={cn(
+                "grid aspect-[4/3] gap-1.5 overflow-hidden rounded-tile bg-tile p-1.5 transition-colors duration-150 group-hover/col:bg-tile-hover",
+                // 1 preview fills the tile; 2 sit side by side; 3 = one tall + two stacked; 4 = 2×2.
+                previews.length === 2 ? "grid-cols-2 grid-rows-1" : "grid-cols-2 grid-rows-2",
+              )}
+            >
               {previews.length === 0 ? (
                 <div className="col-span-2 row-span-2 flex items-center justify-center text-fg-faint">
                   <Bookmark aria-hidden className="size-6" />
                 </div>
               ) : (
-                Array.from({ length: 4 }, (_, index) => {
-                  const preview = previews[index];
-                  return (
-                    <div
-                      key={index}
-                      className="relative overflow-hidden rounded-[14px] bg-bg after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_0_0_0_1px_var(--color-shot-border)]"
-                    >
-                      {preview ? (
-                        <img
-                          src={preview.thumbUrl}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className="size-full object-cover object-top"
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })
+                previews.map((preview, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "relative overflow-hidden rounded-[14px] bg-bg after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_0_0_0_1px_var(--color-shot-border)]",
+                      previews.length === 1 && "col-span-2 row-span-2",
+                      previews.length === 3 && index === 0 && "row-span-2",
+                    )}
+                  >
+                    <img
+                      src={preview.thumbUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover object-top"
+                    />
+                  </div>
+                ))
               )}
             </div>
             <div className="mt-3 px-0.5">

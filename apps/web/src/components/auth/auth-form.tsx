@@ -12,7 +12,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { CircleAlert, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { authClient } from "../../lib/auth-client";
 import { GitHubIcon } from "./github-icon";
@@ -91,6 +91,9 @@ export function AuthForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Until hydration a click would submit the form natively; keep it inert instead.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const target = safeRedirect(redirectTo);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -162,6 +165,7 @@ export function AuthForm({
       <form
         onSubmit={onSubmit}
         className={cn("flex flex-col gap-4", github ? "" : "mt-8")}
+        method="post"
         noValidate
       >
         {mode === "sign-up" ? (
@@ -223,7 +227,13 @@ export function AuthForm({
           </p>
         ) : null}
 
-        <Button type="submit" size="lg" className="mt-2 w-full" loading={pending}>
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-2 w-full"
+          loading={pending}
+          disabled={!hydrated}
+        >
           {copy.submit}
         </Button>
       </form>

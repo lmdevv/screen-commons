@@ -31,7 +31,10 @@ const LIMIT = 30;
 
 export const Route = createFileRoute("/_app/search")({
   validateSearch: validateSearchPage,
-  loaderDeps: ({ search: { q, platform } }) => ({ q: q?.trim() ?? "", platform: platform ?? "web" }),
+  loaderDeps: ({ search: { q, platform } }) => ({
+    q: q?.trim() ?? "",
+    platform: platform ?? "web",
+  }),
   loader: async ({ context: { queryClient }, deps }) => {
     if (!deps.q) return;
     const work = queryClient.prefetchQuery(
@@ -112,7 +115,7 @@ function SearchPage() {
         }
         description={
           data
-            ? `${total === LIMIT * 3 ? `${total}+` : total} results on ${platformLabel(platform)}`
+            ? `${total}${capped(data) ? "+" : ""} ${total === 1 ? "result" : "results"} on ${platformLabel(platform)}`
             : undefined
         }
         actions={<PlatformSwitch value={platform} />}
@@ -158,7 +161,9 @@ function SearchPage() {
         />
       ) : (
         <div
-          className={results.isPlaceholderData ? "opacity-50 transition-opacity" : "transition-opacity"}
+          className={
+            results.isPlaceholderData ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
         >
           {data.apps.length > 0 ? (
             <section className="mt-12">
@@ -213,6 +218,11 @@ function SearchPage() {
   );
 }
 
+/** Some group hit the result limit: there may be more than shown. */
+function capped(data: SearchResult) {
+  return [data.apps, data.screens, data.flows].some((group) => group.length === LIMIT);
+}
+
 function countLabel(count: number, noun: string) {
   return `${count === LIMIT ? `${count}+` : count} ${noun}${count === 1 ? "" : "s"}`;
 }
@@ -222,7 +232,10 @@ function TextMatch({ snippet }: { snippet: string }) {
   const parts = snippet.split(/(\[[^\]]*\])/u);
   return (
     <p className="mt-2.5 flex min-w-0 items-start gap-1.5 px-1 text-sm text-fg-muted">
-      <TextSearch aria-label="Text in screenshot" className="mt-px size-3.5 shrink-0 text-fg-subtle" />
+      <TextSearch
+        aria-label="Text in screenshot"
+        className="mt-px size-3.5 shrink-0 text-fg-subtle"
+      />
       <span className="line-clamp-1">
         {parts.map((part, index) =>
           part.startsWith("[") && part.endsWith("]") ? (
