@@ -109,23 +109,28 @@ Auth: session cookie **or** `Authorization: Bearer oui_…`. JSON errors:
 `{ items: T[], nextCursor: string | null }`. Exact request/response shapes live in
 `packages/core/src/api.ts`.
 
-| Method          | Path                                     | Notes                                                                                                               |
-| --------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| GET             | `/api/v1/me`                             | current user                                                                                                        |
-| GET             | `/api/v1/taxonomy`                       | categories, patterns, elements, flow types                                                                          |
-| GET             | `/api/v1/apps`                           | `platform, category, q, sort, cursor, limit`                                                                        |
-| GET             | `/api/v1/apps/$slug`                     | app + counts + flows summary                                                                                        |
-| GET             | `/api/v1/screens`                        | `app, platform, pattern, element, q, sort, cursor, limit`                                                           |
-| GET             | `/api/v1/screens/$id`                    | screen + app + neighbors                                                                                            |
-| GET             | `/api/v1/flows`                          | `app, platform, type, q, cursor, limit`                                                                             |
-| GET             | `/api/v1/flows/$id`                      | flow + steps (with screens)                                                                                         |
-| GET             | `/api/v1/search`                         | `q, platform` → grouped apps/screens/flows                                                                          |
-| POST            | `/api/v1/screens`                        | multipart: `image`, `thumbnail`, `meta` (JSON, `CreateScreenInput`)                                                 |
-| POST            | `/api/v1/captures`                       | JSON batch (`CaptureBatchInput`, base64 images) → app upsert + screens + optional flow. Used by extension/MCP/seed. |
-| POST            | `/api/v1/flows`                          | `CreateFlowInput` from existing screen ids                                                                          |
-| POST            | `/api/v1/collections/$id/items` · DELETE | save/unsave                                                                                                         |
-| GET/POST/DELETE | `/api/v1/keys`                           | session-only: manage API keys                                                                                       |
-| POST            | `/api/v1/review/$kind/$id`               | admin: `{ decision: "approve" \| "reject" }`                                                                        |
+| Method               | Path                       | Notes                                                                                                               |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET                  | `/api/v1/me`               | current user                                                                                                        |
+| GET                  | `/api/v1/taxonomy`         | categories, patterns, elements, flow types                                                                          |
+| GET                  | `/api/v1/apps`             | `platform, category, q, sort, cursor, limit`                                                                        |
+| GET                  | `/api/v1/apps/$slug`       | app + counts + flows summary                                                                                        |
+| GET                  | `/api/v1/screens`          | `app, platform, pattern, element, q, sort, cursor, limit`                                                           |
+| GET                  | `/api/v1/screens/$id`      | screen + app + neighbors                                                                                            |
+| GET                  | `/api/v1/flows`            | `app, platform, type, q, cursor, limit`                                                                             |
+| GET                  | `/api/v1/flows/$id`        | flow + steps (with screens)                                                                                         |
+| GET                  | `/api/v1/search`           | `q, platform` → grouped apps/screens/flows                                                                          |
+| POST                 | `/api/v1/screens`          | multipart: `image`, `thumbnail`, `meta` (JSON, `CreateScreenInput`)                                                 |
+| POST                 | `/api/v1/captures`         | JSON batch (`CaptureBatchInput`, base64 images) → app upsert + screens + optional flow. Used by extension/MCP/seed. |
+| POST                 | `/api/v1/flows`            | `CreateFlowInput` from existing screen ids                                                                          |
+| GET                  | `/api/v1/collections`      | your collections (a default "Saved" always exists)                                                                  |
+| POST                 | `/api/v1/collections`      | `{ name }` → create                                                                                                 |
+| GET / PATCH / DELETE | `/api/v1/collections/$id`  | items (screens, flows, apps) · rename · delete (not the default)                                                    |
+| POST / DELETE        | `/api/v1/saves`            | `{ kind: "screen" \| "flow" \| "app", id, collectionId? }` save / unsave (DELETE uses query params)                 |
+| GET / POST           | `/api/v1/keys`             | session-only: list / create (`{ name }`, token returned once)                                                       |
+| DELETE               | `/api/v1/keys/$id`         | session-only: revoke                                                                                                |
+| GET                  | `/api/v1/review`           | admin: pending screens and flows                                                                                    |
+| POST                 | `/api/v1/review/$kind/$id` | admin: `{ decision: "approve" \| "reject" }`                                                                        |
 
 `/media/$key` serves R2 objects. `/mcp` is the remote MCP endpoint (Streamable HTTP, stateless,
 bearer API key).
