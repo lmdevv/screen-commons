@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { displayTitle } from "../../lib/display-title";
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
 import { addRecentSearch, clearRecentSearches, readRecentSearches } from "../../lib/recent-searches";
@@ -229,7 +230,8 @@ export default function SearchPalette({
                   hint={screen.app.name}
                   onSelect={() => openOverlay("screen", screen.id)}
                 >
-                  {screen.title ?? labelFor(screen.patterns[0] ?? "screen")}
+                  {displayTitle(screen.title, screen.app.name) ??
+                    labelFor(screen.patterns[0] ?? "screen")}
                 </CommandItem>
               ))}
             </CommandGroup>

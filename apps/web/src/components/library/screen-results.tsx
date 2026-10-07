@@ -39,6 +39,8 @@ export interface ScreenResultsProps {
   renderCaption?: (screen: Screen) => ReactNode;
   /** Mark the first row as high priority (above the fold). Default true. */
   priority?: boolean;
+  /** Replace the default save toggle (e.g. unsave from one collection only). */
+  onSaveToggle?: (screen: Screen, saved: boolean) => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export function ScreenResults({
   downloadName = "Open UI screens",
   renderCaption,
   priority = true,
+  onSaveToggle,
 }: ScreenResultsProps) {
   const toggleSave = useSaveToggle();
   const list = useMemo(
@@ -80,7 +83,11 @@ export function ScreenResults({
               showApp={showApp}
               priority={priority && index < firstRow}
               linkRender={screenLink(screen.id)}
-              onSaveToggle={(tile, saved) => void toggleSave({ kind: "screen", id: tile.id }, saved)}
+              onSaveToggle={(_, saved) =>
+                onSaveToggle
+                  ? onSaveToggle(screen, saved)
+                  : void toggleSave({ kind: "screen", id: screen.id }, saved)
+              }
               selectable={selectable}
               selected={selection.selected.has(screen.id)}
               onSelectedChange={(selected) => selection.change(index, selected)}

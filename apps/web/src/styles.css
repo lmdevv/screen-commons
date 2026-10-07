@@ -1,1 +1,2 @@
-@import "tailwindcss";
+/* The only Tailwind entry: tokens, base styles and Tailwind itself come from the design system. */
+@import "@open-ui/ui/styles.css";

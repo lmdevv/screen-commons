@@ -64,6 +64,7 @@ export function FlowViewer({
           activeIndex={activeIndex}
           onStepClick={onStepClick}
           size="lg"
+          fullImages
           aria-label={`${flow.name} steps`}
         />
       </div>

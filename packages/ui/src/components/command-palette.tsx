@@ -205,8 +205,9 @@ export function CommandItem({
           {icon}
         </span>
       ) : null}
-      <span className="min-w-0 truncate">{children}</span>
-      {hint ? <span className="min-w-0 truncate text-sm text-fg-subtle">{hint}</span> : null}
+      {/* The label keeps its width (up to 70%); the hint truncates first. */}
+      <span className="max-w-[70%] min-w-0 shrink-0 truncate">{children}</span>
+      {hint ? <span className="min-w-0 flex-1 truncate text-sm text-fg-subtle">{hint}</span> : null}
       <span className="ml-auto flex shrink-0 items-center gap-2">
         {shortcut ? (
           <KbdGroup>

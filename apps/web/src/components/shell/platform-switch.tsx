@@ -1,7 +1,8 @@
 import { SegmentedControl } from "@open-ui/ui";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 
 import { PLATFORM_OPTIONS, rememberPlatform, type Platform } from "../../lib/platform";
+import type { BrowseSearch } from "../../lib/search-params";
 
 /**
  * Web / iOS / Android. On Discover it keeps the current tab, filters and sort; on /search it
@@ -17,15 +18,18 @@ export function PlatformSwitch({
   size?: "sm" | "md";
 }) {
   const navigate = useNavigate();
+  const router = useRouter();
   const routeId = useRouterState({ select: (state) => state.matches.at(-1)?.routeId });
 
   const change = (platform: Platform) => {
     rememberPlatform(platform);
     if (routeId === "/_app/browse/$platform") {
+      const { tab, category, pattern, element, flowType, sort } = router.state.location
+        .search as BrowseSearch;
       void navigate({
         to: "/browse/$platform",
         params: { platform },
-        search: (previous) => ({ ...previous, screen: undefined, flow: undefined }),
+        search: { tab, category, pattern, element, flowType, sort },
         resetScroll: false,
       });
     } else if (routeId === "/_app/search") {

@@ -175,7 +175,8 @@ export function NativeSelect<T extends string = string>({
           size === "md" ? "h-9 text-base" : "h-8 text-sm",
           variant === "filled" && "h-10 rounded-control bg-muted pr-9 pl-3 hover:bg-muted-strong/70",
           variant === "pill" && "rounded-pill border border-border-strong bg-bg pr-9 pl-4 hover:bg-muted",
-          variant === "ghost" && "rounded-pill pr-8 pl-2 hover:bg-muted",
+          // Size to the selected option (not the longest one) where supported.
+          variant === "ghost" && "w-auto rounded-pill pr-8 pl-2 [field-sizing:content] hover:bg-muted",
         )}
         {...props}
       >

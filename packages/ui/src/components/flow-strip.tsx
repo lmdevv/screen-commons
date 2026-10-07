@@ -53,7 +53,7 @@ export function FlowStrip({
   const itemWidth =
     kind === "web"
       ? size === "lg"
-        ? "w-[min(78vw,640px)]"
+        ? "w-[min(78vw,calc((100dvh-320px)*1.6),960px)]"
         : "w-[min(70vw,360px)]"
       : size === "lg"
         ? "w-[min(62vw,clamp(180px,calc((100dvh-300px)*0.4615),340px))]"

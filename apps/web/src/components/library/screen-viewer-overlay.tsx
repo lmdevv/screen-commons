@@ -17,8 +17,9 @@ import { ScreenViewer } from "@open-ui/ui/components/screen-viewer";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink, Link2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { withDisplayTitle } from "../../lib/display-title";
 import { queries } from "../../lib/queries";
 import { errorMessage, notify } from "../../lib/toast";
 import { copyImageToClipboard, copyText, downloadScreen } from "./image-actions";
@@ -45,7 +46,10 @@ export default function ScreenViewerOverlay({
     ...queries.screen(id),
     placeholderData: (previous) => (findListedScreen(id) as ScreenDetail | undefined) ?? previous,
   });
-  const screen: ViewerData | undefined = detail.data;
+  const screen: ViewerData | undefined = useMemo(
+    () => (detail.data ? withDisplayTitle(detail.data) : undefined),
+    [detail.data],
+  );
   const [zoom, setZoom] = useState<"fill" | "fit">(() => {
     try {
       return localStorage.getItem(ZOOM_KEY) === "fit" ? "fit" : "fill";
@@ -180,7 +184,13 @@ export default function ScreenViewerOverlay({
       actions={
         <>
           <Tooltip content="Copy link">
-            <Button variant="ghost" icon aria-label="Copy link" onClick={() => void copyLink(screen)}>
+            <Button
+              variant="ghost"
+              icon
+              className="hidden sm:inline-flex"
+              aria-label="Copy link"
+              onClick={() => void copyLink(screen)}
+            >
               <Link2 />
             </Button>
           </Tooltip>

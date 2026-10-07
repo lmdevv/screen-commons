@@ -217,6 +217,7 @@ export function ScreenViewer({
                 <Button
                   variant="ghost"
                   icon
+                  className="hidden md:inline-flex"
                   aria-label={fit ? "Show at full width" : "Fit to screen"}
                   aria-pressed={fit}
                   onClick={() => onZoomChange(fit ? "fill" : "fit")}
@@ -227,7 +228,13 @@ export function ScreenViewer({
             ) : null}
             {onCopyImage ? (
               <Tooltip content="Copy image">
-                <Button variant="ghost" icon aria-label="Copy image" onClick={() => onCopyImage(screen)}>
+                <Button
+                  variant="ghost"
+                  icon
+                  className="hidden sm:inline-flex"
+                  aria-label="Copy image"
+                  onClick={() => onCopyImage(screen)}
+                >
                   <Copy />
                 </Button>
               </Tooltip>

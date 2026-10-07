@@ -15,6 +15,11 @@ import { DeferredToaster } from "../components/shell/deferred-toaster";
 import { queries } from "../lib/queries";
 import styles from "../styles.css?url";
 
+/** The Open UI mark as an inline SVG favicon (follows the OS colour scheme). */
+const FAVICON = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>*{fill:#0a0a0a}@media (prefers-color-scheme:dark){*{fill:#f2f2f3}}</style><circle cx="6.25" cy="6.25" r="5.25"/><rect x="13" y="1" width="10.5" height="10.5" rx="2.75"/><rect x="1" y="13" width="10.5" height="10.5" rx="2.75"/><rect x="13" y="13" width="10.5" height="10.5" rx="2.75" fill-opacity=".32"/></svg>',
+)}`;
+
 export interface RouterContext {
   queryClient: QueryClient;
   /** Signed-in user (null when logged out), resolved once per navigation in `beforeLoad`. */
@@ -35,7 +40,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         content: "An open-source library of real product screens and flows.",
       },
     ],
-    links: [{ rel: "stylesheet", href: styles }],
+    links: [
+      { rel: "stylesheet", href: styles },
+      { rel: "icon", type: "image/svg+xml", href: FAVICON },
+    ],
   }),
   beforeLoad: async ({ context }) => ({
     user: await context.queryClient.fetchQuery(queries.session()),
