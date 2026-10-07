@@ -1,70 +1,31 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { z } from "zod";
 
+import { SettingsPage } from "../../components/settings/settings-page";
+import { getInstanceOrigin } from "../../components/settings/settings.functions";
 import { queries } from "../../lib/queries";
-import { createKey, revokeKey } from "../../server/functions";
+
+const originQuery = () =>
+  queryOptions({ queryKey: ["origin"], queryFn: () => getInstanceOrigin(), staleTime: Infinity });
 
 export const Route = createFileRoute("/_app/settings")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(queries.keys()),
+  validateSearch: z.object({
+    tab: z.enum(["profile", "keys", "integrations"]).optional().catch(undefined),
+  }),
+  loaderDeps: ({ search }) => ({ tab: search.tab }),
+  loader: ({ context, deps }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(originQuery()),
+      deps.tab === "keys" ? context.queryClient.ensureQueryData(queries.keys()) : null,
+    ]),
+  head: () => ({ meta: [{ title: "Settings · Open UI" }] }),
   component: Settings,
 });
 
 function Settings() {
-  const queryClient = useQueryClient();
-  const keys = useQuery(queries.keys());
-  const [token, setToken] = useState<string | null>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: queries.keys().queryKey });
-
-  const create = useMutation({
-    mutationFn: (name: string) => createKey({ data: { name } }),
-    onSuccess: async (result) => {
-      setToken(result.token);
-      await refresh();
-    },
-  });
-  const revoke = useMutation({
-    mutationFn: (id: string) => revokeKey({ data: { id } }),
-    onSuccess: refresh,
-  });
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    create.mutate(String(new FormData(form).get("name")), { onSuccess: () => form.reset() });
-  }
-
-  return (
-    <main>
-      <h1>Settings</h1>
-      <h2>API keys</h2>
-      <form onSubmit={onSubmit}>
-        <label>
-          Name <input name="name" required maxLength={60} placeholder="My script" />
-        </label>
-        <button type="submit" disabled={create.isPending}>
-          Create key
-        </button>
-      </form>
-      {create.error ? <p role="alert">{create.error.message}</p> : null}
-      {token ? (
-        <p>
-          New key (copy it now, it won't be shown again):{" "}
-          <code data-testid="new-token">{token}</code>
-        </p>
-      ) : null}
-      <ul>
-        {keys.data?.items.map((key) => (
-          <li key={key.id}>
-            {key.name} <code>{key.prefix}…</code> · created{" "}
-            {new Date(key.createdAt).toLocaleDateString()} · last used{" "}
-            {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : "never"}{" "}
-            <button type="button" onClick={() => revoke.mutate(key.id)} disabled={revoke.isPending}>
-              Revoke
-            </button>
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
+  const { tab } = Route.useSearch();
+  const { user } = Route.useRouteContext();
+  const { data: origin } = useSuspenseQuery(originQuery());
+  return <SettingsPage tab={tab ?? "profile"} user={user} origin={origin} />;
 }
