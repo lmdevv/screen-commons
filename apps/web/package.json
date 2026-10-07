@@ -11,22 +11,28 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "cf:deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "node --test --test-concurrency=1 e2e/library.e2e.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@open-ui/core": "workspace:*",
     "@open-ui/db": "workspace:*",
+    "@open-ui/ui": "workspace:*",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-router-ssr-query": "^1.167.3",
     "@tanstack/react-start": "catalog:",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
+    "fflate": "^0.8.2",
     "hono": "catalog:",
+    "lucide-react": "catalog:",
+    "marked": "^18.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "shiki": "^4.5.0",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -38,6 +44,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "playwright-core": "^1.63.0",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
