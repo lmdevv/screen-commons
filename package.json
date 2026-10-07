@@ -9,6 +9,7 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "seed": "pnpm --filter @open-ui/capture seed",
     "lint": "oxlint",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
