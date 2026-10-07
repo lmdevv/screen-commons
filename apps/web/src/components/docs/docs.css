@@ -1,0 +1,144 @@
+/*
+ * Styles for rendered docs HTML (see ./markdown.ts). Plain CSS on the design tokens, loaded only
+ * by the /docs routes. Typography comes from `.ou-prose`.
+ */
+
+/* Headings: anchor links that look like plain headings. */
+.ou-prose .docs-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ou-prose .docs-anchor:hover {
+  text-decoration: none;
+}
+.ou-prose h2:hover .docs-anchor::after,
+.ou-prose h3:hover .docs-anchor::after {
+  content: "#";
+  margin-left: 8px;
+  color: var(--ou-fg-faint);
+  font-weight: 500;
+}
+
+/* Code blocks: grey tile, optional language label, copy button. */
+.ou-prose .docs-code {
+  position: relative;
+  border-radius: var(--radius-card);
+  background: var(--ou-tile);
+  overflow: hidden;
+}
+.ou-prose .docs-code-label {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ou-border);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--ou-fg-muted);
+}
+.ou-prose .docs-code pre {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 48px 14px 16px;
+}
+.ou-prose .docs-code .shiki span {
+  color: var(--shiki-light);
+}
+.dark .ou-prose .docs-code .shiki span {
+  color: var(--shiki-dark);
+}
+.ou-prose .docs-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--ou-fg-muted);
+  opacity: 0;
+  transition:
+    opacity 150ms var(--ease-out),
+    background-color 150ms var(--ease-out),
+    color 150ms var(--ease-out);
+}
+.ou-prose .docs-code[data-label] .docs-copy {
+  top: 2px;
+}
+.ou-prose .docs-code:hover .docs-copy,
+.ou-prose .docs-copy:focus-visible,
+.ou-prose .docs-copy[data-copied] {
+  opacity: 1;
+}
+@media (hover: none) {
+  .ou-prose .docs-copy {
+    opacity: 1;
+  }
+}
+.ou-prose .docs-copy:hover {
+  background: var(--ou-muted-strong);
+  color: var(--ou-fg);
+}
+.ou-prose .docs-copy:focus-visible {
+  outline: 2px solid var(--ou-ring);
+  outline-offset: 1px;
+}
+.ou-prose .docs-copy[data-copied] {
+  color: var(--ou-success);
+}
+
+/* Callouts: `> **Note**` / `> **Warning**` / `> **Tip**`. */
+.ou-prose .docs-callout {
+  border-radius: var(--radius-control);
+  padding: 12px 16px;
+  background: var(--ou-tile);
+  font-size: 14px;
+  line-height: 22px;
+}
+.ou-prose .docs-callout > * + * {
+  margin-top: 8px;
+}
+.ou-prose .docs-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--ou-fg);
+}
+.ou-prose .docs-callout-title svg {
+  color: var(--ou-fg-muted);
+}
+.ou-prose .docs-callout[data-tone="note"] {
+  background: var(--ou-accent-soft);
+}
+.ou-prose .docs-callout[data-tone="note"] .docs-callout-title svg {
+  color: var(--ou-accent);
+}
+.ou-prose .docs-callout[data-tone="warning"] {
+  background: var(--ou-warning-soft);
+}
+.ou-prose .docs-callout[data-tone="warning"] .docs-callout-title svg {
+  color: var(--ou-warning);
+}
+.ou-prose .docs-callout pre {
+  background: var(--ou-bg);
+}
+
+/* Wide tables scroll inside the column instead of the page. */
+.ou-prose .docs-table {
+  overflow-x: auto;
+}
+.ou-prose .docs-table table {
+  min-width: 100%;
+}
+.ou-prose .docs-table th,
+.ou-prose .docs-table td {
+  white-space: normal;
+}
+.ou-prose .docs-table td code {
+  white-space: nowrap;
+}

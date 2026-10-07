@@ -1,20 +1,28 @@
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { LandingPage } from "../components/marketing/landing";
+import { landingQuery } from "../components/marketing/queries";
 
 export const Route = createFileRoute("/")({
   beforeLoad: ({ context }) => {
     if (context.user) throw redirect({ to: "/browse/$platform", params: { platform: "web" } });
   },
+  loader: ({ context }) => context.queryClient.ensureQueryData(landingQuery()),
+  head: () => ({
+    meta: [
+      { title: "Open UI — Real product screens, open to everyone" },
+      {
+        name: "description",
+        content:
+          "An open-source, self-hostable library of real product screens and flows, searchable by pattern, element and flow.",
+      },
+    ],
+  }),
   component: Landing,
 });
 
 function Landing() {
-  return (
-    <main>
-      <h1>Open UI</h1>
-      <p>An open-source library of real product screens and flows.</p>
-      <p>
-        <Link to="/sign-in">Sign in</Link> · <Link to="/sign-up">Create an account</Link>
-      </p>
-    </main>
-  );
+  const { data } = useSuspenseQuery(landingQuery());
+  return <LandingPage data={data} />;
 }
