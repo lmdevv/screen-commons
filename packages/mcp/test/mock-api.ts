@@ -92,6 +92,16 @@ export async function startMockApi(): Promise<MockApi> {
     const path = url.pathname.slice("/api/v1".length);
     try {
       if (request.method === "GET" && path === "/taxonomy") return json(200, TAXONOMY);
+      if (request.method === "GET" && path === "/me") {
+        return json(200, {
+          id: "user_1",
+          name: "Admin",
+          email: "admin@example.com",
+          image: null,
+          role: "admin",
+          createdAt: "2026-10-01T00:00:00.000Z",
+        });
+      }
       if (request.method === "GET" && path === "/screens") {
         return json(200, {
           items: [screen("scr_1"), screen("scr_2")],

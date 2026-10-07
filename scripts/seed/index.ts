@@ -127,6 +127,32 @@ async function writeManifest(site: SeedSite, manifest: Manifest) {
   );
 }
 
+/** Product/marketing pages that the generic URL heuristics can't classify. */
+const PATH_PATTERNS: Record<string, PatternSlug[]> = {
+  "/enterprise": ["features"],
+  "/teams": ["features"],
+  "/pro": ["features", "pricing"],
+  "/max": ["features"],
+  "/students": ["features"],
+  "/payments": ["features"],
+  "/database": ["features"],
+  "/design": ["features"],
+  "/user-authentication": ["features"],
+  "/treasury": ["features"],
+  "/store": ["integrations"],
+  "/marketplace": ["integrations"],
+  "/templates": ["search"],
+  "/about-us": ["about"],
+  "/customer-stories": ["customers"],
+  "/dashboard/sign-in": ["login"],
+  "/dashboard/sign-up": ["signup"],
+  "/docs/installation": ["docs"],
+};
+
+function patternsFor(path: string, url: string, title: string): PatternSlug[] {
+  return PATH_PATTERNS[path] ?? suggestPatterns(url, title);
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: NodeJS.Timeout;
   return Promise.race([
@@ -175,6 +201,7 @@ async function captureSite(
       const key = pageKey(path);
       const existing = manifest.pages.find((page) => page.path === path);
       if (existing && !options.force && existsSync(join(dir, existing.file))) {
+        existing.patterns = patternsFor(path, existing.requestedUrl, existing.title);
         stats.cached += 1;
         continue;
       }
@@ -201,7 +228,7 @@ async function captureSite(
           requestedUrl,
           url: result.url,
           title: result.title,
-          patterns: suggestPatterns(requestedUrl, result.title),
+          patterns: patternsFor(path, requestedUrl, result.title),
           file,
           thumb: thumbFile,
           width: result.width,
@@ -235,6 +262,9 @@ async function captureSite(
         await writeManifest(site, manifest);
       }
     }
+    // Drop pages that are no longer curated and persist refreshed tags of cached pages.
+    manifest.pages = manifest.pages.filter((page) => site.paths.includes(page.path));
+    await writeManifest(site, manifest);
   } finally {
     await context.close().catch(() => undefined);
   }
@@ -320,7 +350,7 @@ async function commandUpload(flags: Record<string, string | boolean>) {
           sourceUrl: page.url,
           title: page.title,
           viewport: "desktop",
-          patterns: page.patterns,
+          patterns: patternsFor(page.path, page.requestedUrl, page.title),
           text: page.text,
           capturedAt: page.capturedAt,
         });
