@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open UI — design system</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%226.25%22 cy=%226.25%22 r=%225.25%22/%3E%3Crect x=%2213%22 y=%221%22 width=%2210.5%22 height=%2210.5%22 rx=%222.75%22/%3E%3Crect x=%221%22 y=%2213%22 width=%2210.5%22 height=%2210.5%22 rx=%222.75%22/%3E%3Crect x=%2213%22 y=%2213%22 width=%2210.5%22 height=%2210.5%22 rx=%222.75%22 fill-opacity=%220.32%22/%3E%3C/svg%3E" />
+    <script>
+      /* Showcase: allow ?theme=dark|light to force a theme (used by the screenshot script). */
+      (function () {
+        try {
+          var forced = new URLSearchParams(location.search).get("theme");
+          if (forced === "dark" || forced === "light") localStorage.setItem("open-ui-theme", forced);
+        } catch (e) {}
+      })();
+    </script>
+    <script>
+      (function(){try{var k="open-ui-theme";var t=localStorage.getItem(k);if(t!=="light"&&t!=="dark")t="system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;r.classList.remove("light","dark");r.classList.add(d?"dark":"light");r.style.colorScheme=d?"dark":"light";}catch(e){}})();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
