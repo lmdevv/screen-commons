@@ -21,7 +21,11 @@ const ADMIN_EMAIL = process.env.E2E_EMAIL ?? "admin@openui.dev";
 const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "openui-admin-2026";
 const CHROME = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const STAMP = Date.now().toString(36);
-const MEMBER = { name: "E2E Member", email: `e2e-${STAMP}@example.com`, password: `pw-${STAMP}-e2e` };
+const MEMBER = {
+  name: "E2E Member",
+  email: `e2e-${STAMP}@example.com`,
+  password: `pw-${STAMP}-e2e`,
+};
 const APP_NAME = "E2E Product Test";
 const FLOW_NAME = `Signing up ${STAMP}`;
 const STEPS = ["Sign up", "Verify email", "Welcome"];
@@ -92,7 +96,9 @@ describe("public pages", () => {
     await page.waitForFunction(() =>
       [...document.querySelectorAll('section[aria-label="From the library"] img')]
         .slice(0, 3)
-        .every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0),
+        .every(
+          (img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0,
+        ),
     );
     await page.getByRole("link", { name: "Get started" }).first().waitFor();
     await context.close();
@@ -225,13 +231,14 @@ describe("contribute → review", () => {
     await page.getByRole("article", { name: `Reviewing ${FLOW_NAME}` }).waitFor();
     await page.getByText(MEMBER.name).first().waitFor(); // contributor shown
     await page.keyboard.press("a"); // keyboard shortcut: approve
-    await row.waitFor({ state: "detached" });
+    await row.waitFor({ state: "detached" }); // optimistic removal
+    await page.getByText("Flow approved").waitFor(); // server confirmed
 
     const flow = await (await admin.request.get(`${BASE}/api/v1/flows/${flowId}`)).json();
     assert.equal(flow.status, "published");
     for (const step of flow.steps) assert.equal(step.screen.status, "published");
 
-    await page.goto(`${BASE}/apps/${appSlug}`);
+    await page.goto(`${BASE}/apps/${appSlug}?tab=flows`);
     await page.getByRole("heading", { name: APP_NAME }).first().waitFor();
     await page.getByText(FLOW_NAME).first().waitFor();
   });

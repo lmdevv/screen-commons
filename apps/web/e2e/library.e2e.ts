@@ -58,14 +58,23 @@ describe("library", () => {
     const apps = page.locator('main a[href^="/apps/"]');
     await apps.first().waitFor();
     assert.ok((await apps.count()) >= 6, "at least 6 app cards");
-    await page.getByRole("link", { name: /^Linear/u }).first().waitFor();
+    // The newest app leads the default (Latest) sort, whichever it is.
+    const newest = await (
+      await page.request.get(`${BASE}/api/v1/apps?platform=web&limit=1`)
+    ).json();
+    await page.locator(`main a[href="/apps/${newest.items[0].slug}"]`).first().waitFor();
   });
 
   test("filters screens by pattern", async () => {
     await page.getByRole("link", { name: "Screens", exact: true }).click();
     await page.waitForURL(/tab=screens/u);
-    await page.getByRole("group", { name: "Screen patterns" }).getByRole("button", { name: /^Pricing/u }).click();
+    await page
+      .getByRole("group", { name: "Screen patterns" })
+      .getByRole("button", { name: /^Pricing/u })
+      .click();
     await page.waitForURL(/pattern=pricing/u);
+    // The previous results stay on screen (dimmed, aria-busy) until the filtered page arrives.
+    await page.waitForFunction(() => !document.querySelector('main [aria-busy="true"]'));
     const tiles = page.locator("main [data-screen-id]");
     await tiles.first().waitFor();
     assert.ok((await tiles.count()) >= 3, "pricing screens are listed");
@@ -103,7 +112,9 @@ describe("library", () => {
     await picker.getByRole("button", { name: "Create" }).click();
     await picker.getByRole("button", { name: new RegExp(COLLECTION, "u") }).waitFor();
     assert.equal(
-      await picker.getByRole("button", { name: new RegExp(COLLECTION, "u") }).getAttribute("aria-pressed"),
+      await picker
+        .getByRole("button", { name: new RegExp(COLLECTION, "u") })
+        .getAttribute("aria-pressed"),
       "true",
     );
     await page.keyboard.press("Escape"); // picker
@@ -112,7 +123,10 @@ describe("library", () => {
   });
 
   test("shows the collection in /saved", async () => {
-    const savedScreen = await page.locator("main [data-screen-id]").first().getAttribute("data-screen-id");
+    const savedScreen = await page
+      .locator("main [data-screen-id]")
+      .first()
+      .getAttribute("data-screen-id");
     await page.goto(`${BASE}/saved`, { waitUntil: "networkidle" });
     await page.getByRole("link", { name: new RegExp(COLLECTION, "u") }).click();
     await page.getByRole("heading", { name: COLLECTION }).waitFor();
@@ -138,7 +152,9 @@ describe("library", () => {
     await page.goto(`${BASE}/browse/web?tab=flows`, { waitUntil: "networkidle" });
     const card = page.locator('main a[href*="flow="]').first();
     await card.click();
-    const flow = page.getByRole("dialog").filter({ has: page.getByRole("list", { name: /steps$/u }) });
+    const flow = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("list", { name: /steps$/u }) });
     await flow.waitFor();
     const steps = flow.getByRole("button", { name: /^Open step/u });
     assert.ok((await steps.count()) >= 2, "the flow has steps");
@@ -157,7 +173,9 @@ describe("library", () => {
     await page.getByRole("button", { name: "Delete collection" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete collection" }).click();
     await page.waitForURL(/\/saved$/u);
-    await page.getByRole("link", { name: new RegExp(COLLECTION, "u") }).waitFor({ state: "detached" });
+    await page
+      .getByRole("link", { name: new RegExp(COLLECTION, "u") })
+      .waitFor({ state: "detached" });
     // Restore the screen's original saved state.
     if (savedScreen && !savedScreen.wasSaved) {
       await page.goto(`${BASE}/screens/${savedScreen.id}`, { waitUntil: "networkidle" });
