@@ -1,0 +1,43 @@
+{
+  "name": "@open-ui/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open UI Capture: browser extension for capturing screens and flows into Open UI",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build && wxt build -b firefox",
+    "build:chrome": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip && wxt zip -b firefox",
+    "postinstall": "wxt prepare",
+    "icons": "node scripts/generate-icons.mjs",
+    "check-types": "wxt prepare && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "wxt build && vitest run -c vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@open-ui/core": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@open-ui/config": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/ws": "^8.18.1",
+    "@wxt-dev/module-react": "^1.2.2",
+    "playwright-core": "^1.63.0",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "ws": "^8.18.3",
+    "wxt": "^0.21.4"
+  }
+}

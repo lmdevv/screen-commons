@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@theme {
+  --font-sans:
+    "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-ui: 13px;
+  --text-ui--line-height: 18px;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+
+  --color-bg: var(--ou-bg);
+  --color-fg: var(--ou-fg);
+  --color-muted: var(--ou-muted);
+  --color-subtle: var(--ou-subtle);
+  --color-line: var(--ou-line);
+  --color-tile: var(--ou-tile);
+  --color-hover: var(--ou-hover);
+  --color-field: var(--ou-field);
+  --color-primary: var(--ou-primary);
+  --color-primary-fg: var(--ou-primary-fg);
+  --color-danger: var(--ou-danger);
+  --color-ok: var(--ou-ok);
+  --color-warn: var(--ou-warn);
+}
+
+:root {
+  color-scheme: light dark;
+  --ou-bg: #ffffff;
+  --ou-fg: #0a0a0a;
+  --ou-muted: #71717a;
+  --ou-subtle: #a1a1aa;
+  --ou-line: #e4e4e7;
+  --ou-tile: #f4f4f5;
+  --ou-hover: #f4f4f5;
+  --ou-field: #ffffff;
+  --ou-primary: #0a0a0a;
+  --ou-primary-fg: #ffffff;
+  --ou-danger: #dc2626;
+  --ou-ok: #16a34a;
+  --ou-warn: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ou-bg: #0b0b0c;
+    --ou-fg: #fafafa;
+    --ou-muted: #a1a1aa;
+    --ou-subtle: #71717a;
+    --ou-line: #232326;
+    --ou-tile: #161618;
+    --ou-hover: #1c1c1f;
+    --ou-field: #111113;
+    --ou-primary: #fafafa;
+    --ou-primary-fg: #0a0a0a;
+    --ou-danger: #f87171;
+    --ou-ok: #4ade80;
+    --ou-warn: #fbbf24;
+  }
+}
+
+/* Unlayered on purpose: Chromium injects an unlayered extension stylesheet
+   (body { font-family: system-ui; font-size: 75% }) that would beat @layer base. */
+html,
+body {
+  margin: 0;
+  background: var(--ou-bg);
+  color: var(--ou-fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+@layer base {
+  ::selection {
+    background: color-mix(in srgb, var(--ou-fg) 14%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ou-fg) 55%, transparent);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: default;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
