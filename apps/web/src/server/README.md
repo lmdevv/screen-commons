@@ -52,7 +52,10 @@ src/server/
   add their published screens' scores).
 - **Search.** FTS5 with prefix matching; all terms must match (AND). When the viewer has no AND
   results under the same filters and visibility, terms are OR-ed instead.
-- **Media.** `imageUrl` / `thumbUrl` / `logoUrl` are relative `/media/<kind>/<sha256>.<ext>` paths.
+- **Media.** Entity media URLs (`imageUrl` / `thumbUrl` / `logoUrl` on apps, screens, flows,
+  collections — REST, server functions) are always relative `/media/<kind>/<sha256>.<ext>` paths.
+  The one exception is the `POST /api/v1/captures` response (`submitCaptures`), where every URL
+  (`screens[].url`, `flow.url`, `app.logoUrl`) is absolute, as are URLs in MCP tool output.
   Keys referenced by published content are public + immutable; keys only referenced by
   pending/rejected content are served to the contributor or admins with
   `Cache-Control: private, no-store`, 404 to everyone else. Previews use the thumbnail's own
@@ -60,8 +63,19 @@ src/server/
 - **Views/saves.** `getScreen`, `getFlow`, `getApp` increment `view_count`. `save_count` is
   maintained by database triggers on `collection_item` (cascades included). `saved` on
   screens/flows means "in any of my collections".
+- **Thumbnails.** Clients send a 640px WebP thumbnail. When one is missing (remote MCP
+  `upload_screen`), the server generates it with the Cloudflare Images binding (`IMAGES`): ≤640px
+  wide (never upscaled), top-anchored crop to max 16:10 (web) or 9:19.5 (ios/android), WebP q80
+  (lower quality retried to stay ≤1 MiB). Without the binding, the full image is reused (logged).
+- **App slugs are globally unique** (routes are `/apps/$slug`). A new app whose slug is taken on
+  any platform gets a platform suffix (`linear-ios`, then `linear-ios-2`). Upserts always match the
+  requested platform, by `slug` or `slug-<platform>`, then website host, then name.
 - **First admin.** The first account ever created is promoted by the `user_bootstrap_admin`
-  trigger, which atomically claims the singleton `instance_bootstrap` row.
+  trigger, which atomically claims the singleton `instance_bootstrap` row; the sign-up response
+  re-reads the role so it already says `admin`.
+- **Auth secret.** `BETTER_AUTH_SECRET` is required unless `APP_URL` is localhost/127.0.0.1 (then
+  a public dev secret is used). Local dev sets `APP_URL` in `.dev.vars`, which overrides
+  `wrangler.jsonc` vars.
 
 ## Server functions (`src/server/functions.ts`)
 

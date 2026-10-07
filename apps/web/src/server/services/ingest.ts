@@ -26,14 +26,15 @@ import {
   type NewAppRow,
   type NewScreenRow,
 } from "@open-ui/db";
-import { and, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { z } from "zod";
 
-import { getDb, getMedia } from "../env";
+import { getDb, getImages, getMedia } from "../env";
 import { ServiceError, badRequest, notFound, parseInput } from "../errors";
 import { newId, sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
+import { generateThumbnail } from "../thumbnails";
 import { getFlow, getScreenRow } from "./catalog";
 import { screensToApi, visibleSql } from "./shared";
 
@@ -133,13 +134,12 @@ function checkImage(kind: ImageKind, data: Uint8Array, label: string) {
   return header;
 }
 
-/**
- * Decode, validate and store one image under a content-addressed key (`img/<sha256>.png`),
- * skipping the upload when the object already exists. The decoded bytes are released on return.
- */
-async function ingestImage({ kind, source, label }: SizedImage): Promise<StoredImage> {
-  const data = await loadSource(source, label);
-  const header = checkImage(kind, data, label);
+/** Store validated bytes under a content-addressed key (`img/<sha256>.png`), once. */
+async function storeImage(
+  kind: ImageKind,
+  data: Uint8Array,
+  header: ReturnType<typeof checkImage>,
+): Promise<StoredImage> {
   const key = `${kind}/${await sha256Hex(data)}.${EXTENSIONS[header.type]}`;
   const media = getMedia();
   if (!(await media.head(key))) {
@@ -152,6 +152,12 @@ async function ingestImage({ kind, source, label }: SizedImage): Promise<StoredI
     height: header.height,
     bytes: data.byteLength,
   };
+}
+
+/** Decode, validate and store one image. The decoded bytes are released on return. */
+async function ingestImage({ kind, source, label }: SizedImage): Promise<StoredImage> {
+  const data = await loadSource(source, label);
+  return storeImage(kind, data, checkImage(kind, data, label));
 }
 
 function parseDate(value: string | undefined): Date {
@@ -172,42 +178,56 @@ const flowStatusFor = (principal: Principal, screenStatuses: Status[]): Status =
 // App upsert
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * App slugs are globally unique (routes are `/apps/$slug`). When the base slug is taken (on any
+ * platform) the platform is appended (`linear-ios`), then a counter (`linear-ios-2`).
+ */
 async function uniqueSlug(platform: string, base: string): Promise<string> {
   const rows = await getDb()
     .select({ slug: app.slug })
     .from(app)
-    .where(and(eq(app.platform, platform), or(eq(app.slug, base), like(app.slug, `${base}-%`))));
+    .where(or(eq(app.slug, base), like(app.slug, `${base}-%`)));
   const taken = new Set(rows.map((row) => row.slug));
   if (!taken.has(base)) return base;
+  const withPlatform = `${base.slice(0, 79 - platform.length)}-${platform}`;
+  if (!taken.has(withPlatform)) return withPlatform;
   for (let index = 2; ; index += 1) {
-    const candidate = `${base.slice(0, 76)}-${index}`;
+    const candidate = `${withPlatform.slice(0, 76)}-${index}`;
     if (!taken.has(candidate)) return candidate;
   }
 }
 
-/** The app a contribution belongs to: explicit slug → website host → name slug. */
+/**
+ * The app a contribution belongs to, always on the requested platform: slug (as given, or with
+ * the platform suffix `uniqueSlug` adds on collisions) → website host → name slug.
+ */
 async function findApp(input: AppInput): Promise<AppRow | undefined> {
   const db = getDb();
   const host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
-  const find = async (condition: ReturnType<typeof eq>) =>
+  const find = async (condition: SQL) =>
     (
       await db
         .select()
         .from(app)
         .where(and(eq(app.platform, input.platform), condition))
+        .orderBy(asc(app.createdAt))
         .limit(1)
     )[0];
+  const bySlug = (slug: string) =>
+    find(
+      sql`${app.slug} IN (${slug}, ${`${slug.slice(0, 79 - input.platform.length)}-${input.platform}`})`,
+    );
   if (input.slug) {
-    const bySlug = await find(eq(app.slug, input.slug));
-    if (bySlug) return bySlug;
+    const found = await bySlug(input.slug);
+    if (found) return found;
   }
   if (host) {
     const byHost = await find(eq(app.host, host));
     if (byHost) return byHost;
   }
   if (!input.slug) {
-    const bySlug = await find(eq(app.slug, slugify(input.name) || "app"));
-    if (bySlug && (!host || !bySlug.host || bySlug.host === host)) return bySlug;
+    const found = await bySlug(slugify(input.name) || "app");
+    if (found && (!host || !found.host || found.host === host)) return found;
   }
   return undefined;
 }
@@ -327,18 +347,28 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
   //    objects stored before a later validation failure stay unreferenced and are never served).
   const stored: { item: IngestScreen; full: StoredImage; thumb: StoredImage }[] = [];
   for (const [index, item] of input.screens.entries()) {
-    const full = await ingestImage({
-      kind: "img",
-      source: item.image,
-      label: `screens[${index}].image`,
-    });
-    const thumb = item.thumbnail
-      ? await ingestImage({
-          kind: "thumb",
-          source: item.thumbnail,
-          label: `screens[${index}].thumbnail`,
-        })
-      : full;
+    const label = `screens[${index}]`;
+    const data = await loadSource(item.image, `${label}.image`);
+    const header = checkImage("img", data, `${label}.image`);
+    const full = await storeImage("img", data, header);
+    let thumb = full;
+    if (item.thumbnail) {
+      thumb = await ingestImage({
+        kind: "thumb",
+        source: item.thumbnail,
+        label: `${label}.thumbnail`,
+      });
+    } else {
+      // No client thumbnail (e.g. MCP upload_screen): generate one server-side.
+      const generated = await generateThumbnail(getImages(), data, header, input.app.platform);
+      if (generated) {
+        thumb = await storeImage(
+          "thumb",
+          generated,
+          checkImage("thumb", generated, `${label}.thumbnail`),
+        );
+      }
+    }
     stored.push({ item, full, thumb });
   }
 
@@ -474,7 +504,8 @@ export async function captures(
       slug: result.app.slug,
       name: result.app.name,
       platform: result.app.platform as CaptureBatchResult["app"]["platform"],
-      logoUrl: result.app.logoKey ? `/media/${result.app.logoKey}` : null,
+      // Every URL in this response is absolute (unlike entity media URLs elsewhere).
+      logoUrl: result.app.logoKey ? `${origin}/media/${result.app.logoKey}` : null,
       accentColor: result.app.accentColor,
     },
     screens: result.screens.map((item) => ({ ...item, url: `${origin}/screens/${item.id}` })),

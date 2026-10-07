@@ -2,6 +2,8 @@
 interface CloudflareEnv {
   DB: import("@cloudflare/workers-types").D1Database;
   MEDIA: import("@cloudflare/workers-types").R2Bucket;
+  /** Cloudflare Images (optional: thumbnails fall back to the full image without it). */
+  IMAGES?: import("@cloudflare/workers-types").ImagesBinding;
   APP_URL: string;
   BETTER_AUTH_SECRET?: string;
   GITHUB_CLIENT_ID?: string;

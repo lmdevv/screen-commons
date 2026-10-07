@@ -17,6 +17,10 @@ export function getMedia() {
   return env.MEDIA;
 }
 
+export function getImages() {
+  return env.IMAGES;
+}
+
 /** Public origin of this instance, e.g. `http://localhost:5173`. */
 export function appOrigin(request?: Request): string {
   if (env.APP_URL) return env.APP_URL.replace(/\/+$/u, "");
