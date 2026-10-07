@@ -37,7 +37,14 @@ interface TrayShot extends Shot {
 type UploadState =
   | { phase: "idle" }
   | { phase: "running"; done: number; total: number; message: string }
-  | { phase: "done"; appUrl: string; flowUrl: string | null; uploaded: number; appName: string }
+  | {
+      phase: "done";
+      appUrl: string;
+      flowUrl: string | null;
+      uploaded: number;
+      appName: string;
+      pending: boolean;
+    }
   | { phase: "error"; message: string };
 
 function useShots(version: number | undefined) {
@@ -150,6 +157,7 @@ export function Tray() {
           flowUrl: message.flowUrl,
           uploaded: message.uploaded,
           appName,
+          pending: message.result.screens.some((screen) => screen.status === "pending"),
         });
         lastLocalEdit.current = 0;
         setDraft(EMPTY_DRAFT);
@@ -682,7 +690,9 @@ function SuccessState({ upload }: { upload: Extract<UploadState, { phase: "done"
         {upload.appName ? ` to ${upload.appName}` : ""}
       </h2>
       <p className="mt-1.5 text-muted">
-        Members’ uploads appear in the library once an admin approves them.
+        {upload.pending
+          ? "They’ll appear in the library once an admin approves them."
+          : "They’re live in the library now."}
       </p>
       <div className="mt-5 flex gap-2">
         <Button variant="primary" onClick={() => void browser.tabs.create({ url: upload.appUrl })}>

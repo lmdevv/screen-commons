@@ -1,10 +1,24 @@
+import { existsSync } from "node:fs";
+
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+
+// `wxt dev` opens a browser with the extension loaded. Use CHROME_PATH (or the system Chromium
+// on NixOS) when set; otherwise web-ext finds Chrome itself.
+const chromePath =
+  process.env.CHROME_PATH ??
+  (existsSync("/run/current-system/sw/bin/chromium")
+    ? "/run/current-system/sw/bin/chromium"
+    : undefined);
 
 // https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
+  webExt: {
+    ...(chromePath ? { binaries: { chrome: chromePath } } : {}),
+    startUrls: ["http://localhost:5173"],
+  },
   vite: () => ({
     plugins: [tailwindcss()],
   }),

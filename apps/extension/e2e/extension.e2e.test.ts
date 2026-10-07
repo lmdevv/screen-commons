@@ -268,14 +268,57 @@ describe("tray and upload", () => {
       );
       expect(response).toMatchObject({ ok: true, data: { shot: { mode, patterns: ["pricing"] } } });
     }
+    // Interactive element picker: hover the card in the page and click it.
+    const page = await fixturePage();
+    await page.evaluate(() => document.getElementById("card")!.scrollIntoView({ block: "center" }));
+    const picked = tray.evaluate(
+      ({ tabId }) => chrome.runtime.sendMessage({ type: "capture", mode: "element", tabId }),
+      { tabId: fixtureTabId },
+    );
+    await page.bringToFront();
+    await page.waitForSelector("#__open-ui-picker", { state: "attached" });
+    const box = (await page.locator("#card").boundingBox())!;
+    await page.mouse.move(box.x + 40, box.y + 120);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    expect(await picked).toMatchObject({
+      ok: true,
+      data: { shot: { mode: "element", width: FIXTURE.card.width, height: FIXTURE.card.height } },
+    });
+    expect(await page.locator("#__open-ui-picker").count()).toBe(0);
+
     await tray.bringToFront();
-    await expect.poll(() => tray.locator("article").count(), { timeout: 10_000 }).toBe(2);
+    await expect.poll(() => tray.locator("article").count(), { timeout: 10_000 }).toBe(3);
     await expect.poll(() => tray.locator("#root input").first().inputValue()).toBe("Fixture App");
     await tray.screenshot({ path: join(shotsDir, "tray.png") });
     await tray.emulateMedia({ colorScheme: "dark" });
     await tray.waitForTimeout(400);
     await tray.screenshot({ path: join(shotsDir, "tray-dark.png") });
     await tray.emulateMedia({ colorScheme: "light" });
+  });
+
+  it("reorders by drag and deletes shots", async () => {
+    const cards = tray.locator("article");
+    const meta = () => cards.locator("p[title]").allTextContents();
+    expect((await meta())[2]).toContain("element");
+    await tray.locator("li").nth(2).dragTo(tray.locator("li").nth(0));
+    await expect.poll(async () => (await meta())[0]).toContain("element");
+    const order = await worker.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve) => {
+        const request = indexedDB.open("open-ui-capture");
+        request.onsuccess = () => resolve(request.result);
+      });
+      const all = await new Promise<{ mode: string; order: number }[]>((resolve) => {
+        const request = db.transaction("shots").objectStore("shots").getAll();
+        request.onsuccess = () => resolve(request.result);
+      });
+      return all.sort((a, b) => a.order - b.order).map((shot) => shot.mode);
+    });
+    expect(order).toEqual(["element", "full", "visible"]);
+    await cards.first().hover();
+    await cards.first().getByRole("button", { name: "Delete shot" }).click();
+    await expect.poll(() => cards.count()).toBe(2);
+    expect((await meta())[0]).not.toContain("element");
   });
 
   it("uploads a flow through the API with a valid CaptureBatchInput", async () => {
