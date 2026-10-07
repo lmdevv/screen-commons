@@ -6,6 +6,7 @@
 export * from "./catalog";
 export * from "./collections";
 export * from "./ingest";
+export * from "./library";
 export * from "./review";
 export { type Viewer } from "./shared";
 export { createKey, listKeys, revokeKey } from "../keys";

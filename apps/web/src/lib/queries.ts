@@ -3,7 +3,13 @@
  * `useSuspenseQuery` / `useInfiniteQuery` in components and `queryClient.ensureQueryData` in
  * route loaders (SSR-dehydrated automatically by the router integration).
  */
-import type { ListAppsQuery, ListFlowsQuery, ListScreensQuery, SearchQuery } from "@open-ui/core";
+import type {
+  ListAppsQuery,
+  ListFlowsQuery,
+  ListScreensQuery,
+  SaveKind,
+  SearchQuery,
+} from "@open-ui/core";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import * as fn from "../server/functions";
@@ -63,9 +69,29 @@ export const queries = {
 
   search: (query: SearchQuery) =>
     queryOptions({ queryKey: ["search", query], queryFn: () => fn.search({ data: query }) }),
+  /** Screenshot-text snippets for a set of screens (keyed by screen id). */
+  screenTextMatches: (q: string, ids: string[]) =>
+    queryOptions({
+      queryKey: ["search", "text", q, ids],
+      queryFn: () => fn.getScreenTextMatches({ data: { q, ids } }),
+      staleTime: 5 * 60_000,
+    }),
+
+  /** Per-term counts + totals for Discover chips, palette thumbs and result counts. */
+  facets: (platform?: string) =>
+    queryOptions({
+      queryKey: ["facets", platform ?? null],
+      queryFn: () => fn.getFacets({ data: { platform } }),
+      staleTime: 5 * 60_000,
+    }),
 
   collections: () =>
     queryOptions({ queryKey: ["collections"], queryFn: () => fn.listCollections() }),
+  savedIn: (kind: SaveKind, id: string) =>
+    queryOptions({
+      queryKey: ["saved-in", kind, id],
+      queryFn: () => fn.getSavedIn({ data: { kind, id } }),
+    }),
   collection: (id: string) =>
     queryOptions({
       queryKey: ["collection", id],

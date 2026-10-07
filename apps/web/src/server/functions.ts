@@ -110,6 +110,16 @@ export const search = createServerFn({ method: "GET" })
   .validator(identity<SearchQuery>())
   .handler(({ data }) => asUser((principal) => services.search(principal, data)));
 
+/** Facet counts (per category / pattern / element / flow type) and totals for a platform. */
+export const getFacets = createServerFn({ method: "GET" })
+  .validator(identity<{ platform?: string }>())
+  .handler(({ data }) => asUser((principal) => services.getFacets(principal, data)));
+
+/** Visible-text snippets for screens matching `q` ("text in screenshot" on /search). */
+export const getScreenTextMatches = createServerFn({ method: "GET" })
+  .validator(identity<{ q: string; ids: string[] }>())
+  .handler(({ data }) => asUser((principal) => services.getScreenTextMatches(principal, data)));
+
 // --- contributions ---------------------------------------------------------------------------
 
 /** Multipart: FormData with `image` (File), `thumbnail` (File), `meta` (JSON CreateScreenInput). */
@@ -185,6 +195,11 @@ export const unsaveItem = createServerFn({ method: "POST" })
       return { saved: false as const };
     }),
   );
+
+/** Ids of my collections that contain the item (collection picker check marks). */
+export const getSavedIn = createServerFn({ method: "GET" })
+  .validator(identity<{ kind: SaveKind; id: string }>())
+  .handler(({ data }) => asUser((principal) => services.getSavedIn(principal, data)));
 
 // --- API keys --------------------------------------------------------------------------------
 
