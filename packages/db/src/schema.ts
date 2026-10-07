@@ -116,7 +116,8 @@ export const app = sqliteTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    uniqueIndex("app_platform_slug_idx").on(table.platform, table.slug),
+    /** Globally unique: routes are `/apps/$slug` (collisions get a platform suffix). */
+    uniqueIndex("app_slug_idx").on(table.slug),
     index("app_platform_host_idx").on(table.platform, table.host),
     index("app_status_created_idx").on(table.status, table.createdAt),
     index("app_contributor_idx").on(table.contributorId),
