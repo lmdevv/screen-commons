@@ -17,7 +17,8 @@ import { dominantColor, encodeWebp, makeThumbnail, toLogoPng, type EncodedImage 
 export interface ToCaptureScreenInput {
   /** Full-size capture (PNG, or any format sharp reads). */
   png: Buffer;
-  sourceUrl: string;
+  /** Page URL; used for auto-tagging when `patterns` is omitted. */
+  sourceUrl?: string;
   title?: string | null;
   viewport?: Viewport;
   patterns?: PatternSlug[];
@@ -53,8 +54,11 @@ export async function prepareScreen(input: ToCaptureScreenInput): Promise<Prepar
     width: image.width,
     height: image.height,
     title,
-    sourceUrl: input.sourceUrl,
-    patterns: (input.patterns ?? suggestPatterns(input.sourceUrl, title)).slice(0, 8),
+    sourceUrl: input.sourceUrl || undefined,
+    patterns: (
+      input.patterns ??
+      (input.sourceUrl || title ? suggestPatterns(input.sourceUrl ?? "", title) : [])
+    ).slice(0, 8),
     elements: input.elements ?? [],
     tags: input.tags ?? [],
     version: input.version ?? versionLabel(new Date(capturedAt)),

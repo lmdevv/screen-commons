@@ -2,15 +2,15 @@
   "name": "@open-ui/mcp",
   "version": "0.1.0",
   "private": true,
-  "license": "Apache-2.0",
   "description": "open-ui-mcp: stdio MCP server for Open UI (catalog tools + browser capture via the extension bridge or headless Chromium).",
-  "type": "module",
+  "license": "Apache-2.0",
   "bin": {
     "open-ui-mcp": "./dist/index.js"
   },
   "files": [
     "dist"
   ],
+  "type": "module",
   "exports": {
     ".": "./src/server.ts"
   },
