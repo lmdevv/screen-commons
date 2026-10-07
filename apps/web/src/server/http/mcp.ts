@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import {
+  LIMITS,
   bytesToBase64,
   catalogTools,
   type CatalogToolName,
@@ -15,6 +16,7 @@ import { toServiceError, unauthorized } from "../errors";
 import { getPrincipal, type Principal } from "../principal";
 import * as services from "../services";
 import { CORS_PREFLIGHT_HEADERS, errorResponse } from "./api";
+import { bodyTooLarge, declaredTooLarge } from "./limits";
 import { readMedia } from "./media";
 
 type Args<N extends CatalogToolName> = z.output<(typeof catalogTools)[N]["input"]>;
@@ -204,6 +206,9 @@ export async function handleMcp(request: Request): Promise<Response> {
     response.headers.set("www-authenticate", 'Bearer realm="open-ui"');
     return response;
   }
+  if (declaredTooLarge(request, LIMITS.maxRequestBytes)) {
+    return errorResponse(bodyTooLarge(LIMITS.maxRequestBytes), cors);
+  }
   if (request.method !== "POST") {
     return new Response(null, { status: 405, headers: { allow: "POST, OPTIONS", ...cors } });
   }
@@ -211,6 +216,8 @@ export async function handleMcp(request: Request): Promise<Response> {
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
+    // Streamed-byte cap (413 before parsing); upload_screen carries a base64 image.
+    maxRequestBodySize: LIMITS.maxRequestBytes,
   });
   await server.connect(transport);
   try {

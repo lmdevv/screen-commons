@@ -4,12 +4,10 @@ import { Hono, type Context } from "hono";
 import { appOrigin } from "../env";
 import { ServiceError, badRequest, toServiceError, unauthorized } from "../errors";
 import { getPrincipal, type Principal } from "../principal";
+import { bodyLimitFor, readBodyLimited } from "./limits";
 import * as services from "../services";
 
 type HonoEnv = { Variables: { principal: Principal | null } };
-
-/** Largest accepted request body (a full capture batch of base64 images). */
-const MAX_BODY_BYTES = 95 * 1024 * 1024;
 
 export const CORS_PREFLIGHT_HEADERS = {
   "access-control-allow-origin": "*",
@@ -40,11 +38,27 @@ function requireUser(c: Context<HonoEnv>): Principal {
   return principal;
 }
 
+/** Body bytes, counted as they stream in (Content-Length is not trusted). */
+const readBody = (c: Context<HonoEnv>) =>
+  readBodyLimited(c.req.raw, bodyLimitFor(new URL(c.req.url).pathname));
+
 async function readJson(c: Context<HonoEnv>): Promise<unknown> {
+  const text = new TextDecoder().decode(await readBody(c));
   try {
-    return await c.req.json();
+    return JSON.parse(text);
   } catch {
     throw badRequest("Request body must be JSON");
+  }
+}
+
+async function readForm(c: Context<HonoEnv>): Promise<FormData> {
+  const body = await readBody(c);
+  try {
+    return await new Response(body, {
+      headers: { "content-type": c.req.header("content-type") ?? "" },
+    }).formData();
+  } catch {
+    throw badRequest("Expected multipart/form-data with image, thumbnail and meta");
   }
 }
 
@@ -57,10 +71,6 @@ api.use("*", async (c, next) => {
   if (c.req.method === "OPTIONS")
     return new Response(null, { status: 204, headers: CORS_PREFLIGHT_HEADERS });
   const crossOrigin = isCrossOrigin(c.req.raw);
-  const length = Number(c.req.header("content-length") ?? 0);
-  if (length > MAX_BODY_BYTES) {
-    throw new ServiceError("payload_too_large", "Request body is too large");
-  }
   c.set("principal", await getPrincipal(c.req.raw, { allowCookies: !crossOrigin }));
   await next();
   if (crossOrigin) c.res.headers.set("access-control-allow-origin", "*");
@@ -97,12 +107,7 @@ api.get("/search", async (c) => c.json(await services.search(requireUser(c), que
 // --- contributions ---------------------------------------------------------------------------
 api.post("/screens", async (c) => {
   const principal = requireUser(c);
-  let form: FormData;
-  try {
-    form = await c.req.formData();
-  } catch {
-    throw badRequest("Expected multipart/form-data with image, thumbnail and meta");
-  }
+  const form = await readForm(c);
   const result = await services.createScreen(principal, {
     image: form.get("image"),
     thumbnail: form.get("thumbnail"),

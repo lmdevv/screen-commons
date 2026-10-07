@@ -6,7 +6,7 @@ dev via `@cloudflare/vite-plugin`).
 ```
 src/server/
   env.ts           cloudflare:workers env, getDb() (Drizzle over D1), getMedia() (R2), appOrigin()
-  auth.ts          Better Auth (email+password, GitHub when env set, first user → admin)
+  auth.ts          Better Auth (email+password, GitHub when env set; first user → admin via DB trigger)
   keys.ts          API keys: oui_ + 32 random bytes, SHA-256 at rest, throttled last_used_at
   principal.ts     getPrincipal(request): bearer key OR session cookie (same-origin only)
   errors.ts        ServiceError(code, message) + zod → bad_request mapping
@@ -19,7 +19,8 @@ src/server/
     shared.ts      visibility rules, cursor pagination, row → API mapping
   http/
     api.ts         REST API (Hono) mounted at /api/v1/* (src/routes/api/v1/$.ts)
-    media.ts       /media/<key> R2 streaming (src/routes/media/$.ts)
+    media.ts       /media/<key> R2 streaming with visibility checks (src/routes/media/$.ts)
+    limits.ts      streamed request-body limits (also applied for every route in src/server.ts)
     mcp.ts         remote MCP at /mcp (src/routes/mcp.ts)
   functions.ts     TanStack Start server functions for the UI (below)
 ```
@@ -29,15 +30,38 @@ src/server/
 - **Visibility.** Detail reads (`getScreen`, `getFlow`, `getApp`): `published`, or contributed by
   the viewer, or viewer is admin. List reads/search/counts: `published` plus the viewer's own
   `pending` items. Admins see other people's pending items via `getReviewQueue`.
-- **Status on write.** Admin contributions → `published`; member contributions → `pending`.
-  Approving a screen publishes its app; approving a flow publishes its app and pending screens.
+- **Flows only show visible screens.** Steps, `stepCount` and previews include only screens the
+  viewer may see (same rule as `getScreen`).
+- **Status on write.** Admin contributions → `published`; member contributions → `pending`. A
+  flow is `published` only when an admin creates it **and** every step's screen is published;
+  otherwise it is `pending` (approving it publishes its pending screens).
+- **Review.** Approving a screen/flow publishes its app (and bumps the app's `updatedAt`).
+  Rejecting a screen removes it from every flow (steps renumbered); a published flow left with
+  fewer than 2 steps goes back to `pending`.
+- **App metadata is moderated.** Uploads to an existing app only fill tagline / description /
+  category / website / logo when the uploader is an admin or the app is the uploader's own
+  pending app. Member uploads to a published app attach screens and never touch the app row.
+- **Upload limits** (all transports: REST, server functions, MCP). Request bodies are counted as
+  they stream (Content-Length isn't trusted): `LIMITS.maxRequestBytes` (40 MiB) for upload
+  endpoints (`/api/v1/captures`, `/api/v1/screens`, `/mcp`, `/_serverFn/*`), 1 MiB elsewhere.
+  Before decoding anything, each image is bounded by its kind (`maxImageBytes`,
+  `maxThumbnailBytes`, 512 KiB logos) and the batch by `LIMITS.maxBatchBytes` (28 MiB decoded) —
+  split larger batches. Images are then decoded, validated and stored one at a time.
 - **Pagination.** `{ items, nextCursor }`; pass `nextCursor` back as `cursor`. Cursors are opaque
   and tied to the sort (`latest` | `popular`). Popular = `save_count * 4 + view_count` (apps also
   add their published screens' scores).
-- **Media.** `imageUrl` / `thumbUrl` / `logoUrl` are relative `/media/<kind>/<sha256>.<ext>` paths
-  (public, immutable). Previews use the thumbnail's own `width`/`height`.
-- **Views/saves.** `getScreen`, `getFlow`, `getApp` increment `view_count`. Saving increments
-  `save_count`. `saved` on screens/flows means "in any of my collections".
+- **Search.** FTS5 with prefix matching; all terms must match (AND). When the viewer has no AND
+  results under the same filters and visibility, terms are OR-ed instead.
+- **Media.** `imageUrl` / `thumbUrl` / `logoUrl` are relative `/media/<kind>/<sha256>.<ext>` paths.
+  Keys referenced by published content are public + immutable; keys only referenced by
+  pending/rejected content are served to the contributor or admins with
+  `Cache-Control: private, no-store`, 404 to everyone else. Previews use the thumbnail's own
+  `width`/`height`.
+- **Views/saves.** `getScreen`, `getFlow`, `getApp` increment `view_count`. `save_count` is
+  maintained by database triggers on `collection_item` (cascades included). `saved` on
+  screens/flows means "in any of my collections".
+- **First admin.** The first account ever created is promoted by the `user_bootstrap_admin`
+  trigger, which atomically claims the singleton `instance_bootstrap` row.
 
 ## Server functions (`src/server/functions.ts`)
 
