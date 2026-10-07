@@ -169,7 +169,10 @@ describe("remote MCP (/mcp)", () => {
 
     const screen = await keyClient(token).getScreen(upload.screen.id);
     expect(screen.source).toBe("mcp");
-    expect(screen.thumbUrl).toBe(screen.imageUrl);
+    // no thumbnail was sent: the server generated a WebP one (200px wide image → not upscaled)
+    expect(screen.thumbUrl).toMatch(/^\/media\/thumb\/[0-9a-f]{64}\.webp$/u);
+    const thumb = Buffer.from(await (await fetch(`${baseUrl()}${screen.thumbUrl}`)).arrayBuffer());
+    expect(readImageHeader(thumb)).toEqual({ type: "image/webp", width: 200, height: 120 });
 
     const created = JSON.parse(
       (

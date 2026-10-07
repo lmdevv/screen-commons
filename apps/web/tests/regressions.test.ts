@@ -216,8 +216,8 @@ describe("3. media for unpublished content is private", () => {
       logo: { type: "image/png", base64: b64(logo) },
       screens: [captureScreen()],
     });
-    const url = result.app.logoUrl!;
-    expect(url).toBe(`/media/logo/${sha(logo)}.png`);
+    const url = `/media/logo/${sha(logo)}.png`;
+    expect(result.app.logoUrl).toBe(`${baseUrl()}${url}`);
     expect((await fetch(`${baseUrl()}${url}`)).status).toBe(404);
     expect((await member.fetch(url)).status).toBe(200);
   });

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import type { D1Database } from "@cloudflare/workers-types";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getPlatformProxy } from "wrangler";
+
+import { writeTestWranglerConfig } from "./wrangler-config";
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -98,5 +100,68 @@ describe("save_count triggers (regression: counters diverging)", () => {
 
     await db.prepare("DELETE FROM user WHERE id = 'saver'").run();
     expect(await counts()).toEqual({ screen: 0, app: 0 });
+  });
+});
+
+describe("0003_global_app_slugs (migration safety)", () => {
+  it("renames cross-platform duplicate slugs before enforcing global uniqueness", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "open-ui-migration-test-"));
+    try {
+      const source = join(webDir, "../../packages/db/migrations");
+      const migrations = join(dir, "migrations");
+      await mkdir(migrations);
+      const files = (await readdir(source)).filter((file) => file.endsWith(".sql")).sort();
+      const copy = (names: string[]) =>
+        Promise.all(names.map((file) => copyFile(join(source, file), join(migrations, file))));
+      const config = writeTestWranglerConfig(dir, { migrationsDir: migrations });
+      const wrangler = (...args: string[]) =>
+        execFileSync(
+          "pnpm",
+          [
+            "exec",
+            "wrangler",
+            "d1",
+            ...args,
+            "--local",
+            "--config",
+            config,
+            "--persist-to",
+            join(dir, "state"),
+          ],
+          { cwd: webDir, env: { ...process.env, CI: "1" }, stdio: "pipe" },
+        ).toString();
+
+      await copy(files.filter((file) => file < "0003"));
+      wrangler("migrations", "apply", "DB");
+      wrangler(
+        "execute",
+        "DB",
+        "--command",
+        `INSERT INTO app (id, slug, name, platform, created_at) VALUES
+          ('a-web', 'linear', 'Linear', 'web', 1),
+          ('a-ios', 'linear', 'Linear', 'ios', 2),
+          ('a-android', 'linear', 'Linear', 'android', 3),
+          ('b-web', 'linear-ios', 'Linear iOS fan site', 'web', 4)`,
+      );
+
+      await copy(files.filter((file) => file >= "0003"));
+      wrangler("migrations", "apply", "DB");
+      const output = wrangler(
+        "execute",
+        "DB",
+        "--json",
+        "--command",
+        "SELECT id, slug FROM app ORDER BY id",
+      );
+      const [{ results }] = JSON.parse(output) as [{ results: { id: string; slug: string }[] }];
+      expect(Object.fromEntries(results.map((row) => [row.id, row.slug]))).toEqual({
+        "a-android": "linear-android",
+        "a-ios": "linear-ios",
+        "a-web": "linear",
+        "b-web": "linear-ios-b-web",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

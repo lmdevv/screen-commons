@@ -147,7 +147,10 @@ describe("captures + media", () => {
       ],
     });
     expect(batch.app.slug).toBe(`acme-${suffix}`);
-    expect(batch.app.logoUrl).toMatch(/^\/media\/logo\/[0-9a-f]{64}\.png$/u);
+    // every URL in the captures response is absolute
+    expect(batch.app.logoUrl).toMatch(
+      new RegExp(`^${baseUrl()}/media/logo/[0-9a-f]{64}\\.png$`, "u"),
+    );
     expect(batch.screens).toHaveLength(3);
     expect(batch.screens.every((item) => item.status === "published")).toBe(true);
     expect(batch.screens[0]!.url).toBe(`${baseUrl()}/screens/${batch.screens[0]!.id}`);
