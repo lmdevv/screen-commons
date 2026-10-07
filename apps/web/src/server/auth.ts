@@ -1,7 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { authSchema, user as userTable } from "@open-ui/db";
+import { authSchema } from "@open-ui/db";
 import { betterAuth } from "better-auth/minimal";
-import { count } from "drizzle-orm";
 
 import { env, getDb } from "./env";
 
@@ -28,18 +27,9 @@ function createAuth() {
     socialProviders: github,
     user: {
       additionalFields: {
+        // The first account ever created is promoted to admin atomically by the
+        // `user_bootstrap_admin` database trigger (packages/db/migrations/0002_integrity.sql).
         role: { type: "string", required: false, defaultValue: "member", input: false },
-      },
-    },
-    databaseHooks: {
-      user: {
-        create: {
-          // The first account ever created on an instance becomes its admin.
-          before: async (data) => {
-            const [row] = await db.select({ total: count() }).from(userTable);
-            return { data: { ...data, role: (row?.total ?? 0) === 0 ? "admin" : "member" } };
-          },
-        },
       },
     },
     advanced: { useSecureCookies: baseURL.startsWith("https://") },

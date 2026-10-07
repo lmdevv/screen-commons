@@ -120,6 +120,7 @@ export const app = sqliteTable(
     index("app_platform_host_idx").on(table.platform, table.host),
     index("app_status_created_idx").on(table.status, table.createdAt),
     index("app_contributor_idx").on(table.contributorId),
+    index("app_logo_key_idx").on(table.logoKey),
   ],
 );
 
@@ -170,6 +171,8 @@ export const screen = sqliteTable(
     index("screen_status_created_idx").on(table.status, table.createdAt),
     index("screen_app_created_idx").on(table.appId, table.createdAt),
     index("screen_app_image_idx").on(table.appId, table.imageKey),
+    index("screen_image_key_idx").on(table.imageKey),
+    index("screen_thumb_key_idx").on(table.thumbKey),
     index("screen_contributor_idx").on(table.contributorId),
   ],
 );
@@ -272,6 +275,16 @@ export const apiKey = sqliteTable(
   },
   (table) => [index("api_key_user_idx").on(table.userId)],
 );
+
+/**
+ * Singleton row claimed by the first user ever created (see migrations/0002_integrity.sql: an
+ * AFTER INSERT trigger on `user` claims it atomically and promotes that user to admin).
+ */
+export const instanceBootstrap = sqliteTable("instance_bootstrap", {
+  id: integer("id").primaryKey(),
+  adminUserId: text("admin_user_id").notNull(),
+  createdAt: createdAt(),
+});
 
 /** Tables Better Auth's drizzle adapter needs. */
 export const authSchema = { user, session, account, verification };

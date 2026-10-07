@@ -11,7 +11,6 @@ import {
   type CollectionRow,
 } from "@open-ui/db";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 
 import { getDb } from "../env";
@@ -252,27 +251,8 @@ export async function renameCollection(
 export async function deleteCollection(principal: Principal, id: string): Promise<void> {
   const row = await ownedCollection(principal, id);
   if (row.isDefault) throw badRequest("The default collection can't be deleted");
-  const db = getDb();
-  const items = await db
-    .select({ kind: collectionItem.kind, itemId: collectionItem.itemId })
-    .from(collectionItem)
-    .where(eq(collectionItem.collectionId, row.id));
-  const writes: BatchItem<"sqlite">[] = [
-    ...items.map((item) => adjustSaveCount(item.kind, item.itemId, -1)),
-    db.delete(collection).where(eq(collection.id, row.id)),
-  ];
-  await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
-}
-
-function adjustSaveCount(kind: CollectionItemKind, id: string, delta: number) {
-  const table = ITEM_TABLES[kind];
-  return getDb()
-    .update(table)
-    .set({
-      saveCount: sql`max(0, ${table.saveCount} + ${delta})`,
-      updatedAt: sql`${table.updatedAt}`,
-    })
-    .where(eq(table.id, id));
+  // save_count decrements happen in the collection_item delete trigger (fires on cascade too).
+  await getDb().delete(collection).where(eq(collection.id, row.id));
 }
 
 async function assertItemVisible(principal: Principal, kind: CollectionItemKind, id: string) {
@@ -292,13 +272,11 @@ export async function save(principal: Principal, input: unknown): Promise<void> 
   const target = collectionId
     ? await ownedCollection(principal, collectionId)
     : await ensureDefaultCollection(principal);
-  const db = getDb();
-  const inserted = await db
+  // save_count is maintained by the collection_item insert trigger.
+  await getDb()
     .insert(collectionItem)
     .values({ collectionId: target.id, kind, itemId: id, createdAt: new Date() })
-    .onConflictDoNothing()
-    .returning({ itemId: collectionItem.itemId });
-  if (inserted.length > 0) await adjustSaveCount(kind, id, 1);
+    .onConflictDoNothing();
 }
 
 /** Remove an item from one collection, or from all of the user's collections when omitted. */
@@ -308,9 +286,7 @@ export async function unsave(principal: Principal, input: unknown): Promise<void
   const owned = collectionId
     ? sql`${collectionItem.collectionId} = ${(await ownedCollection(principal, collectionId)).id}`
     : sql`${collectionItem.collectionId} IN (SELECT id FROM collection WHERE user_id = ${principal.user.id})`;
-  const removed = await db
+  await db
     .delete(collectionItem)
-    .where(and(eq(collectionItem.kind, kind), eq(collectionItem.itemId, id), owned))
-    .returning({ itemId: collectionItem.itemId });
-  if (removed.length > 0) await adjustSaveCount(kind, id, -removed.length);
+    .where(and(eq(collectionItem.kind, kind), eq(collectionItem.itemId, id), owned));
 }
