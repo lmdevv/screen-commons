@@ -20,7 +20,7 @@ packages/
   core/        zod schemas, taxonomy, API types, typed API client, shared pure utils
   db/          Drizzle schema + D1 migrations
   ui/          design tokens + React primitives shared by web and extension
-  capture/     page capture/crawl engine (in-page extractors + headless puppeteer-core driver)
+  capture/     page capture/crawl engine (in-page extractors + headless playwright-core driver)
   mcp/         `open-ui-mcp` stdio MCP server: catalog tools + browser tools (extension bridge or headless)
   config/      shared tsconfig
 scripts/       seed + e2e helpers
@@ -142,7 +142,7 @@ Two servers share tool names and schemas (defined in `packages/core/src/mcp.ts`)
 `OPEN_UI_URL` + `OPEN_UI_API_KEY`, plus browser tools:
 
 - `browser_status` — which driver is active (`extension` when the extension is connected to the
-  bridge on `ws://127.0.0.1:7457`, otherwise `headless` using puppeteer-core + system Chrome).
+  bridge on `ws://127.0.0.1:7457`, otherwise `headless` using playwright-core + system Chromium).
 - `browser_navigate { url }`, `browser_screenshot { fullPage?, selector? }` (returns image),
   `browser_extract {}` (title, description, favicon, og image, theme color, same-origin links).
 - `site_crawl { url, maxPages, maxDepth, include?, exclude? }` → discovered pages with suggested
@@ -174,10 +174,27 @@ shown by the MCP server (`OPEN_UI_BRIDGE_TOKEN`, default printed on start and sa
 ## Seed + tests
 
 - `pnpm seed` captures a curated list of public marketing sites (home, pricing, sign in, sign up,
-  docs, blog, changelog, about) at 1440×900 with the headless driver, tags them, builds flows, and
+  docs, blog, changelog, about) at 1440×900 with the headless driver (playwright-core), tags them, builds flows, and
   uploads through `/api/v1/captures` with an admin API key — the real pipeline, end to end.
   Screenshots are generated locally and never committed.
 - Unit tests (Vitest) for core, db queries, capture heuristics, MCP tools.
 - E2E (Playwright): sign up → browse → open screen viewer → save → contribute a 3-screen flow →
   review/approve → create API key → call `/mcp` → extension build loads in Chromium and captures a
   page through the bridge.
+
+## Pinned decisions (verified by research spikes, Oct 2026)
+
+- Versions known to work together: `@tanstack/react-start` 1.168.x, `@tanstack/react-router`
+  1.170.x, React 19.3, Vite 8.3, `@vitejs/plugin-react` 6.1, `@cloudflare/vite-plugin` 1.63,
+  `wrangler` 4.148, `drizzle-orm` 0.45 / `drizzle-kit` 0.31, `better-auth` 1.7 (+
+  `@better-auth/drizzle-adapter`), `@modelcontextprotocol/sdk` 1.32 (v1 line, used by both MCP
+  servers), zod 4, Tailwind 4.3, WXT 0.21 (+ `@wxt-dev/module-react`), `playwright-core` 1.63.
+- Dev server: `http://localhost:5173` (always `localhost`, never `127.0.0.1`, so auth cookies match).
+- API keys use our own `api_key` table (not the Better Auth plugin, whose default rate limit is
+  10 requests/day).
+- D1 has no interactive transactions: use `db.batch([...])` for multi-statement writes.
+- Extension capture: Chromium uses `chrome.debugger` + CDP with an explicit full-document clip;
+  Firefox uses `browser.tabs.captureTab(tabId, { rect, scale })` (needs `<all_urls>`); both run a
+  bounded lazy-load scroll pass first. Fallback: `captureVisibleTab` stitching at ≤2 calls/s.
+- Bridge keepalive: 20s app-level ping + a 1-minute `alarms` reconnect. Server binds 127.0.0.1 only.
+- All MCP stdio diagnostics go to stderr.
