@@ -43,7 +43,10 @@ async function toPng(blob: Blob): Promise<Blob> {
   canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
   bitmap.close();
   return new Promise((resolve, reject) =>
-    canvas.toBlob((png) => (png ? resolve(png) : reject(new Error("Couldn’t encode PNG"))), "image/png"),
+    canvas.toBlob(
+      (png) => (png ? resolve(png) : reject(new Error("Couldn’t encode PNG"))),
+      "image/png",
+    ),
   );
 }
 

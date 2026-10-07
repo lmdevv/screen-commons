@@ -19,8 +19,10 @@ export interface RejectedFile {
   reason: "type" | "size";
 }
 
-export interface UploadDropzoneProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, "onDrop" | "title"> {
+export interface UploadDropzoneProps extends Omit<
+  React.HTMLAttributes<HTMLDivElement>,
+  "onDrop" | "title"
+> {
   /** Called with accepted files (filtered by type and size). */
   onFiles: (files: File[]) => void;
   /** Called with files that were filtered out. */
@@ -117,11 +119,7 @@ export function UploadDropzone({
   };
 
   const tone =
-    status === "error" || drag === "reject"
-      ? "error"
-      : drag === "accept"
-        ? "active"
-        : "idle";
+    status === "error" || drag === "reject" ? "error" : drag === "accept" ? "active" : "idle";
 
   return (
     <div
@@ -276,13 +274,19 @@ export function UploadItem({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-base font-medium text-fg">{name}</span>
-          {status === "done" ? <CircleCheck aria-label="Uploaded" className="size-4 shrink-0 text-success" /> : null}
+          {status === "done" ? (
+            <CircleCheck aria-label="Uploaded" className="size-4 shrink-0 text-success" />
+          ) : null}
         </div>
         {status === "uploading" ? (
           <Progress value={progress} label={`Uploading ${name}`} className="max-w-48" />
         ) : (
           <span className={cn("text-sm", status === "error" ? "text-danger" : "text-fg-muted")}>
-            {status === "error" ? (error ?? "Upload failed") : bytes !== undefined ? formatBytes(bytes) : null}
+            {status === "error"
+              ? (error ?? "Upload failed")
+              : bytes !== undefined
+                ? formatBytes(bytes)
+                : null}
           </span>
         )}
       </div>

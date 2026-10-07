@@ -91,7 +91,12 @@ export function FlowViewer({
             </Button>
           ) : null}
           {onDownload ? (
-            <Button variant="secondary" icon aria-label="Download all" onClick={() => onDownload(flow)}>
+            <Button
+              variant="secondary"
+              icon
+              aria-label="Download all"
+              onClick={() => onDownload(flow)}
+            >
               <Download />
             </Button>
           ) : null}

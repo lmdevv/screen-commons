@@ -53,9 +53,15 @@ export function DiscoverPage({
   const [saved, setSaved] = React.useState<Set<string>>(new Set(["app_lumen"]));
 
   const mobile = platform !== "web";
-  const platformApps = apps.filter((app) => (mobile ? app.platform !== "web" : app.platform === "web"));
-  const platformScreens = screens.filter((s) => (mobile ? s.app.platform !== "web" : s.app.platform === "web"));
-  const platformFlows = flowSummaries.filter((f) => (mobile ? f.app.platform !== "web" : f.app.platform === "web"));
+  const platformApps = apps.filter((app) =>
+    mobile ? app.platform !== "web" : app.platform === "web",
+  );
+  const platformScreens = screens.filter((s) =>
+    mobile ? s.app.platform !== "web" : s.app.platform === "web",
+  );
+  const platformFlows = flowSummaries.filter((f) =>
+    mobile ? f.app.platform !== "web" : f.app.platform === "web",
+  );
 
   const chipItems =
     tab === "apps"
@@ -68,12 +74,27 @@ export function DiscoverPage({
 
   const visibleApps = category ? platformApps.filter((a) => a.category === category) : platformApps;
   const visibleScreens = category
-    ? platformScreens.filter((s) => (s.patterns as string[]).includes(category) || (s.elements as string[]).includes(category))
+    ? platformScreens.filter(
+        (s) =>
+          (s.patterns as string[]).includes(category) ||
+          (s.elements as string[]).includes(category),
+      )
     : platformScreens;
 
   const count =
-    tab === "apps" ? visibleApps.length * 41 : tab === "flows" ? platformFlows.length * 18 : visibleScreens.length * 57;
-  const noun = tab === "apps" ? "apps" : tab === "flows" ? "flows" : tab === "elements" ? "UI elements" : "screens";
+    tab === "apps"
+      ? visibleApps.length * 41
+      : tab === "flows"
+        ? platformFlows.length * 18
+        : visibleScreens.length * 57;
+  const noun =
+    tab === "apps"
+      ? "apps"
+      : tab === "flows"
+        ? "flows"
+        : tab === "elements"
+          ? "UI elements"
+          : "screens";
   const openFlow = flows.find((f) => f.id === flowId) ?? null;
 
   return (
@@ -176,7 +197,11 @@ export function DiscoverPage({
       ) : tab === "flows" ? (
         <ScreenGrid columns="flows">
           {platformFlows.map((flow) => (
-            <FlowCard key={flow.id} flow={flow} linkRender={<a href={href("/discover", { tab: "flows", flow: flow.id })} />} />
+            <FlowCard
+              key={flow.id}
+              flow={flow}
+              linkRender={<a href={href("/discover", { tab: "flows", flow: flow.id })} />}
+            />
           ))}
         </ScreenGrid>
       ) : (
@@ -199,7 +224,9 @@ export function DiscoverPage({
                     return copy;
                   })
                 }
-                onSaveToggle={(s, next) => toast(next ? `Saved “${s.title}”` : "Removed from saved")}
+                onSaveToggle={(s, next) =>
+                  toast(next ? `Saved “${s.title}”` : "Removed from saved")
+                }
                 linkRender={<a href={href("/app", { app: screen.app.slug, screen: screen.id })} />}
               />
             );
@@ -229,7 +256,9 @@ export function DiscoverPage({
           flow={openFlow}
           onSaveToggle={(f, next) => toast(next ? `Saved ${f.name}` : "Removed")}
           onCopy={() => toast("Copied 5 screens to clipboard")}
-          onStepClick={(step) => navigate("/app", { app: openFlow.app.slug, screen: step.screen.id })}
+          onStepClick={(step) =>
+            navigate("/app", { app: openFlow.app.slug, screen: step.screen.id })
+          }
         />
       ) : null}
     </Container>

@@ -69,10 +69,7 @@ export function LightboxHeader({
 }: LightboxHeaderProps) {
   return (
     <div
-      className={cn(
-        "relative flex h-16 shrink-0 items-center gap-3 px-4 md:px-6",
-        className,
-      )}
+      className={cn("relative flex h-16 shrink-0 items-center gap-3 px-4 md:px-6", className)}
       {...props}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">{children}</div>
@@ -95,7 +92,10 @@ export function LightboxTitle({
 }: React.ComponentProps<typeof BaseDialog.Title>) {
   return (
     <BaseDialog.Title
-      className={cn("flex min-w-0 items-center gap-2 truncate text-md font-semibold text-fg", className)}
+      className={cn(
+        "flex min-w-0 items-center gap-2 truncate text-md font-semibold text-fg",
+        className,
+      )}
       {...props}
     />
   );
@@ -168,7 +168,10 @@ export function LightboxBody({
         <div
           ref={mainRef}
           tabIndex={-1}
-          className={cn("ou-scrollbar-thin min-w-0 flex-1 overflow-y-auto outline-none", mainClassName)}
+          className={cn(
+            "ou-scrollbar-thin min-w-0 flex-1 overflow-y-auto outline-none",
+            mainClassName,
+          )}
         >
           {children}
         </div>

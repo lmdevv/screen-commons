@@ -3,7 +3,14 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 
-export type BadgeTone = "neutral" | "inverse" | "accent" | "success" | "warning" | "danger" | "glass";
+export type BadgeTone =
+  | "neutral"
+  | "inverse"
+  | "accent"
+  | "success"
+  | "warning"
+  | "danger"
+  | "glass";
 
 const tones: Record<BadgeTone, string> = {
   neutral: "bg-muted text-fg-muted",
@@ -23,7 +30,13 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 /** Small label: counts, statuses, "New" markers. */
-export function Badge({ tone = "neutral", dot = false, className, children, ...props }: BadgeProps) {
+export function Badge({
+  tone = "neutral",
+  dot = false,
+  className,
+  children,
+  ...props
+}: BadgeProps) {
   return (
     <span
       className={cn(
@@ -52,13 +65,7 @@ const statusLabel: Record<Status, string> = {
 };
 
 /** Content moderation status (`published` | `pending` | `rejected`). */
-export function StatusBadge({
-  status,
-  className,
-}: {
-  status: Status;
-  className?: string;
-}) {
+export function StatusBadge({ status, className }: { status: Status; className?: string }) {
   return (
     <Badge tone={statusTone[status]} dot className={className}>
       {statusLabel[status]}

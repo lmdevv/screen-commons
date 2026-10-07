@@ -2,12 +2,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
-import {
-  isTheme,
-  THEME_STORAGE_KEY,
-  type ResolvedTheme,
-  type Theme,
-} from "../lib/theme";
+import { isTheme, THEME_STORAGE_KEY, type ResolvedTheme, type Theme } from "../lib/theme";
 import { SegmentedControl } from "./segmented-control";
 
 export { createThemeScript, themeScript, THEME_STORAGE_KEY } from "../lib/theme";
@@ -89,7 +84,8 @@ export function ThemeProvider({
     const onChange = () => setSystem(media.matches ? "dark" : "light");
     media?.addEventListener("change", onChange);
     const onStorage = (event: StorageEvent) => {
-      if (event.key === storageKey) setThemeState(isTheme(event.newValue) ? event.newValue : defaultTheme);
+      if (event.key === storageKey)
+        setThemeState(isTheme(event.newValue) ? event.newValue : defaultTheme);
     };
     window.addEventListener("storage", onStorage);
     return () => {

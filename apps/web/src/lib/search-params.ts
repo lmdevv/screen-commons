@@ -39,9 +39,7 @@ export const text =
 
 /** Drop undefined keys so links don't serialise empty params. */
 export function compact<T extends object>(value: T): T {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entry]) => entry !== undefined),
-  ) as T;
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 }
 
 const id = text(80);

@@ -46,7 +46,10 @@ const pieces: Record<string, { imports: string[]; jsx: string }> = {
     jsx: `<ScreenGrid><AppCard app={{ id: "1", name: "A", tagline: null, platform: "web", logoUrl: null, accentColor: null, previews: [] }} /><ScreenTile screen={{ id: "1", thumbUrl: "", width: 1, height: 1, app: { name: "A", platform: "web" } }} /></ScreenGrid>`,
   },
   theme: { imports: ["ThemeProvider"], jsx: "" },
-  tooltip: { imports: ["TooltipProvider", "Tooltip"], jsx: `<Tooltip content="Saved"><button>s</button></Tooltip>` },
+  tooltip: {
+    imports: ["TooltipProvider", "Tooltip"],
+    jsx: `<Tooltip content="Saved"><button>s</button></Tooltip>`,
+  },
   toaster: { imports: ["Toaster"], jsx: `<Toaster />` },
 };
 

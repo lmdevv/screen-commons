@@ -57,7 +57,11 @@ export function Shell({
     <div className="flex min-h-dvh flex-col">
       <TopBar
         logo={
-          <a href={href("/discover")} aria-label="Open UI home" className="ou-focus-ring rounded-sm">
+          <a
+            href={href("/discover")}
+            aria-label="Open UI home"
+            className="ou-focus-ring rounded-sm"
+          >
             <Logo />
           </a>
         }
@@ -144,7 +148,13 @@ export function Shell({
   );
 }
 
-function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function SearchPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [search, setSearch] = React.useState("");
   const [scope, setScope] = React.useState("trending");
   const go = (path: string, params?: Record<string, string>) => {
@@ -200,7 +210,10 @@ function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o
               key={pattern.slug}
               value={`pattern ${pattern.label}`}
               icon={<SquareStack />}
-              hint={pluralize(screens.filter((s) => s.patterns.includes(pattern.slug)).length || 12, "screen")}
+              hint={pluralize(
+                screens.filter((s) => s.patterns.includes(pattern.slug)).length || 12,
+                "screen",
+              )}
               onSelect={() => go("/discover", { tab: "screens" })}
             >
               {pattern.label}
@@ -234,7 +247,11 @@ function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o
       {scope === "trending" ? (
         <CommandGroup heading="Categories">
           {CATEGORIES.slice(0, 4).map((category) => (
-            <CommandItem key={category.slug} value={`category ${category.label}`} icon={<LayoutGrid />}>
+            <CommandItem
+              key={category.slug}
+              value={`category ${category.label}`}
+              icon={<LayoutGrid />}
+            >
               {category.label}
             </CommandItem>
           ))}

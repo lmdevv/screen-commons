@@ -72,7 +72,8 @@
   --ou-warning-soft: rgb(222 140 0 / 0.12);
 
   --ou-scrim: rgb(10 10 10 / 0.36);
-  --ou-shadow-overlay: 0 0 0 1px rgb(10 10 10 / 0.05), 0 2px 4px rgb(10 10 10 / 0.03),
+  --ou-shadow-overlay:
+    0 0 0 1px rgb(10 10 10 / 0.05), 0 2px 4px rgb(10 10 10 / 0.03),
     0 16px 40px -12px rgb(10 10 10 / 0.18);
   --ou-shadow-raised: 0 1px 2px rgb(10 10 10 / 0.06), 0 0 0 1px rgb(10 10 10 / 0.04);
 }
@@ -143,7 +144,7 @@
 
     --ou-border: #1f1f23;
     --ou-border-strong: #2e2e33;
-  --ou-control-border: #66666e;
+    --ou-control-border: #66666e;
     --ou-shot-border: rgb(255 255 255 / 0.07);
 
     --ou-inverse: #f2f2f3;
@@ -216,8 +217,9 @@
 }
 
 @theme {
-  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
   /* Type scale — 12 / 13 / 14 / 16 / 20 / 28 / 40 / 56. UI text is 13–14px. */

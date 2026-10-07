@@ -22,13 +22,19 @@ export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTabl
 export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={cn("border-b border-border transition-colors duration-150 hover:bg-muted/50", className)}
+      className={cn(
+        "border-b border-border transition-colors duration-150 hover:bg-muted/50",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export function TableHeaderCell({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
+export function TableHeaderCell({
+  className,
+  ...props
+}: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
       className={cn(

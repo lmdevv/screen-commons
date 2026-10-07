@@ -50,7 +50,9 @@ export const Route = createRootRoute({
   }),
   component: () => (
     <html lang="en" suppressHydrationWarning>
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         <ThemeProvider>
           <TooltipProvider>
@@ -88,25 +90,25 @@ variables. App code should do the same; `dark:` exists only as an escape hatch.
 
 ### Colour
 
-| Utility                         | Light       | Dark        | Use                                                   |
-| ------------------------------- | ----------- | ----------- | ----------------------------------------------------- |
-| `bg-bg`                         | `#ffffff`   | `#0b0b0c`   | Page                                                  |
-| `text-fg`                       | `#0a0a0a`   | `#f2f2f3`   | Primary text, icons                                   |
-| `text-fg-muted`                 | `#66666c`   | `#9d9da4`   | Secondary text, inactive tabs, labels                 |
-| `text-fg-subtle`                | `#6c6c72`   | `#8a8a91`   | Placeholders, meta, separators ("on", "/")            |
-| `text-fg-faint`                 | `#b4b4b9`   | `#48484d`   | Disabled / decorative only — never content            |
-| `bg-tile` / `bg-tile-hover`     | `#f4f4f5`   | `#161618`   | Screenshot tiles, code blocks, neutral callouts       |
-| `bg-surface`                    | `#ffffff`   | `#111113`   | Dialogs, cards                                        |
-| `bg-elevated`                   | `#ffffff`   | `#18181b`   | Menus, popovers, floating buttons on images           |
-| `bg-muted` / `bg-muted-strong`  | `#f4f4f5` / `#e9e9eb` | `#1a1a1d` / `#252529` | Filled controls, hover backgrounds |
-| `border-border`                 | `#ececee`   | `#1f1f23`   | Hairlines, idle chips                                 |
-| `border-border-strong`          | `#dcdce0`   | `#2e2e33`   | Outline buttons, dividers that must be seen           |
-| `border-control-border`         | `#929298`   | `#66666e`   | Checkbox outline, switch track (≥ 3:1)                |
-| `bg-inverse` / `text-inverse-fg`| black/white | white/black | Primary button, selected chip, step numbers           |
-| `bg-chrome` / `text-chrome-fg`  | `#1d1d20`   | `#232327`   | Tooltips, toasts, SelectionBar (dark in both themes)  |
-| `accent` (+ `accent-soft`)      | `#2f5cf5`   | `#7896ff`   | Focus ring, selection ring, drag-over, links          |
-| `success` `warning` `danger` (+ `-soft`) | —  | —           | Status badges, validation, destructive actions        |
-| `bg-scrim`                      | 36% black   | 62% black   | Overlay backdrops                                     |
+| Utility                                  | Light                 | Dark                  | Use                                                  |
+| ---------------------------------------- | --------------------- | --------------------- | ---------------------------------------------------- |
+| `bg-bg`                                  | `#ffffff`             | `#0b0b0c`             | Page                                                 |
+| `text-fg`                                | `#0a0a0a`             | `#f2f2f3`             | Primary text, icons                                  |
+| `text-fg-muted`                          | `#66666c`             | `#9d9da4`             | Secondary text, inactive tabs, labels                |
+| `text-fg-subtle`                         | `#6c6c72`             | `#8a8a91`             | Placeholders, meta, separators ("on", "/")           |
+| `text-fg-faint`                          | `#b4b4b9`             | `#48484d`             | Disabled / decorative only — never content           |
+| `bg-tile` / `bg-tile-hover`              | `#f4f4f5`             | `#161618`             | Screenshot tiles, code blocks, neutral callouts      |
+| `bg-surface`                             | `#ffffff`             | `#111113`             | Dialogs, cards                                       |
+| `bg-elevated`                            | `#ffffff`             | `#18181b`             | Menus, popovers, floating buttons on images          |
+| `bg-muted` / `bg-muted-strong`           | `#f4f4f5` / `#e9e9eb` | `#1a1a1d` / `#252529` | Filled controls, hover backgrounds                   |
+| `border-border`                          | `#ececee`             | `#1f1f23`             | Hairlines, idle chips                                |
+| `border-border-strong`                   | `#dcdce0`             | `#2e2e33`             | Outline buttons, dividers that must be seen          |
+| `border-control-border`                  | `#929298`             | `#66666e`             | Checkbox outline, switch track (≥ 3:1)               |
+| `bg-inverse` / `text-inverse-fg`         | black/white           | white/black           | Primary button, selected chip, step numbers          |
+| `bg-chrome` / `text-chrome-fg`           | `#1d1d20`             | `#232327`             | Tooltips, toasts, SelectionBar (dark in both themes) |
+| `accent` (+ `accent-soft`)               | `#2f5cf5`             | `#7896ff`             | Focus ring, selection ring, drag-over, links         |
+| `success` `warning` `danger` (+ `-soft`) | —                     | —                     | Status badges, validation, destructive actions       |
+| `bg-scrim`                               | 36% black             | 62% black             | Overlay backdrops                                    |
 
 `shadow-overlay` (menus, dialogs, floating buttons) and `shadow-raised` (segmented thumb, chips
 on images) are the only shadows. Don't add others.
@@ -115,17 +117,17 @@ on images) are the only shadows. Don't add others.
 
 The scale **replaces** Tailwind's defaults (`text-sm` is 13px here):
 
-| Class       | Size / line | Tracking | Use                                                  |
-| ----------- | ----------- | -------- | ---------------------------------------------------- |
-| `text-3xl`  | 56 / 58     | −0.036em | Landing hero only                                    |
-| `text-2xl`  | 40 / 44     | −0.03em  | Page titles ("Discover"), app name in AppHeader      |
-| `text-xl`   | 28 / 34     | −0.022em | Mobile page titles, big stats                        |
-| `text-lg`   | 20 / 26     | −0.014em | Section titles, dialog titles                        |
-| `text-md`   | 16 / 24     | −0.006em | Lead paragraphs, meta values, palette input          |
-| `text-base` | 14 / 20     | 0        | **Default UI text**: buttons, inputs, tabs, menus    |
-| `text-sm`   | 13 / 18     | 0        | Secondary text, captions, labels, counts             |
-| `text-xs`   | 12 / 16     | 0        | Badges, kbd                                          |
-| `text-2xs`  | 11 / 14     | 0        | Kbd glyphs only                                      |
+| Class       | Size / line | Tracking | Use                                               |
+| ----------- | ----------- | -------- | ------------------------------------------------- |
+| `text-3xl`  | 56 / 58     | −0.036em | Landing hero only                                 |
+| `text-2xl`  | 40 / 44     | −0.03em  | Page titles ("Discover"), app name in AppHeader   |
+| `text-xl`   | 28 / 34     | −0.022em | Mobile page titles, big stats                     |
+| `text-lg`   | 20 / 26     | −0.014em | Section titles, dialog titles                     |
+| `text-md`   | 16 / 24     | −0.006em | Lead paragraphs, meta values, palette input       |
+| `text-base` | 14 / 20     | 0        | **Default UI text**: buttons, inputs, tabs, menus |
+| `text-sm`   | 13 / 18     | 0        | Secondary text, captions, labels, counts          |
+| `text-xs`   | 12 / 16     | 0        | Badges, kbd                                       |
+| `text-2xs`  | 11 / 14     | 0        | Kbd glyphs only                                   |
 
 Weights: 400 body, 500 (`font-medium`) for controls/labels, 600 (`font-semibold`) for headings and
 names. Never 700+. Numbers that change or align use `tabular-nums`.
@@ -155,13 +157,13 @@ disable transitions for one frame.
 
 ### Layout grid (`ScreenGrid` recipes)
 
-| Recipe        | Columns (base → sm → md → lg → xl → 2xl) | Content                       |
-| ------------- | ---------------------------------------- | ----------------------------- |
-| `web`         | 1 → 2 → 2 → 3 → 3 → 4                    | Web screen tiles              |
-| `mobile`      | 2 → 3 → 4 → 5 → 5 → 6                    | Phone screen tiles            |
-| `apps-web`    | 1 → 2 → 2 → 3 → 3 → 4                    | AppCards (web)                |
+| Recipe        | Columns (base → sm → md → lg → xl → 2xl) | Content                             |
+| ------------- | ---------------------------------------- | ----------------------------------- |
+| `web`         | 1 → 2 → 2 → 3 → 3 → 4                    | Web screen tiles                    |
+| `mobile`      | 2 → 3 → 4 → 5 → 5 → 6                    | Phone screen tiles                  |
+| `apps-web`    | 1 → 2 → 2 → 3 → 3 → 4                    | AppCards (web)                      |
 | `apps-mobile` | 2 → 3 → 3 → 4 → 5 → 5                    | AppCards (iOS/Android), collections |
-| `flows`       | 1 → 1 → 2 → 2 → 2 → 3                    | FlowCards                     |
+| `flows`       | 1 → 1 → 2 → 2 → 2 → 3                    | FlowCards                           |
 
 Frames: web 16:10, phones 9:19.5, always top-anchored. Short/wide captures are shown whole
 (letterboxed at the top), tall ones are cropped at the bottom (`lib/screen.ts → screenFrame`).
@@ -175,66 +177,66 @@ entities; components never fetch.
 
 ### Primitives
 
-| Component | Notes / snippet |
-| --- | --- |
-| `Button`, `buttonClassName()` | `variant` primary·secondary·outline·ghost·danger·link, `size` sm·md·lg, `icon` (square, needs `aria-label`), `loading`, `shape` pill·rounded, `render` for links. `<Button variant="outline" icon aria-label="More"><Ellipsis /></Button>` |
-| `Input`, `Textarea` | Filled; `leading`/`trailing` slots; `size` sm·md·lg. Inside `Field` they wire to label/description/error automatically. |
-| `Field`, `Label`, `Description`, `FieldError`, `Fieldset`, `Legend`, `Optional` | `<Field invalid><Label>Website</Label><Input /><FieldError match>Enter a URL</FieldError></Field>` |
-| `Select` | Custom listbox. `variant` filled (forms) · pill (toolbar) · ghost ("Latest ▾", "Oct 2026 ▾"). `options=[{value,label}]`. Costs the popup engine (see §6). |
-| `NativeSelect` | Same variants on a native `<select>`, zero JS. **Use for toolbar sort/version on Discover/App pages.** |
-| `Checkbox`, `Switch` | Optional `label` + `description`. Checkbox supports `indeterminate`. |
-| `SegmentedControl` | Radio-group semantics; ←/→ move+select. Platform switch: `options={PLATFORMS…}` `aria-label="Platform"`. |
-| `SearchPill` | Button (not input) that opens the palette; shows ⌘K/Ctrl K. |
-| `Kbd`, `KbdGroup` | `<KbdGroup><Kbd>⌘</Kbd><Kbd>K</Kbd></KbdGroup>`; `tone="chrome"` on dark bars. |
-| `Chip` | Static/link tag: `tone` outline·soft·solid, `onRemove`, `render`. |
-| `FilterChip` | Toggle pill (`aria-pressed`); selected = black. Optional `count`. |
-| `Tabs` `TabsList` `Tab` `TabsPanel` | Panel tabs with sliding underline (client state). |
-| `TabNav` `TabNavItem` | **Route tabs** (Apps · Screens · UI Elements · Flows). `active`, `badge`, `render`. |
-| `Dialog` + `DialogContent` (`size` sm·md·lg·xl) `DialogHeader/Title/Description/Body/Footer`, `DialogTrigger`, `DialogClose`, `CloseButton` | Centered; bottom-aligned on mobile. |
-| `Sheet` + `SheetContent` (`side` right·left·bottom) | Mobile filters, mobile nav. |
-| `Lightbox` `LightboxHeader` `LightboxTitle` `LightboxBody` `LightboxFooter` | Full-viewport overlay shell; ←/→ via `onPrev`/`onNext` (`null` = disabled arrow), `aside` panel, `resetKey`. |
-| `DropdownMenu` `DropdownMenuTrigger` `DropdownMenuContent` `DropdownMenuItem` (`icon`, `hint`, `external`, `destructive`) `DropdownMenuLinkItem` `DropdownMenuCheckboxItem` `DropdownMenuRadioGroup/RadioItem` `DropdownMenuLabel` `DropdownMenuGroup` `DropdownMenuSeparator` `DropdownMenuHeader` `DropdownMenuThemeRow` | Trigger with `render={<Button … />}`. |
-| `Popover` `PopoverTrigger` `PopoverContent` `PopoverTitle` `PopoverDescription` | Filters panel on desktop, "How search works". |
-| `Tooltip`, `TooltipProvider` | Lightweight (no positioning engine): `side` top·bottom, `align` start·center·end (use `end` near the right edge). `<Tooltip content="Saved" shortcut="S"><TopBarIconButton aria-label="Saved">…` |
-| `Toaster`, `toast` | Dark pills bottom-centre. `toast("Saved")`, `toast.success`, `toast.error`, `toast.promise`. |
-| `Avatar` | Image + initials fallback; xs·sm·md·lg. |
-| `Badge`, `StatusBadge` | `tone` neutral·inverse·accent·success·warning·danger·glass (on images). `StatusBadge status="pending"`. |
-| `Skeleton`, `Spinner`, `Progress` | Skeletons must mirror real geometry (`ScreenGridSkeleton`). |
-| `EmptyState` | `icon` (lucide), `title`, `description`, `actions`, `tone="tile"` inside grids. |
-| `Callout` | Inline notice bar; tones neutral·accent·warning·danger·success. |
-| `Card` (+ Header/Title/Description/Content/Footer) | Settings panels. `tone="tile"` for grey. |
-| `Separator`, `ScrollArea`, `VisuallyHidden`, `Container`, `Prose`, `TextLink`, `textLinkClassName` | `Prose` styles rendered markdown (docs). |
-| `CommandPalette` `CommandGroup` `CommandItem` (`icon`, `hint`, `shortcut`) `CommandSeparator` `CommandRailItem` | cmdk inside a Base UI dialog. `shouldFilter={false}` for server results, `loading`, `emptyText`, `rail`. |
-| `CodeBlock`, `CopyButton` | Snippets (API key, MCP config). |
-| `Table` `TableHead` `TableBody` `TableRow` `TableHeaderCell` `TableCell` | Hairline rows; API keys, review list view. |
-| `Steps` | Wizard progress. |
-| `Logo`, `LogoMark` | `variant` full·mark, `size` sm·md·lg. |
-| `ThemeProvider`, `useTheme`, `ThemeToggle`, `themeScript`, `createThemeScript` | Class strategy, `localStorage["open-ui-theme"]`. |
+| Component                                                                                                                                                                                                                                                                                                                  | Notes / snippet                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Button`, `buttonClassName()`                                                                                                                                                                                                                                                                                              | `variant` primary·secondary·outline·ghost·danger·link, `size` sm·md·lg, `icon` (square, needs `aria-label`), `loading`, `shape` pill·rounded, `render` for links. `<Button variant="outline" icon aria-label="More"><Ellipsis /></Button>` |
+| `Input`, `Textarea`                                                                                                                                                                                                                                                                                                        | Filled; `leading`/`trailing` slots; `size` sm·md·lg. Inside `Field` they wire to label/description/error automatically.                                                                                                                    |
+| `Field`, `Label`, `Description`, `FieldError`, `Fieldset`, `Legend`, `Optional`                                                                                                                                                                                                                                            | `<Field invalid><Label>Website</Label><Input /><FieldError match>Enter a URL</FieldError></Field>`                                                                                                                                         |
+| `Select`                                                                                                                                                                                                                                                                                                                   | Custom listbox. `variant` filled (forms) · pill (toolbar) · ghost ("Latest ▾", "Oct 2026 ▾"). `options=[{value,label}]`. Costs the popup engine (see §6).                                                                                  |
+| `NativeSelect`                                                                                                                                                                                                                                                                                                             | Same variants on a native `<select>`, zero JS. **Use for toolbar sort/version on Discover/App pages.**                                                                                                                                     |
+| `Checkbox`, `Switch`                                                                                                                                                                                                                                                                                                       | Optional `label` + `description`. Checkbox supports `indeterminate`.                                                                                                                                                                       |
+| `SegmentedControl`                                                                                                                                                                                                                                                                                                         | Radio-group semantics; ←/→ move+select. Platform switch: `options={PLATFORMS…}` `aria-label="Platform"`.                                                                                                                                   |
+| `SearchPill`                                                                                                                                                                                                                                                                                                               | Button (not input) that opens the palette; shows ⌘K/Ctrl K.                                                                                                                                                                                |
+| `Kbd`, `KbdGroup`                                                                                                                                                                                                                                                                                                          | `<KbdGroup><Kbd>⌘</Kbd><Kbd>K</Kbd></KbdGroup>`; `tone="chrome"` on dark bars.                                                                                                                                                             |
+| `Chip`                                                                                                                                                                                                                                                                                                                     | Static/link tag: `tone` outline·soft·solid, `onRemove`, `render`.                                                                                                                                                                          |
+| `FilterChip`                                                                                                                                                                                                                                                                                                               | Toggle pill (`aria-pressed`); selected = black. Optional `count`.                                                                                                                                                                          |
+| `Tabs` `TabsList` `Tab` `TabsPanel`                                                                                                                                                                                                                                                                                        | Panel tabs with sliding underline (client state).                                                                                                                                                                                          |
+| `TabNav` `TabNavItem`                                                                                                                                                                                                                                                                                                      | **Route tabs** (Apps · Screens · UI Elements · Flows). `active`, `badge`, `render`.                                                                                                                                                        |
+| `Dialog` + `DialogContent` (`size` sm·md·lg·xl) `DialogHeader/Title/Description/Body/Footer`, `DialogTrigger`, `DialogClose`, `CloseButton`                                                                                                                                                                                | Centered; bottom-aligned on mobile.                                                                                                                                                                                                        |
+| `Sheet` + `SheetContent` (`side` right·left·bottom)                                                                                                                                                                                                                                                                        | Mobile filters, mobile nav.                                                                                                                                                                                                                |
+| `Lightbox` `LightboxHeader` `LightboxTitle` `LightboxBody` `LightboxFooter`                                                                                                                                                                                                                                                | Full-viewport overlay shell; ←/→ via `onPrev`/`onNext` (`null` = disabled arrow), `aside` panel, `resetKey`.                                                                                                                               |
+| `DropdownMenu` `DropdownMenuTrigger` `DropdownMenuContent` `DropdownMenuItem` (`icon`, `hint`, `external`, `destructive`) `DropdownMenuLinkItem` `DropdownMenuCheckboxItem` `DropdownMenuRadioGroup/RadioItem` `DropdownMenuLabel` `DropdownMenuGroup` `DropdownMenuSeparator` `DropdownMenuHeader` `DropdownMenuThemeRow` | Trigger with `render={<Button … />}`.                                                                                                                                                                                                      |
+| `Popover` `PopoverTrigger` `PopoverContent` `PopoverTitle` `PopoverDescription`                                                                                                                                                                                                                                            | Filters panel on desktop, "How search works".                                                                                                                                                                                              |
+| `Tooltip`, `TooltipProvider`                                                                                                                                                                                                                                                                                               | Lightweight (no positioning engine): `side` top·bottom, `align` start·center·end (use `end` near the right edge). `<Tooltip content="Saved" shortcut="S"><TopBarIconButton aria-label="Saved">…`                                           |
+| `Toaster`, `toast`                                                                                                                                                                                                                                                                                                         | Dark pills bottom-centre. `toast("Saved")`, `toast.success`, `toast.error`, `toast.promise`.                                                                                                                                               |
+| `Avatar`                                                                                                                                                                                                                                                                                                                   | Image + initials fallback; xs·sm·md·lg.                                                                                                                                                                                                    |
+| `Badge`, `StatusBadge`                                                                                                                                                                                                                                                                                                     | `tone` neutral·inverse·accent·success·warning·danger·glass (on images). `StatusBadge status="pending"`.                                                                                                                                    |
+| `Skeleton`, `Spinner`, `Progress`                                                                                                                                                                                                                                                                                          | Skeletons must mirror real geometry (`ScreenGridSkeleton`).                                                                                                                                                                                |
+| `EmptyState`                                                                                                                                                                                                                                                                                                               | `icon` (lucide), `title`, `description`, `actions`, `tone="tile"` inside grids.                                                                                                                                                            |
+| `Callout`                                                                                                                                                                                                                                                                                                                  | Inline notice bar; tones neutral·accent·warning·danger·success.                                                                                                                                                                            |
+| `Card` (+ Header/Title/Description/Content/Footer)                                                                                                                                                                                                                                                                         | Settings panels. `tone="tile"` for grey.                                                                                                                                                                                                   |
+| `Separator`, `ScrollArea`, `VisuallyHidden`, `Container`, `Prose`, `TextLink`, `textLinkClassName`                                                                                                                                                                                                                         | `Prose` styles rendered markdown (docs).                                                                                                                                                                                                   |
+| `CommandPalette` `CommandGroup` `CommandItem` (`icon`, `hint`, `shortcut`) `CommandSeparator` `CommandRailItem`                                                                                                                                                                                                            | cmdk inside a Base UI dialog. `shouldFilter={false}` for server results, `loading`, `emptyText`, `rail`.                                                                                                                                   |
+| `CodeBlock`, `CopyButton`                                                                                                                                                                                                                                                                                                  | Snippets (API key, MCP config).                                                                                                                                                                                                            |
+| `Table` `TableHead` `TableBody` `TableRow` `TableHeaderCell` `TableCell`                                                                                                                                                                                                                                                   | Hairline rows; API keys, review list view.                                                                                                                                                                                                 |
+| `Steps`                                                                                                                                                                                                                                                                                                                    | Wizard progress.                                                                                                                                                                                                                           |
+| `Logo`, `LogoMark`                                                                                                                                                                                                                                                                                                         | `variant` full·mark, `size` sm·md·lg.                                                                                                                                                                                                      |
+| `ThemeProvider`, `useTheme`, `ThemeToggle`, `themeScript`, `createThemeScript`                                                                                                                                                                                                                                             | Class strategy, `localStorage["open-ui-theme"]`.                                                                                                                                                                                           |
 
 ### Library (domain) components
 
-| Component | Takes | Notes |
-| --- | --- | --- |
-| `TopBar`, `TopBarIconButton`, `AccountMenu` | `logo`, `nav`, `onSearchClick`, `actions`, `account` | Platform switch in `nav` is hidden below `sm` — repeat it in the page header on mobile. `AccountMenu` renders a plain avatar button and lazy-loads the menu on first hover/focus/press. |
-| `PageHeader`, `SectionHeader`, `Toolbar`, `ResultCount` | strings/nodes | `PageHeader` = 40px title; `ResultCount count noun`. |
-| `CategoryChips` | `items`, `value` (`null` = All), `onValueChange`, `leading` | Scroll row with fade edges + arrows. |
-| `ScreenGrid`, `ScreenGridItem`, `ScreenGridSkeleton` | `platform` or `columns` | See recipes above. |
-| `ScreenTile` | `screen: ScreenTileData` (⊂ `Screen`) | `linkRender`/`onOpen`, `showApp` (cross-app grids), `onSaveToggle`, `selectable/selected/onSelectedChange`, `priority` (first row), `variant` tile·bare, `badge`, `caption`. |
-| `ScreenImage` | `src,width,height,platform,alt` | Low-level framed screenshot (`layout` frame·natural). |
-| `AppLogo` | `app` (`name`, `logoUrl?`, `accentColor?`) | xs 20 · sm 28 · md 36 · lg 48 · xl 80. |
-| `AppCard` | `app: AppCardData` (⊂ `AppSummary`) | Tile with `previews[0]`, logo/name/tagline; `saved` + `onSaveToggle`; `badge`. |
-| `AppHeader` | `app` (⊂ `AppSummary`/`AppDetail`) | `back`, `actions`, `meta`, `renderCategory`. |
-| `FlowCard` | `flow: FlowCardData` (⊂ `FlowSummary`) | "Onboarding on [logo] App · 5 screens"; `hideApp` on app pages. |
-| `FlowStrip` | `steps` (⊂ `FlowStep[]`) | Scroll-snap strip, numbers + labels, `activeIndex`, `onStepClick`, `size` md·lg. |
-| `FlowViewer` | `flow` (⊂ `FlowDetail`) | Lightbox: title, strip, Save/Copy/Download, device + size. |
-| `ScreenViewer`, `ScreenDetails` | `screen` (⊂ `Screen` + `ScreenDetail` neighbours/flows) | Image scrolls for tall captures; details panel; `onPrev/onNext`, `position`, `onSaveToggle/onCopyImage/onDownload`, `tagLinkRender`, `appLinkRender`, `flowLinkRender`. |
-| `CollectionCard` | `collection` (⊂ `Collection`) | 2×2 mosaic. |
-| `SelectionBar`, `SelectionBarButton` | `count`, `onClear` | Floating dark bar; inert when `count === 0`. |
-| `UploadDropzone`, `UploadItem` | `onFiles`, `onReject`, `status`, `progress` | Drag/click/paste; validates PNG/JPEG/WebP ≤ 15 MB. |
-| `SortableList`, `SortableHandle`, `moveItem`, `arrayMove` | `items`, `getId`, `onReorder`, `renderItem` | dnd-kit; pointer + keyboard + announcements. |
-| `FlowStepItem` | `index`, `thumbUrl`, `label`, `onLabelChange`, `handle` | Row for flow ordering. |
-| `KeyValue`, `KeyValueGroup`, `DetailList`, `DetailRow`, `Stat` | — | Meta rows, details panel, stats. |
-| `Footer` | `logo`, `tagline`, `columns`, `legal`, `aside`, `renderLink` | — |
+| Component                                                      | Takes                                                        | Notes                                                                                                                                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TopBar`, `TopBarIconButton`, `AccountMenu`                    | `logo`, `nav`, `onSearchClick`, `actions`, `account`         | Platform switch in `nav` is hidden below `sm` — repeat it in the page header on mobile. `AccountMenu` renders a plain avatar button and lazy-loads the menu on first hover/focus/press. |
+| `PageHeader`, `SectionHeader`, `Toolbar`, `ResultCount`        | strings/nodes                                                | `PageHeader` = 40px title; `ResultCount count noun`.                                                                                                                                    |
+| `CategoryChips`                                                | `items`, `value` (`null` = All), `onValueChange`, `leading`  | Scroll row with fade edges + arrows.                                                                                                                                                    |
+| `ScreenGrid`, `ScreenGridItem`, `ScreenGridSkeleton`           | `platform` or `columns`                                      | See recipes above.                                                                                                                                                                      |
+| `ScreenTile`                                                   | `screen: ScreenTileData` (⊂ `Screen`)                        | `linkRender`/`onOpen`, `showApp` (cross-app grids), `onSaveToggle`, `selectable/selected/onSelectedChange`, `priority` (first row), `variant` tile·bare, `badge`, `caption`.            |
+| `ScreenImage`                                                  | `src,width,height,platform,alt`                              | Low-level framed screenshot (`layout` frame·natural).                                                                                                                                   |
+| `AppLogo`                                                      | `app` (`name`, `logoUrl?`, `accentColor?`)                   | xs 20 · sm 28 · md 36 · lg 48 · xl 80.                                                                                                                                                  |
+| `AppCard`                                                      | `app: AppCardData` (⊂ `AppSummary`)                          | Tile with `previews[0]`, logo/name/tagline; `saved` + `onSaveToggle`; `badge`.                                                                                                          |
+| `AppHeader`                                                    | `app` (⊂ `AppSummary`/`AppDetail`)                           | `back`, `actions`, `meta`, `renderCategory`.                                                                                                                                            |
+| `FlowCard`                                                     | `flow: FlowCardData` (⊂ `FlowSummary`)                       | "Onboarding on [logo] App · 5 screens"; `hideApp` on app pages.                                                                                                                         |
+| `FlowStrip`                                                    | `steps` (⊂ `FlowStep[]`)                                     | Scroll-snap strip, numbers + labels, `activeIndex`, `onStepClick`, `size` md·lg.                                                                                                        |
+| `FlowViewer`                                                   | `flow` (⊂ `FlowDetail`)                                      | Lightbox: title, strip, Save/Copy/Download, device + size.                                                                                                                              |
+| `ScreenViewer`, `ScreenDetails`                                | `screen` (⊂ `Screen` + `ScreenDetail` neighbours/flows)      | Image scrolls for tall captures; details panel; `onPrev/onNext`, `position`, `onSaveToggle/onCopyImage/onDownload`, `tagLinkRender`, `appLinkRender`, `flowLinkRender`.                 |
+| `CollectionCard`                                               | `collection` (⊂ `Collection`)                                | 2×2 mosaic.                                                                                                                                                                             |
+| `SelectionBar`, `SelectionBarButton`                           | `count`, `onClear`                                           | Floating dark bar; inert when `count === 0`.                                                                                                                                            |
+| `UploadDropzone`, `UploadItem`                                 | `onFiles`, `onReject`, `status`, `progress`                  | Drag/click/paste; validates PNG/JPEG/WebP ≤ 15 MB.                                                                                                                                      |
+| `SortableList`, `SortableHandle`, `moveItem`, `arrayMove`      | `items`, `getId`, `onReorder`, `renderItem`                  | dnd-kit; pointer + keyboard + announcements.                                                                                                                                            |
+| `FlowStepItem`                                                 | `index`, `thumbUrl`, `label`, `onLabelChange`, `handle`      | Row for flow ordering.                                                                                                                                                                  |
+| `KeyValue`, `KeyValueGroup`, `DetailList`, `DetailRow`, `Stat` | —                                                            | Meta rows, details panel, stats.                                                                                                                                                        |
+| `Footer`                                                       | `logo`, `tagline`, `columns`, `legal`, `aside`, `renderLink` | —                                                                                                                                                                                       |
 
 Helpers: `cn`, `screenFrame`, `frameKind`, `gridSizes`, `intrinsicSize`, `formatNumber`,
 `formatCompact`, `pluralize`, `formatBytes`, `formatDimensions`, `formatDate`, `displayUrl`,
@@ -402,7 +404,7 @@ Back ghost + Continue primary on the right).
    then `SortableList` of `FlowStepItem` (drag or keyboard reorder, step labels).
 5. **Review** — summary `DetailList`, a `ScreenGrid` preview, `Callout` "Members’ uploads are
    reviewed by an admin" (hidden for admins), primary "Submit"; progress through `UploadItem
-   status="uploading" progress`, success → `toast.success` + link.
+status="uploading" progress`, success → `toast.success` + link.
 
 ### Review queue (`/review`, admin)
 
@@ -416,6 +418,7 @@ with Approve/Reject in `actions`), bulk approve/reject via `SelectionBar` (`prim
 
 `Container size="narrow"`, `PageHeader title="Settings"`, `Tabs` (Profile · API keys · Extension &
 MCP) with `TabsList bordered`.
+
 - Profile: `Card` with `Field`s (name, email read-only), `Avatar size="lg"`, `CardFooter` Save.
   Appearance row: `ThemeToggle size="md"`.
 - API keys: `SectionHeader` + "Create key" button → `Dialog size="sm"` (name `Input`) → on success
@@ -457,12 +460,12 @@ Auth-page layout; `EmptyState icon={<PlugZap />}` style block with `Spinner` whi
 Measured with `node showcase/scripts/bundle-budget.ts` (Vite production build; React DOM alone is
 66 KB gzip):
 
-| What renders on first load                                                     | Initial JS gzip |
-| ------------------------------------------------------------------------------ | --------------- |
-| React DOM only                                                                 | 66 KB           |
+| What renders on first load                                                                                        | Initial JS gzip    |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------ |
+| React DOM only                                                                                                    | 66 KB              |
 | TopBar · AccountMenu · tabs · CategoryChips · NativeSelect · grid of AppCard/ScreenTile · Tooltip · ThemeProvider | **89 KB** (+23 KB) |
-| … plus `Toaster`                                                               | 99 KB           |
-| AccountMenu popup (loaded on first hover/focus)                                | +43 KB, lazy    |
+| … plus `Toaster`                                                                                                  | 99 KB              |
+| AccountMenu popup (loaded on first hover/focus)                                                                   | +43 KB, lazy       |
 
 The first Base UI popup on a page (Menu, Select, Popover, Dialog, Lightbox, CommandPalette)
 brings the shared positioning/focus engine (~40 KB). Keep it off the critical path:
@@ -471,8 +474,12 @@ brings the shared positioning/focus engine (~40 KB). Keep it off the critical pa
   `AccountMenu` is already lazy.
 - Lazy-load overlays that only appear after interaction, via deep imports:
   ```tsx
-  const ScreenViewer = lazy(() => import("@open-ui/ui/components/screen-viewer").then((m) => ({ default: m.ScreenViewer })));
-  const FlowViewer = lazy(() => import("@open-ui/ui/components/flow-viewer").then((m) => ({ default: m.FlowViewer })));
+  const ScreenViewer = lazy(() =>
+    import("@open-ui/ui/components/screen-viewer").then((m) => ({ default: m.ScreenViewer })),
+  );
+  const FlowViewer = lazy(() =>
+    import("@open-ui/ui/components/flow-viewer").then((m) => ({ default: m.FlowViewer })),
+  );
   const CommandPalette = lazy(() => import("./search-palette")); // your wrapper around CommandPalette
   ```
   Render them only when open (`{search.screen ? <Suspense><ScreenViewer … /></Suspense> : null}`)

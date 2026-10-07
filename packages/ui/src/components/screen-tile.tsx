@@ -12,7 +12,8 @@ import { ScreenImage } from "./screen-image";
 /** The subset of `Screen` a tile needs (so search results / flow steps can be passed too). */
 export type ScreenTileData = Pick<Screen, "id" | "thumbUrl" | "width" | "height"> &
   Partial<Pick<Screen, "title" | "saved" | "dominantColor">> & {
-    app: Pick<AppRef, "name" | "platform"> & Partial<Pick<AppRef, "slug" | "logoUrl" | "accentColor">>;
+    app: Pick<AppRef, "name" | "platform"> &
+      Partial<Pick<AppRef, "slug" | "logoUrl" | "accentColor">>;
   };
 
 export interface ScreenTileProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onSelect"> {

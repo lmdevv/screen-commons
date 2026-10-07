@@ -11,8 +11,10 @@ export interface SegmentedControlOption<T extends string = string> {
   disabled?: boolean;
 }
 
-export interface SegmentedControlProps<T extends string = string>
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange" | "defaultValue"> {
+export interface SegmentedControlProps<T extends string = string> extends Omit<
+  React.HTMLAttributes<HTMLDivElement>,
+  "onChange" | "defaultValue"
+> {
   options: readonly SegmentedControlOption<T>[];
   value?: T;
   defaultValue?: T;
@@ -113,9 +115,7 @@ export function SegmentedControl<T extends string = string>({
               "transition-[background-color,color,box-shadow] duration-150 ease-out disabled:opacity-40",
               size === "md" ? "px-3.5 text-base" : "px-3 text-sm",
               "[&_svg]:size-4",
-              checked
-                ? "bg-bg text-fg shadow-raised"
-                : "text-fg-muted hover:text-fg",
+              checked ? "bg-bg text-fg shadow-raised" : "text-fg-muted hover:text-fg",
             )}
           >
             {option.label}

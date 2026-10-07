@@ -80,7 +80,10 @@ export function SectionHeader({
 export function Toolbar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex min-h-10 flex-wrap items-center justify-between gap-x-6 gap-y-3", className)}
+      className={cn(
+        "flex min-h-10 flex-wrap items-center justify-between gap-x-6 gap-y-3",
+        className,
+      )}
       {...props}
     />
   );

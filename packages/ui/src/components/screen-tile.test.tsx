@@ -62,7 +62,9 @@ describe("ScreenTile", () => {
 
   it("uses the bare phone frame for mobile platforms", () => {
     const { container } = render(
-      <ScreenTile screen={{ ...webScreen, width: 390, height: 844, app: { name: "Tally", platform: "ios" } }} />,
+      <ScreenTile
+        screen={{ ...webScreen, width: 390, height: 844, app: { name: "Tally", platform: "ios" } }}
+      />,
     );
     expect((container.querySelector("img")!.parentElement as HTMLElement).style.aspectRatio).toBe(
       "9 / 19.5",

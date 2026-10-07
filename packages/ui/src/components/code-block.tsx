@@ -11,7 +11,13 @@ export interface CopyButtonProps extends Omit<React.ComponentProps<"button">, "o
 }
 
 /** Icon button that copies `value` and shows a check for 1.5s. */
-export function CopyButton({ value, label = "Copy", onCopied, className, ...props }: CopyButtonProps) {
+export function CopyButton({
+  value,
+  label = "Copy",
+  onCopied,
+  className,
+  ...props
+}: CopyButtonProps) {
   const [copied, setCopied] = React.useState(false);
   React.useEffect(() => {
     if (!copied) return;
@@ -56,7 +62,10 @@ export interface CodeBlockProps extends React.HTMLAttributes<HTMLDivElement> {
  */
 export function CodeBlock({ code, title, copyable = true, className, ...props }: CodeBlockProps) {
   return (
-    <div className={cn("group relative overflow-hidden rounded-card bg-tile", className)} {...props}>
+    <div
+      className={cn("group relative overflow-hidden rounded-card bg-tile", className)}
+      {...props}
+    >
       {title ? (
         <div className="flex h-10 items-center border-b border-border px-4 text-sm font-medium text-fg-muted">
           {title}
@@ -66,10 +75,7 @@ export function CodeBlock({ code, title, copyable = true, className, ...props }:
         <code>{code}</code>
       </pre>
       {copyable ? (
-        <CopyButton
-          value={code}
-          className={cn("absolute right-2", title ? "top-1" : "top-2")}
-        />
+        <CopyButton value={code} className={cn("absolute right-2", title ? "top-1" : "top-2")} />
       ) : null}
     </div>
   );

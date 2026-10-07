@@ -39,7 +39,12 @@ export function DropdownMenuContent({
 }: DropdownMenuContentProps) {
   return (
     <Menu.Portal>
-      <Menu.Positioner side={side} align={align} sideOffset={sideOffset} className="z-50 outline-none">
+      <Menu.Positioner
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        className="z-50 outline-none"
+      >
         <Menu.Popup
           className={cn(
             popupSurfaceClassName,

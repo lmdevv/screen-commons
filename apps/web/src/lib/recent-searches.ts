@@ -13,7 +13,10 @@ export function readRecentSearches(): string[] {
 export function addRecentSearch(query: string): void {
   const q = query.trim();
   if (!q) return;
-  const next = [q, ...readRecentSearches().filter((item) => item.toLowerCase() !== q.toLowerCase())];
+  const next = [
+    q,
+    ...readRecentSearches().filter((item) => item.toLowerCase() !== q.toLowerCase()),
+  ];
   try {
     localStorage.setItem(KEY, JSON.stringify(next.slice(0, MAX)));
   } catch {

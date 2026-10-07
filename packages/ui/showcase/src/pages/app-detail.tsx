@@ -31,7 +31,10 @@ import { href, setParams, type Route } from "../router";
 export function AppDetailPage({ route }: { route: Route }) {
   const app = appBySlug[route.params.get("app") ?? "northwind"] ?? appBySlug.northwind!;
   const appScreens = screens.filter((s) => s.app.id === app.id);
-  const grid = [...appScreens, ...appScreens, ...appScreens].slice(0, app.platform === "web" ? 12 : 12);
+  const grid = [...appScreens, ...appScreens, ...appScreens].slice(
+    0,
+    app.platform === "web" ? 12 : 12,
+  );
   const screenId = route.params.get("screen");
   const [saved, setSaved] = React.useState(false);
   const [version, setVersion] = React.useState("Oct 2026");
@@ -46,7 +49,13 @@ export function AppDetailPage({ route }: { route: Route }) {
       <AppHeader
         app={app}
         back={
-          <a href={href("/discover")} className={cn(textLinkClassName, "inline-flex items-center gap-1.5 text-base no-underline")}>
+          <a
+            href={href("/discover")}
+            className={cn(
+              textLinkClassName,
+              "inline-flex items-center gap-1.5 text-base no-underline",
+            )}
+          >
             <ArrowLeft className="size-4" aria-hidden />
             Discover
           </a>
@@ -64,12 +73,17 @@ export function AppDetailPage({ route }: { route: Route }) {
               <Bookmark className={saved ? "fill-current" : undefined} />
               {saved ? "Saved" : "Save"}
             </Button>
-            <Button variant="outline" render={<a href={app.websiteUrl ?? "#"} target="_blank" rel="noreferrer" />}>
+            <Button
+              variant="outline"
+              render={<a href={app.websiteUrl ?? "#"} target="_blank" rel="noreferrer" />}
+            >
               Visit site
               <ExternalLink />
             </Button>
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" icon aria-label="More actions" />}>
+              <DropdownMenuTrigger
+                render={<Button variant="outline" icon aria-label="More actions" />}
+              >
                 <Ellipsis />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -97,7 +111,9 @@ export function AppDetailPage({ route }: { route: Route }) {
           />
           <span aria-hidden className="h-6 w-px bg-border-strong" />
           <TabNav aria-label="App sections">
-            <TabNavItem active href="#">Screens</TabNavItem>
+            <TabNavItem active href="#">
+              Screens
+            </TabNavItem>
             <TabNavItem href="#">UI Elements</TabNavItem>
             <TabNavItem href="#">Flows</TabNavItem>
           </TabNav>
@@ -126,10 +142,19 @@ export function AppDetailPage({ route }: { route: Route }) {
 
       {appFlows.length > 0 ? (
         <section className="mt-16">
-          <SectionHeader title="Flows" description={`${pluralize(appFlows.length, "flow")} captured on ${app.name}`} className="mb-6" />
+          <SectionHeader
+            title="Flows"
+            description={`${pluralize(appFlows.length, "flow")} captured on ${app.name}`}
+            className="mb-6"
+          />
           <ScreenGrid columns="flows">
             {appFlows.map((flow) => (
-              <FlowCard key={flow.id} flow={flow} hideApp linkRender={<a href={href("/discover", { tab: "flows", flow: flow.id })} />} />
+              <FlowCard
+                key={flow.id}
+                flow={flow}
+                hideApp
+                linkRender={<a href={href("/discover", { tab: "flows", flow: flow.id })} />}
+              />
             ))}
           </ScreenGrid>
         </section>
@@ -143,8 +168,14 @@ export function AppDetailPage({ route }: { route: Route }) {
           }}
           screen={{ ...viewerScreen, saved: savedScreens.has(viewerScreen.id) }}
           position={{ index: viewerIndex, total: appScreens.length }}
-          onPrev={viewerScreen.previousId ? () => setParams(route, { screen: viewerScreen.previousId }) : null}
-          onNext={viewerScreen.nextId ? () => setParams(route, { screen: viewerScreen.nextId }) : null}
+          onPrev={
+            viewerScreen.previousId
+              ? () => setParams(route, { screen: viewerScreen.previousId })
+              : null
+          }
+          onNext={
+            viewerScreen.nextId ? () => setParams(route, { screen: viewerScreen.nextId }) : null
+          }
           onSaveToggle={(s, next) => {
             setSavedScreens((prev) => {
               const copy = new Set(prev);
@@ -156,7 +187,9 @@ export function AppDetailPage({ route }: { route: Route }) {
           }}
           onCopyImage={() => toast.success("Image copied")}
           onDownload={() => toast("Downloading…")}
-          tagLinkRender={(_kind, slug) => <a href={href("/discover", { tab: "screens", pattern: slug })} />}
+          tagLinkRender={(_kind, slug) => (
+            <a href={href("/discover", { tab: "screens", pattern: slug })} />
+          )}
           appLinkRender={<a href={href("/app", { app: app.slug })} />}
           flowLinkRender={(flow) => <a href={href("/discover", { tab: "flows", flow: flow.id })} />}
         />

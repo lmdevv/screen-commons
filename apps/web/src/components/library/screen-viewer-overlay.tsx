@@ -117,7 +117,8 @@ export default function ScreenViewerOverlay({
 
   // --- actions --------------------------------------------------------------------------------
   const save = useCallback(
-    (target: ViewerData, saved: boolean) => void toggleSave({ kind: "screen", id: target.id }, saved),
+    (target: ViewerData, saved: boolean) =>
+      void toggleSave({ kind: "screen", id: target.id }, saved),
     [toggleSave],
   );
   const copyImage = useCallback(async (target: ViewerData) => {
@@ -144,7 +145,10 @@ export default function ScreenViewerOverlay({
     }
   }, []);
 
-  useHotkey("s", () => screen && save(screen, !screen.saved), { mod: false, enabled: open && !!screen });
+  useHotkey("s", () => screen && save(screen, !screen.saved), {
+    mod: false,
+    enabled: open && !!screen,
+  });
   useHotkey("z", () => changeZoom(zoom === "fit" ? "fill" : "fit"), { mod: false, enabled: open });
   // ⌘C copies the image unless the user is copying selected text.
   useEffect(() => {
@@ -212,13 +216,21 @@ export default function ScreenViewerOverlay({
         <Link
           to="/browse/$platform"
           params={{ platform }}
-          search={kind === "pattern" ? { tab: "screens", pattern: slug as never } : { tab: "elements", element: slug as never }}
+          search={
+            kind === "pattern"
+              ? { tab: "screens", pattern: slug as never }
+              : { tab: "elements", element: slug as never }
+          }
         />
       )}
       flowLinkRender={(flow) => (
         <Link
           to="."
-          search={(current: Record<string, unknown>) => ({ ...current, flow: flow.id, screen: undefined })}
+          search={(current: Record<string, unknown>) => ({
+            ...current,
+            flow: flow.id,
+            screen: undefined,
+          })}
           resetScroll={false}
         />
       )}

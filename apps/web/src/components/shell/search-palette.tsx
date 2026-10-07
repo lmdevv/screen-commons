@@ -4,13 +4,7 @@
  * the `search` server function (debounced). Enter on the first row opens /search?q=….
  */
 import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, labelFor } from "@open-ui/core/taxonomy";
-import {
-  AppLogo,
-  CommandGroup,
-  CommandItem,
-  CommandPalette,
-  CommandRailItem,
-} from "@open-ui/ui";
+import { AppLogo, CommandGroup, CommandItem, CommandPalette, CommandRailItem } from "@open-ui/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -29,7 +23,11 @@ import { useEffect, useMemo, useState } from "react";
 import { displayTitle } from "../../lib/display-title";
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
-import { addRecentSearch, clearRecentSearches, readRecentSearches } from "../../lib/recent-searches";
+import {
+  addRecentSearch,
+  clearRecentSearches,
+  readRecentSearches,
+} from "../../lib/recent-searches";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
 
 type Scope = "trending" | "apps" | "screens" | "elements" | "flows";
@@ -143,8 +141,7 @@ export default function SearchPalette({
 
   const data = results.data;
   const hasResults =
-    !!data &&
-    data.apps.length + data.screens.length + data.flows.length + data.terms.length > 0;
+    !!data && data.apps.length + data.screens.length + data.flows.length + data.terms.length > 0;
 
   return (
     <CommandPalette

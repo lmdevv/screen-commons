@@ -30,7 +30,11 @@ export function Steps({ steps, current, onStepClick, className, ...props }: Step
                 state === "upcoming" && "bg-muted text-fg-muted",
               )}
             >
-              {state === "complete" ? <Check aria-hidden className="size-3.5" strokeWidth={3} /> : index + 1}
+              {state === "complete" ? (
+                <Check aria-hidden className="size-3.5" strokeWidth={3} />
+              ) : (
+                index + 1
+              )}
             </span>
             <span
               className={cn(

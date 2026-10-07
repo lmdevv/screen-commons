@@ -60,7 +60,9 @@ export function AppCard({
             <div
               className={cn(
                 "relative flex justify-center overflow-hidden rounded-tile bg-tile transition-colors duration-150 ease-out group-hover/card:bg-tile-hover",
-                kind === "web" ? "aspect-[4/3] items-center px-[8%] sm:aspect-[8/7]" : "aspect-[10/19] items-start px-[11%] pt-[11%]",
+                kind === "web"
+                  ? "aspect-[4/3] items-center px-[8%] sm:aspect-[8/7]"
+                  : "aspect-[10/19] items-start px-[11%] pt-[11%]",
               )}
             >
               {preview ? (

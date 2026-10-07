@@ -153,8 +153,15 @@ function SortableItem({
   index: number;
   children: (state: SortableRenderState) => React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
   return (
     <li
       ref={setNodeRef}
@@ -176,7 +183,12 @@ export interface SortableHandleButtonProps extends React.ButtonHTMLAttributes<HT
 }
 
 /** Grip button that activates dragging. Keyboard: Space to lift, arrows to move, Space to drop. */
-export function SortableHandle({ handle, label = "Reorder", className, ...props }: SortableHandleButtonProps) {
+export function SortableHandle({
+  handle,
+  label = "Reorder",
+  className,
+  ...props
+}: SortableHandleButtonProps) {
   const { ref, ...handleProps } = handle;
   return (
     <button

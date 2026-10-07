@@ -52,8 +52,18 @@ const viewports = {
 const shots: Shot[] = [
   { name: "discover", hash: "/discover" },
   { name: "discover-screens", hash: "/discover?tab=screens", themes: ["light"] },
-  { name: "discover-mobile-apps", hash: "/discover?platform=ios", viewports: ["desktop"], themes: ["light"] },
-  { name: "discover-flows", hash: "/discover?tab=flows", viewports: ["desktop"], themes: ["light"] },
+  {
+    name: "discover-mobile-apps",
+    hash: "/discover?platform=ios",
+    viewports: ["desktop"],
+    themes: ["light"],
+  },
+  {
+    name: "discover-flows",
+    hash: "/discover?tab=flows",
+    viewports: ["desktop"],
+    themes: ["light"],
+  },
   {
     name: "discover-selection",
     hash: "/discover?tab=screens",
@@ -68,11 +78,26 @@ const shots: Shot[] = [
     },
   },
   { name: "app", hash: "/app?app=northwind", fullPage: true, viewports: ["desktop"] },
-  { name: "app-mobile-platform", hash: "/app?app=tally", viewports: ["desktop"], themes: ["light"] },
+  {
+    name: "app-mobile-platform",
+    hash: "/app?app=tally",
+    viewports: ["desktop"],
+    themes: ["light"],
+  },
   { name: "viewer", hash: "/app?app=northwind&screen=scr_northwind-landing" },
-  { name: "viewer-mobile-app", hash: "/app?app=tally&screen=scr_tally-home", viewports: ["desktop"], themes: ["light"] },
+  {
+    name: "viewer-mobile-app",
+    hash: "/app?app=tally&screen=scr_tally-home",
+    viewports: ["desktop"],
+    themes: ["light"],
+  },
   { name: "flow", hash: "/flow" },
-  { name: "flow-web", hash: "/flow?flow=flow_northwind_login&platform=web", viewports: ["desktop"], themes: ["dark"] },
+  {
+    name: "flow-web",
+    hash: "/flow?flow=flow_northwind_login&platform=web",
+    viewports: ["desktop"],
+    themes: ["dark"],
+  },
   {
     name: "palette",
     hash: "/discover",
@@ -90,8 +115,20 @@ const shots: Shot[] = [
       await page.waitForTimeout(300);
     },
   },
-  { name: "components", hash: "/components", fullPage: true, sections: true, viewports: ["desktop"] },
-  { name: "components-mobile", hash: "/components", fullPage: true, viewports: ["mobile"], themes: ["light"] },
+  {
+    name: "components",
+    hash: "/components",
+    fullPage: true,
+    sections: true,
+    viewports: ["desktop"],
+  },
+  {
+    name: "components-mobile",
+    hash: "/components",
+    fullPage: true,
+    viewports: ["mobile"],
+    themes: ["light"],
+  },
   {
     name: "focus",
     hash: "/discover",
@@ -105,7 +142,9 @@ const shots: Shot[] = [
 ];
 
 const filters = process.argv.slice(2);
-const selected = filters.length ? shots.filter((s) => filters.some((f) => s.name.includes(f))) : shots;
+const selected = filters.length
+  ? shots.filter((s) => filters.some((f) => s.name.includes(f)))
+  : shots;
 
 const server = await createServer({
   configFile: join(here, "..", "vite.config.ts"),

@@ -53,7 +53,8 @@ export function screenFrame(platform: Platform, width: number, height: number): 
   const kind = frameKind(platform);
   const ratio = FRAME_ASPECT[kind];
   const imageRatio = width > 0 && height > 0 ? width / height : Number.NaN;
-  const fit = Number.isFinite(imageRatio) && imageRatio > ratio + RATIO_EPSILON ? "contain" : "cover";
+  const fit =
+    Number.isFinite(imageRatio) && imageRatio > ratio + RATIO_EPSILON ? "contain" : "cover";
   return {
     kind,
     aspectRatio: kind === "web" ? "16 / 10" : "9 / 19.5",

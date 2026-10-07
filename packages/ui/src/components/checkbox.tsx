@@ -80,7 +80,12 @@ export function Switch({ label, description, size = "md", className, ...props }:
   );
   if (!label) return control;
   return (
-    <label className={cn("flex cursor-pointer items-start justify-between gap-4 text-base text-fg", className)}>
+    <label
+      className={cn(
+        "flex cursor-pointer items-start justify-between gap-4 text-base text-fg",
+        className,
+      )}
+    >
       <span className="flex flex-col gap-0.5">
         <span>{label}</span>
         {description ? <span className="text-sm text-fg-muted">{description}</span> : null}

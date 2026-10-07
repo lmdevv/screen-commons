@@ -97,11 +97,7 @@ export function ScreenResults({
         ))}
       </ScreenGrid>
       {isFetchingMore ? (
-        <ScreenGridSkeleton
-          platform={platform}
-          count={firstRow}
-          className="mt-6 lg:mt-8"
-        />
+        <ScreenGridSkeleton platform={platform} count={firstRow} className="mt-6 lg:mt-8" />
       ) : null}
       {hasMore && loadMore ? (
         <InfiniteSentinel onVisible={() => void loadMore()} disabled={isFetchingMore} />
@@ -249,7 +245,9 @@ function ScreenSelectionBar({
       <SelectionBarButton
         primary
         onClick={() =>
-          openCollectionPicker(chosen().map((screen) => ({ kind: "screen" as const, id: screen.id })))
+          openCollectionPicker(
+            chosen().map((screen) => ({ kind: "screen" as const, id: screen.id })),
+          )
         }
       >
         Save

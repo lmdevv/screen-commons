@@ -131,8 +131,10 @@ export function Select<T extends string = string>({
   );
 }
 
-export interface NativeSelectProps<T extends string = string>
-  extends Omit<React.ComponentProps<"select">, "value" | "defaultValue" | "onChange" | "size"> {
+export interface NativeSelectProps<T extends string = string> extends Omit<
+  React.ComponentProps<"select">,
+  "value" | "defaultValue" | "onChange" | "size"
+> {
   options: readonly SelectOption<T>[];
   value?: T;
   defaultValue?: T;
@@ -173,10 +175,13 @@ export function NativeSelect<T extends string = string>({
           "ou-focus-ring w-full cursor-pointer appearance-none bg-transparent font-medium text-fg",
           "transition-colors duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-50",
           size === "md" ? "h-9 text-base" : "h-8 text-sm",
-          variant === "filled" && "h-10 rounded-control bg-muted pr-9 pl-3 hover:bg-muted-strong/70",
-          variant === "pill" && "rounded-pill border border-border-strong bg-bg pr-9 pl-4 hover:bg-muted",
+          variant === "filled" &&
+            "h-10 rounded-control bg-muted pr-9 pl-3 hover:bg-muted-strong/70",
+          variant === "pill" &&
+            "rounded-pill border border-border-strong bg-bg pr-9 pl-4 hover:bg-muted",
           // Size to the selected option (not the longest one) where supported.
-          variant === "ghost" && "w-auto rounded-pill pr-8 pl-2 [field-sizing:content] hover:bg-muted",
+          variant === "ghost" &&
+            "w-auto rounded-pill pr-8 pl-2 [field-sizing:content] hover:bg-muted",
         )}
         {...props}
       >

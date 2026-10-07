@@ -29,9 +29,17 @@ function App() {
   } else if (route.path === "/flow") {
     const flowRoute: Route = {
       path: "/discover",
-      params: new URLSearchParams({ tab: "flows", flow: route.params.get("flow") ?? "flow_tally_onboarding" }),
+      params: new URLSearchParams({
+        tab: "flows",
+        flow: route.params.get("flow") ?? "flow_tally_onboarding",
+      }),
     };
-    page = <DiscoverPage route={flowRoute} platform={(route.params.get("platform") as Platform | null) ?? "ios"} />;
+    page = (
+      <DiscoverPage
+        route={flowRoute}
+        platform={(route.params.get("platform") as Platform | null) ?? "ios"}
+      />
+    );
   } else {
     page = <ComponentsPage />;
   }

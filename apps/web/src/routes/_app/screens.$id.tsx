@@ -13,7 +13,15 @@ import {
 } from "@open-ui/ui";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Copy, Download, Link2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Download,
+  Link2,
+} from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import {
@@ -106,7 +114,9 @@ function ScreenPage() {
               variant="ghost"
               icon
               aria-label="Download"
-              onClick={() => downloadScreen(screen).catch((e: unknown) => notify.error(errorMessage(e)))}
+              onClick={() =>
+                downloadScreen(screen).catch((e: unknown) => notify.error(errorMessage(e)))
+              }
             >
               <Download />
             </Button>
@@ -143,7 +153,9 @@ function ScreenPage() {
             width={screen.width}
             height={screen.height}
             platform={screen.app.platform}
-            alt={screen.title ? `${screen.title} — ${screen.app.name}` : `${screen.app.name} screen`}
+            alt={
+              screen.title ? `${screen.title} — ${screen.app.name}` : `${screen.app.name} screen`
+            }
             layout="natural"
             priority
             placeholderColor={screen.dominantColor}

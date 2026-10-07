@@ -84,7 +84,8 @@ export function FlowStrip({
               placeholderColor={step.screen.dominantColor}
               className={cn(
                 "transition-[box-shadow] duration-150",
-                active && "rounded-[clamp(10px,10cqw,36px)] ring-2 ring-accent ring-offset-2 ring-offset-bg",
+                active &&
+                  "rounded-[clamp(10px,10cqw,36px)] ring-2 ring-accent ring-offset-2 ring-offset-bg",
               )}
             />
           );

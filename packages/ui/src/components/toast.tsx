@@ -7,8 +7,10 @@ import { useOptionalTheme } from "./theme";
 
 export { toast };
 
-export interface ToasterProps
-  extends Omit<React.ComponentProps<typeof Sonner>, "theme" | "toastOptions" | "icons"> {}
+export interface ToasterProps extends Omit<
+  React.ComponentProps<typeof Sonner>,
+  "theme" | "toastOptions" | "icons"
+> {}
 
 /**
  * Mount once near the root (inside ThemeProvider). Then call `toast("Saved to collection")`,

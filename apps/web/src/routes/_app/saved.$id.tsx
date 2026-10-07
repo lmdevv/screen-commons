@@ -60,7 +60,9 @@ function CollectionPage() {
     const key = queries.collection(id).queryKey;
     const previous = queryClient.getQueryData(key);
     queryClient.setQueryData(key, (current) =>
-      current ? { ...current, screens: current.screens.filter((s) => s.id !== screen.id) } : current,
+      current
+        ? { ...current, screens: current.screens.filter((s) => s.id !== screen.id) }
+        : current,
     );
     try {
       await unsaveItem({ data: { kind: "screen", id: screen.id, collectionId: id } });
@@ -104,9 +106,7 @@ function CollectionPage() {
         title={
           <span className="inline-flex items-center gap-3">
             {collection.name}
-            {collection.isDefault ? (
-              <Badge className="translate-y-0.5">Default</Badge>
-            ) : null}
+            {collection.isDefault ? <Badge className="translate-y-0.5">Default</Badge> : null}
           </span>
         }
         description={pluralize(collection.itemCount, "item")}
@@ -117,7 +117,12 @@ function CollectionPage() {
               Rename
             </Button>
             {collection.isDefault ? null : (
-              <Button variant="ghost" icon aria-label="Delete collection" onClick={() => setConfirmDelete(true)}>
+              <Button
+                variant="ghost"
+                icon
+                aria-label="Delete collection"
+                onClick={() => setConfirmDelete(true)}
+              >
                 <Trash2 />
               </Button>
             )}

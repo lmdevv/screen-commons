@@ -10,7 +10,15 @@ import { textLinkClassName } from "./link";
 
 export type AppHeaderData = Pick<
   AppSummary,
-  "name" | "tagline" | "platform" | "category" | "websiteUrl" | "logoUrl" | "accentColor" | "screenCount" | "flowCount"
+  | "name"
+  | "tagline"
+  | "platform"
+  | "category"
+  | "websiteUrl"
+  | "logoUrl"
+  | "accentColor"
+  | "screenCount"
+  | "flowCount"
 > &
   Partial<Pick<AppDetail, "description">>;
 

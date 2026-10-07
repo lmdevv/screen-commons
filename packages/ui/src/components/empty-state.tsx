@@ -57,7 +57,9 @@ export function EmptyState({
           </p>
         ) : null}
       </div>
-      {actions ? <div className="mt-1 flex flex-wrap items-center justify-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }

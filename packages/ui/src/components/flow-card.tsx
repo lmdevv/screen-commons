@@ -49,7 +49,10 @@ export function FlowCard({
         type: linkRender ? undefined : "button",
         onClick: () => onOpen?.(flow),
         "aria-label": hideApp ? flow.name : `${flow.name} on ${flow.app.name}`,
-        className: cn("group/flow ou-focus-ring block w-full min-w-0 rounded-tile text-left", className),
+        className: cn(
+          "group/flow ou-focus-ring block w-full min-w-0 rounded-tile text-left",
+          className,
+        ),
         children: (
           <>
             <div
@@ -67,7 +70,11 @@ export function FlowCard({
                   platform={flow.app.platform}
                   alt=""
                   priority={priority && index === 0}
-                  sizes={kind === "web" ? "(min-width: 1024px) 20vw, 45vw" : "(min-width: 1024px) 9vw, 22vw"}
+                  sizes={
+                    kind === "web"
+                      ? "(min-width: 1024px) 20vw, 45vw"
+                      : "(min-width: 1024px) 9vw, 22vw"
+                  }
                   className="min-w-0 flex-1 transition-transform duration-180 ease-out group-hover/flow:-translate-y-0.5"
                   style={{ transitionDelay: `${index * 25}ms` }}
                 />
@@ -91,7 +98,9 @@ export function FlowCard({
               </div>
               <div className="text-sm text-fg-muted">
                 {pluralize(flow.stepCount, "screen")}
-                {flow.type && labelFor(flow.type) !== flow.name ? ` · ${labelFor(flow.type)}` : null}
+                {flow.type && labelFor(flow.type) !== flow.name
+                  ? ` · ${labelFor(flow.type)}`
+                  : null}
               </div>
             </div>
           </>

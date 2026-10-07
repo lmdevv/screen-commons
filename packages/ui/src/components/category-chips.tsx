@@ -41,9 +41,15 @@ export function CategoryChips({
 }: CategoryChipsProps) {
   const { ref, canScrollStart, canScrollEnd, scrollByPage } = useScrollEdges<HTMLDivElement>();
   const mask = cn(
-    canScrollStart && canScrollEnd && "[mask-image:linear-gradient(to_right,transparent,black_56px,black_calc(100%-72px),transparent)]",
-    canScrollStart && !canScrollEnd && "[mask-image:linear-gradient(to_right,transparent,black_56px)]",
-    !canScrollStart && canScrollEnd && "[mask-image:linear-gradient(to_right,black_calc(100%-72px),transparent)]",
+    canScrollStart &&
+      canScrollEnd &&
+      "[mask-image:linear-gradient(to_right,transparent,black_56px,black_calc(100%-72px),transparent)]",
+    canScrollStart &&
+      !canScrollEnd &&
+      "[mask-image:linear-gradient(to_right,transparent,black_56px)]",
+    !canScrollStart &&
+      canScrollEnd &&
+      "[mask-image:linear-gradient(to_right,black_calc(100%-72px),transparent)]",
   );
   return (
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
@@ -57,11 +63,18 @@ export function CategoryChips({
         <div
           ref={ref}
           role="group"
-          className={cn("ou-scrollbar-none -my-1 flex items-center gap-2 overflow-x-auto py-1", mask)}
+          className={cn(
+            "ou-scrollbar-none -my-1 flex items-center gap-2 overflow-x-auto py-1",
+            mask,
+          )}
           {...props}
         >
           {allLabel !== null ? (
-            <FilterChip size={size} selected={value === null} onSelectedChange={() => onValueChange(null)}>
+            <FilterChip
+              size={size}
+              selected={value === null}
+              onSelectedChange={() => onValueChange(null)}
+            >
               {allLabel}
             </FilterChip>
           ) : null}

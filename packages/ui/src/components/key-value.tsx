@@ -19,12 +19,7 @@ export function KeyValue({ label, children, className, ...props }: KeyValueProps
 
 /** Horizontal row of KeyValues, wrapping on small screens. Renders a `<dl>`. */
 export function KeyValueGroup({ className, ...props }: React.HTMLAttributes<HTMLDListElement>) {
-  return (
-    <dl
-      className={cn("flex flex-wrap gap-x-10 gap-y-4 sm:gap-x-12", className)}
-      {...props}
-    />
-  );
+  return <dl className={cn("flex flex-wrap gap-x-10 gap-y-4 sm:gap-x-12", className)} {...props} />;
 }
 
 /** Vertical label ↔ value rows (viewer details panel, settings summaries). Renders a `<dl>`. */

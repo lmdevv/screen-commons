@@ -238,7 +238,13 @@ export interface CommandRailItemProps extends React.ButtonHTMLAttributes<HTMLBut
 }
 
 /** Scope button for the palette's left rail. */
-export function CommandRailItem({ icon, active, className, children, ...props }: CommandRailItemProps) {
+export function CommandRailItem({
+  icon,
+  active,
+  className,
+  children,
+  ...props
+}: CommandRailItemProps) {
   return (
     <button
       type="button"

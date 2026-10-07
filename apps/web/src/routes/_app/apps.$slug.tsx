@@ -24,7 +24,15 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bookmark, ExternalLink, Link2, Shapes, SquareStack, Workflow } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  ExternalLink,
+  Link2,
+  Shapes,
+  SquareStack,
+  Workflow,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { FlowResults } from "../../components/library/flow-results";
@@ -234,7 +242,9 @@ function AppPage() {
                   active={tab === item.value}
                   badge={
                     item.value === "flows" && app.flowCount > 0 ? (
-                      <span className="text-sm font-normal text-fg-subtle tabular-nums">{app.flowCount}</span>
+                      <span className="text-sm font-normal text-fg-subtle tabular-nums">
+                        {app.flowCount}
+                      </span>
                     ) : undefined
                   }
                   render={
@@ -376,11 +386,19 @@ function AppElements({
         className="mb-6"
         aria-label="UI elements"
         allLabel={null}
-        items={app.elements.map(({ slug, count }) => ({ value: slug, label: labelFor(slug), count }))}
+        items={app.elements.map(({ slug, count }) => ({
+          value: slug,
+          label: labelFor(slug),
+          count,
+        }))}
         value={current}
         onValueChange={(value) => value && onElement(value as AppSearch["element"])}
       />
-      <AppScreens app={app} search={{ ...search, element: current as AppSearch["element"] }} tab="elements" />
+      <AppScreens
+        app={app}
+        search={{ ...search, element: current as AppSearch["element"] }}
+        tab="elements"
+      />
     </>
   );
 }

@@ -95,7 +95,10 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
   return <div className={cn("flex flex-col gap-1.5 px-6 pt-6 pr-14", className)} {...props} />;
 }
 
-export function DialogTitle({ className, ...props }: React.ComponentProps<typeof BaseDialog.Title>) {
+export function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof BaseDialog.Title>) {
   return (
     <BaseDialog.Title
       className={cn("text-lg font-semibold tracking-[-0.014em] text-fg", className)}
@@ -169,7 +172,10 @@ export function SheetContent({
         {...props}
       >
         {side === "bottom" ? (
-          <div aria-hidden className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-pill bg-border-strong" />
+          <div
+            aria-hidden
+            className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-pill bg-border-strong"
+          />
         ) : null}
         {children}
         {showClose ? <CloseButton className="absolute top-4 right-4" /> : null}
@@ -185,7 +191,10 @@ export const SheetBody = DialogBody;
 export function SheetFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("mt-auto flex items-center justify-end gap-2 border-t border-border px-6 py-4", className)}
+      className={cn(
+        "mt-auto flex items-center justify-end gap-2 border-t border-border px-6 py-4",
+        className,
+      )}
       {...props}
     />
   );

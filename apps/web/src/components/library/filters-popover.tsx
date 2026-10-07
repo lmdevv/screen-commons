@@ -1,6 +1,19 @@
 /* Discover filters panel (lazy chunk; see filters-button.tsx). */
-import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, type TaxonomyTerm } from "@open-ui/core/taxonomy";
-import { Button, FilterChip, Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@open-ui/ui";
+import {
+  CATEGORIES,
+  ELEMENTS,
+  FLOW_TYPES,
+  PATTERNS,
+  type TaxonomyTerm,
+} from "@open-ui/core/taxonomy";
+import {
+  Button,
+  FilterChip,
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@open-ui/ui";
 import { SlidersHorizontal } from "lucide-react";
 
 import type { BrowseSearch, BrowseTab } from "../../lib/search-params";
@@ -18,7 +31,10 @@ export interface FiltersPanelProps {
 
 type Field = "category" | "pattern" | "element" | "flowType";
 
-const SECTIONS: Record<BrowseTab, { field: Field; title: string; terms: readonly TaxonomyTerm[] }[]> = {
+const SECTIONS: Record<
+  BrowseTab,
+  { field: Field; title: string; terms: readonly TaxonomyTerm[] }[]
+> = {
   apps: [{ field: "category", title: "Category", terms: CATEGORIES }],
   screens: [
     { field: "pattern", title: "Screen pattern", terms: PATTERNS },

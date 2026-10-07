@@ -126,10 +126,7 @@ export function FilterChip({
       {children}
       {count !== undefined ? (
         <span
-          className={cn(
-            "tabular-nums text-sm",
-            selected ? "text-inverse-fg/60" : "text-fg-subtle",
-          )}
+          className={cn("tabular-nums text-sm", selected ? "text-inverse-fg/60" : "text-fg-subtle")}
         >
           {count}
         </span>

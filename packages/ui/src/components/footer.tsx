@@ -65,7 +65,9 @@ export function Footer({
                           <a
                             href={link.href}
                             className={linkClassName}
-                            {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+                            {...(link.external
+                              ? { target: "_blank", rel: "noreferrer noopener" }
+                              : {})}
                           >
                             {link.label}
                           </a>

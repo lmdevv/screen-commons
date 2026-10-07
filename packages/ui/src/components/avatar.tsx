@@ -13,7 +13,10 @@ const sizes: Record<AvatarSize, string> = {
   lg: "size-14 text-lg",
 };
 
-export interface AvatarProps extends Omit<React.ComponentProps<typeof BaseAvatar.Root>, "children"> {
+export interface AvatarProps extends Omit<
+  React.ComponentProps<typeof BaseAvatar.Root>,
+  "children"
+> {
   /** Person or org name; used for alt text and the initials fallback. */
   name: string;
   src?: string | null;
@@ -31,9 +34,7 @@ export function Avatar({ name, src, size = "md", className, ...props }: AvatarPr
       )}
       {...props}
     >
-      {src ? (
-        <BaseAvatar.Image src={src} alt={name} className="size-full object-cover" />
-      ) : null}
+      {src ? <BaseAvatar.Image src={src} alt={name} className="size-full object-cover" /> : null}
       <BaseAvatar.Fallback delay={src ? 400 : 0} className="leading-none">
         {initials(name)}
       </BaseAvatar.Fallback>

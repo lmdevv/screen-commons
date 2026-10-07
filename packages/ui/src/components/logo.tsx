@@ -57,9 +57,7 @@ export function Logo({ variant = "full", size = "md", className, ...props }: Log
     >
       <LogoMark size={s.mark} title={variant === "mark" ? "Open UI" : undefined} />
       {variant === "full" ? (
-        <span className={cn("font-semibold leading-none tracking-[-0.03em]", s.text)}>
-          Open UI
-        </span>
+        <span className={cn("font-semibold leading-none tracking-[-0.03em]", s.text)}>Open UI</span>
       ) : null}
     </span>
   );

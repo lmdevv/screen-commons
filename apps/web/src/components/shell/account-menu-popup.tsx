@@ -1,8 +1,5 @@
 /* The account menu itself (lazy chunk, see account-menu.tsx). */
-import {
-  DropdownMenuItem,
-  DropdownMenuLinkItem,
-} from "@open-ui/ui/components/dropdown-menu";
+import { DropdownMenuItem, DropdownMenuLinkItem } from "@open-ui/ui/components/dropdown-menu";
 import AccountMenuPopupBase from "@open-ui/ui/components/account-menu-popup";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";

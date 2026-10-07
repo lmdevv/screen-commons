@@ -46,7 +46,10 @@ export function PopoverContent({
   );
 }
 
-export function PopoverTitle({ className, ...props }: React.ComponentProps<typeof BasePopover.Title>) {
+export function PopoverTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof BasePopover.Title>) {
   return <BasePopover.Title className={cn("text-base font-semibold", className)} {...props} />;
 }
 
@@ -54,7 +57,5 @@ export function PopoverDescription({
   className,
   ...props
 }: React.ComponentProps<typeof BasePopover.Description>) {
-  return (
-    <BasePopover.Description className={cn("text-sm text-fg-muted", className)} {...props} />
-  );
+  return <BasePopover.Description className={cn("text-sm text-fg-muted", className)} {...props} />;
 }

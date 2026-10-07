@@ -53,7 +53,12 @@ describe("SegmentedControl", () => {
       const [value, setValue] = React.useState("web");
       return (
         <>
-          <SegmentedControl aria-label="Platform" options={options} value={value} onValueChange={setValue} />
+          <SegmentedControl
+            aria-label="Platform"
+            options={options}
+            value={value}
+            onValueChange={setValue}
+          />
           <output>{value}</output>
         </>
       );

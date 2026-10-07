@@ -16,7 +16,16 @@ import { appIconSvg, brands, mockPages } from "./mock-pages.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = join(here, "..", "public", "mock");
 const fontUrl = pathToFileURL(
-  join(here, "..", "..", "node_modules", "@fontsource-variable", "inter", "files", "inter-latin-wght-normal.woff2"),
+  join(
+    here,
+    "..",
+    "..",
+    "node_modules",
+    "@fontsource-variable",
+    "inter",
+    "files",
+    "inter-latin-wght-normal.woff2",
+  ),
 ).href;
 const executablePath = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const MAX_BYTES = 150 * 1024;

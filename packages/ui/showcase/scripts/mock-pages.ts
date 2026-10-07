@@ -154,7 +154,10 @@ const logos = ["Acme", "Globex", "Initech", "Umbra", "Hooli", "Vandelay"];
 // Web templates
 // ---------------------------------------------------------------------------------------------
 
-function landing(brand: Brand, opts: { headline: string; sub: string; links: string[]; product: string }): string {
+function landing(
+  brand: Brand,
+  opts: { headline: string; sub: string; links: string[]; product: string },
+): string {
   const h = brand.serif ? "serif" : "";
   return base(
     brand,
@@ -263,7 +266,17 @@ function dashboard(brand: Brand): string {
   return appShell(
     brand,
     "Overview",
-    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">${[["Active users", "24,812", "+12.4%"], ["Conversion", "3.81%", "+0.6%"], ["Avg. session", "6m 12s", "−2.1%"], ["Revenue", "$48.2k", "+8.9%"]].map(([l = "", v = "", d = ""]) => `<div class="card" style="padding:18px"><div class="muted" style="font-size:13px">${l}</div><div style="font-size:28px;font-weight:700;letter-spacing:-.03em;margin:8px 0 6px">${v}</div><div style="font-size:13px;font-weight:600;color:${d.startsWith("+") ? "#16a34a" : "#dc2626"}">${d}</div></div>`).join("")}</div>
+    `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">${[
+      ["Active users", "24,812", "+12.4%"],
+      ["Conversion", "3.81%", "+0.6%"],
+      ["Avg. session", "6m 12s", "−2.1%"],
+      ["Revenue", "$48.2k", "+8.9%"],
+    ]
+      .map(
+        ([l = "", v = "", d = ""]) =>
+          `<div class="card" style="padding:18px"><div class="muted" style="font-size:13px">${l}</div><div style="font-size:28px;font-weight:700;letter-spacing:-.03em;margin:8px 0 6px">${v}</div><div style="font-size:13px;font-weight:600;color:${d.startsWith("+") ? "#16a34a" : "#dc2626"}">${d}</div></div>`,
+      )
+      .join("")}</div>
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
       <div class="card" style="padding:20px"><div class="row" style="justify-content:space-between;margin-bottom:14px"><b>Weekly active users</b><span class="muted" style="font-size:13px">Jan – Jun</span></div>${chart(brand.accent, 700, 230, 3)}</div>
       <div class="card" style="padding:20px"><b>Signups by channel</b><div style="margin-top:20px">${bars(brand.accent, 9, 210)}</div></div>
@@ -329,7 +342,24 @@ function changelog(brand: Brand): string {
 <main style="max-width:860px;margin:0 auto;padding:72px 0">
   <h1 style="font-size:48px;letter-spacing:-.04em;margin-bottom:12px">Changelog</h1>
   <p class="muted" style="font-size:18px;margin-bottom:48px">New updates and improvements to ${brand.name}.</p>
-  ${[["Oct 2, 2026", "Release environments", "Promote builds across staging and production with one command."], ["Sep 18, 2026", "Faster rollbacks", "Roll back any release in under three seconds, with a full audit trail."], ["Sep 4, 2026", "GitHub checks", "See release status directly on pull requests."]].map(([d, t, s], i) => `<article style="display:grid;grid-template-columns:180px 1fr;gap:32px;padding:32px 0;border-top:1px solid var(--ln)"><span class="muted" style="font-size:14px">${d}</span><div class="col" style="gap:12px"><h2 style="font-size:24px;letter-spacing:-.025em">${t}</h2><p class="muted" style="font-size:16px;line-height:1.6">${s}</p>${i === 0 ? `<div class="card" style="height:200px;background:var(--soft);margin-top:8px;padding:20px">${chart(brand.accent, 560, 160, 7)}</div>` : ""}</div></article>`).join("")}
+  ${[
+    [
+      "Oct 2, 2026",
+      "Release environments",
+      "Promote builds across staging and production with one command.",
+    ],
+    [
+      "Sep 18, 2026",
+      "Faster rollbacks",
+      "Roll back any release in under three seconds, with a full audit trail.",
+    ],
+    ["Sep 4, 2026", "GitHub checks", "See release status directly on pull requests."],
+  ]
+    .map(
+      ([d, t, s], i) =>
+        `<article style="display:grid;grid-template-columns:180px 1fr;gap:32px;padding:32px 0;border-top:1px solid var(--ln)"><span class="muted" style="font-size:14px">${d}</span><div class="col" style="gap:12px"><h2 style="font-size:24px;letter-spacing:-.025em">${t}</h2><p class="muted" style="font-size:16px;line-height:1.6">${s}</p>${i === 0 ? `<div class="card" style="height:200px;background:var(--soft);margin-top:8px;padding:20px">${chart(brand.accent, 560, 160, 7)}</div>` : ""}</div></article>`,
+    )
+    .join("")}
 </main>`,
   );
 }
@@ -342,7 +372,15 @@ function checkout(brand: Brand): string {
     <div class="row" style="gap:10px;font-weight:700;margin-bottom:48px"><span class="logo">${logoSvg(brand, 16)}</span>Lattice Studio</div>
     <span class="muted" style="font-size:15px">Subscribe to Pro</span>
     <div style="font-size:44px;font-weight:700;letter-spacing:-.03em;margin:8px 0 40px">$29.00 <span class="muted" style="font-size:16px;font-weight:500">per month</span></div>
-    ${[["Pro plan", "$29.00"], ["Tax", "$0.00"]].map(([a, b]) => `<div class="row" style="justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--ln);font-size:15px"><span>${a}</span><span>${b}</span></div>`).join("")}
+    ${[
+      ["Pro plan", "$29.00"],
+      ["Tax", "$0.00"],
+    ]
+      .map(
+        ([a, b]) =>
+          `<div class="row" style="justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--ln);font-size:15px"><span>${a}</span><span>${b}</span></div>`,
+      )
+      .join("")}
     <div class="row" style="justify-content:space-between;padding:16px 0;font-size:15px;font-weight:600"><span>Total due today</span><span>$29.00</span></div>
   </div>
   <div style="padding:88px 96px" class="col">
@@ -394,9 +432,27 @@ function tallyHome(brand: Brand): string {
     `<div class="row" style="justify-content:space-between;padding:8px 24px 0"><div class="col"><span class="muted" style="font-size:14px">Good morning</span><b style="font-size:22px;letter-spacing:-.02em">Maya</b></div><span style="width:40px;height:40px;border-radius:99px;background:#f2c6a0"></span></div>
   <div style="margin:22px 20px 0;padding:22px;border-radius:24px;background:var(--a);color:var(--on)"><div style="font-size:14px;opacity:.8">Left to spend in October</div><div style="font-size:40px;font-weight:700;letter-spacing:-.03em;margin:6px 0 14px">$1,284.50</div><div style="height:8px;border-radius:9px;background:rgba(255,255,255,.25)"><div style="width:62%;height:100%;border-radius:9px;background:#fff"></div></div><div class="row" style="justify-content:space-between;margin-top:10px;font-size:13px;opacity:.85"><span>$2,115 spent</span><span>12 days left</span></div></div>
   <div class="row" style="justify-content:space-between;padding:24px 24px 10px"><b style="font-size:17px">Categories</b><span class="muted" style="font-size:14px">See all</span></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px">${[["Groceries", "$412", "#f59e0b"], ["Dining", "$268", "#ef4444"], ["Transport", "$96", "#3b82f6"], ["Fun", "$140", "#8b5cf6"]].map(([n, v, c]) => `<div class="card" style="padding:16px"><span style="display:block;width:30px;height:30px;border-radius:10px;background:${c};opacity:.9;margin-bottom:14px"></span><div class="muted" style="font-size:13px">${n}</div><b style="font-size:19px">${v}</b></div>`).join("")}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px">${[
+    ["Groceries", "$412", "#f59e0b"],
+    ["Dining", "$268", "#ef4444"],
+    ["Transport", "$96", "#3b82f6"],
+    ["Fun", "$140", "#8b5cf6"],
+  ]
+    .map(
+      ([n, v, c]) =>
+        `<div class="card" style="padding:16px"><span style="display:block;width:30px;height:30px;border-radius:10px;background:${c};opacity:.9;margin-bottom:14px"></span><div class="muted" style="font-size:13px">${n}</div><b style="font-size:19px">${v}</b></div>`,
+    )
+    .join("")}</div>
   <div class="row" style="justify-content:space-between;padding:24px 24px 6px"><b style="font-size:17px">Recent</b></div>
-  ${[["Corner Market", "−$32.18"], ["Metro card", "−$20.00"]].map(([n, v]) => `<div class="row" style="padding:12px 24px;gap:14px"><span style="width:38px;height:38px;border-radius:12px;background:var(--soft)"></span><span style="flex:1;font-size:15px;font-weight:500">${n}</span><b style="font-size:15px">${v}</b></div>`).join("")}`,
+  ${[
+    ["Corner Market", "−$32.18"],
+    ["Metro card", "−$20.00"],
+  ]
+    .map(
+      ([n, v]) =>
+        `<div class="row" style="padding:12px 24px;gap:14px"><span style="width:38px;height:38px;border-radius:12px;background:var(--soft)"></span><span style="flex:1;font-size:15px;font-weight:500">${n}</span><b style="font-size:15px">${v}</b></div>`,
+    )
+    .join("")}`,
     { tabs: 0 },
   );
 }
@@ -425,7 +481,13 @@ function wanderExplore(brand: Brand): string {
     `<div style="padding:6px 20px 0"><h1 style="font-size:30px;letter-spacing:-.035em">Explore</h1>
   <div class="row" style="height:50px;border-radius:99px;background:var(--soft);margin:14px 0;padding:0 18px;gap:10px;font-size:15px" ><span class="muted">⌕</span><span class="muted">Where to next?</span></div>
   <div class="row" style="gap:8px;margin-bottom:18px">${["All", "Beaches", "Cities", "Mountains"].map((t, i) => `<span style="padding:8px 14px;border-radius:99px;font-size:14px;font-weight:500;${i === 0 ? "background:var(--fg);color:var(--bg)" : "border:1px solid var(--ln)"}">${t}</span>`).join("")}</div></div>
-  ${places.slice(0, 2).map(([n, a, b], i) => `<div style="margin:0 20px 18px"><div style="height:${i ? 150 : 230}px;border-radius:22px;background:linear-gradient(160deg,${a},${b});position:relative"><span style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:99px;background:rgba(255,255,255,.9)"></span></div><div class="row" style="justify-content:space-between;margin-top:10px"><b style="font-size:17px">${n}</b><span style="font-size:14px">★ 4.${9 - i}</span></div><span class="muted" style="font-size:14px">${i ? "6 friends going" : "Trip with Sam & 3 others · Nov 12–19"}</span></div>`).join("")}`,
+  ${places
+    .slice(0, 2)
+    .map(
+      ([n, a, b], i) =>
+        `<div style="margin:0 20px 18px"><div style="height:${i ? 150 : 230}px;border-radius:22px;background:linear-gradient(160deg,${a},${b});position:relative"><span style="position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:99px;background:rgba(255,255,255,.9)"></span></div><div class="row" style="justify-content:space-between;margin-top:10px"><b style="font-size:17px">${n}</b><span style="font-size:14px">★ 4.${9 - i}</span></div><span class="muted" style="font-size:14px">${i ? "6 friends going" : "Trip with Sam & 3 others · Nov 12–19"}</span></div>`,
+    )
+    .join("")}`,
     { tabs: 0 },
   );
 }
@@ -449,7 +511,16 @@ function pulseToday(brand: Brand): string {
     brand,
     `<div style="padding:6px 22px" class="col"><span class="muted" style="font-size:14px">Tuesday, Oct 6</span><h1 style="font-size:30px;letter-spacing:-.035em">Today</h1></div>
   <div style="display:grid;place-items:center;padding:18px 0;color:var(--fg)">${ring(brand.accent, 0.72, 230, "72%")}</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px">${[["Move", "486", "kcal"], ["Train", "38", "min"], ["Sleep", "7.4", "hrs"]].map(([l, v, u]) => `<div style="padding:14px;border-radius:18px;background:var(--soft)"><div class="muted" style="font-size:12px">${l}</div><b style="font-size:22px">${v}</b> <span class="muted" style="font-size:12px">${u}</span></div>`).join("")}</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px">${[
+    ["Move", "486", "kcal"],
+    ["Train", "38", "min"],
+    ["Sleep", "7.4", "hrs"],
+  ]
+    .map(
+      ([l, v, u]) =>
+        `<div style="padding:14px;border-radius:18px;background:var(--soft)"><div class="muted" style="font-size:12px">${l}</div><b style="font-size:22px">${v}</b> <span class="muted" style="font-size:12px">${u}</span></div>`,
+    )
+    .join("")}</div>
   <div style="margin:18px 20px;padding:18px;border-radius:22px;background:var(--a);color:var(--on)" class="col"><span style="font-size:13px;font-weight:600;opacity:.8">UP NEXT · 18:30</span><b style="font-size:20px;margin:6px 0 4px">Tempo run · 6 km</b><span style="font-size:14px;opacity:.8">Zone 3 · adaptive pace</span></div>
   <div style="margin:0 20px;padding:16px;border-radius:22px;background:var(--soft)">${bars(brand.accent, 7, 90)}</div>`,
     { tabs: 0 },
@@ -462,7 +533,17 @@ function pulseWorkout(brand: Brand): string {
     `<div class="row" style="justify-content:space-between;padding:6px 22px"><span style="font-size:22px">←</span><span class="muted" style="font-size:14px">Interval 3 of 6</span><span>⋯</span></div>
   <div class="col" style="align-items:center;padding:36px 0 18px;gap:4px"><span class="muted" style="font-size:15px">Pace</span><b style="font-size:76px;letter-spacing:-.05em;line-height:1">4:52</b><span class="muted" style="font-size:15px">min / km</span></div>
   <div style="margin:10px 22px;padding:18px;border-radius:22px;background:var(--soft)">${chart(brand.accent, 310, 120, 5)}</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 22px">${[["Distance", "3.42 km"], ["Heart rate", "156 bpm"], ["Elapsed", "17:08"], ["Cadence", "172 spm"]].map(([l, v]) => `<div style="padding:16px;border-radius:18px;background:var(--soft)"><div class="muted" style="font-size:12px">${l}</div><b style="font-size:20px">${v}</b></div>`).join("")}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 22px">${[
+    ["Distance", "3.42 km"],
+    ["Heart rate", "156 bpm"],
+    ["Elapsed", "17:08"],
+    ["Cadence", "172 spm"],
+  ]
+    .map(
+      ([l, v]) =>
+        `<div style="padding:16px;border-radius:18px;background:var(--soft)"><div class="muted" style="font-size:12px">${l}</div><b style="font-size:20px">${v}</b></div>`,
+    )
+    .join("")}</div>
   <div class="row" style="position:absolute;bottom:46px;left:0;right:0;justify-content:center;gap:28px"><span style="width:64px;height:64px;border-radius:99px;background:var(--soft)"></span><span style="width:84px;height:84px;border-radius:99px;background:var(--a)"></span><span style="width:64px;height:64px;border-radius:99px;background:var(--soft)"></span></div>`,
   );
 }
@@ -490,7 +571,10 @@ const mobile = (file: string, brand: string, html: string): MockPage => ({
 });
 
 export function mockPages(): MockPage[] {
-  const { northwind, lumen, relay, atlas, tally, wander, pulse } = brands as Record<string, Brand> & {
+  const { northwind, lumen, relay, atlas, tally, wander, pulse } = brands as Record<
+    string,
+    Brand
+  > & {
     northwind: Brand;
     lumen: Brand;
     relay: Brand;
@@ -527,7 +611,11 @@ export function mockPages(): MockPage[] {
       }),
     ),
     web("lumen-editor.webp", "lumen", editor(lumen)),
-    web("lumen-pricing.webp", "lumen", pricing(lumen, ["Features", "Templates", "Pricing", "Blog"])),
+    web(
+      "lumen-pricing.webp",
+      "lumen",
+      pricing(lumen, ["Features", "Templates", "Pricing", "Blog"]),
+    ),
     web(
       "relay-landing.webp",
       "relay",
@@ -555,17 +643,35 @@ export function mockPages(): MockPage[] {
     mobile(
       "tally-onboarding-1.webp",
       "tally",
-      onboarding(tally, 0, "See where your money goes", "Connect your accounts and Tally sorts every transaction automatically.", ring(tally.accent, 0.64, 240, "64%")),
+      onboarding(
+        tally,
+        0,
+        "See where your money goes",
+        "Connect your accounts and Tally sorts every transaction automatically.",
+        ring(tally.accent, 0.64, 240, "64%"),
+      ),
     ),
     mobile(
       "tally-onboarding-2.webp",
       "tally",
-      onboarding(tally, 1, "Budgets that bend, not break", "Set flexible limits per category. We’ll nudge you before you overspend.", `<div style="width:260px">${bars(tally.accent, 8, 200)}</div>`),
+      onboarding(
+        tally,
+        1,
+        "Budgets that bend, not break",
+        "Set flexible limits per category. We’ll nudge you before you overspend.",
+        `<div style="width:260px">${bars(tally.accent, 8, 200)}</div>`,
+      ),
     ),
     mobile(
       "tally-onboarding-3.webp",
       "tally",
-      onboarding(tally, 2, "Save for what matters", "Create goals and watch them fill up, one round-up at a time.", `<div class="col" style="gap:14px;width:260px">${["Japan trip", "New laptop", "Emergency fund"].map((g, i) => `<div class="card" style="padding:14px"><b style="font-size:14px">${g}</b><div class="bar" style="margin-top:10px"><div style="width:${[72, 40, 88][i]}%;height:100%;border-radius:9px;background:var(--a)"></div></div></div>`).join("")}</div>`),
+      onboarding(
+        tally,
+        2,
+        "Save for what matters",
+        "Create goals and watch them fill up, one round-up at a time.",
+        `<div class="col" style="gap:14px;width:260px">${["Japan trip", "New laptop", "Emergency fund"].map((g, i) => `<div class="card" style="padding:14px"><b style="font-size:14px">${g}</b><div class="bar" style="margin-top:10px"><div style="width:${[72, 40, 88][i]}%;height:100%;border-radius:9px;background:var(--a)"></div></div></div>`).join("")}</div>`,
+      ),
     ),
     mobile("tally-signup.webp", "tally", tallySignup(tally)),
     mobile("tally-home.webp", "tally", tallyHome(tally)),

@@ -48,7 +48,9 @@ export function FlowStepItem({
         {index + 1}
       </span>
       <div className="relative h-12 w-[76px] shrink-0 overflow-hidden rounded-[8px] bg-tile after:absolute after:inset-0 after:rounded-[inherit] after:shadow-[inset_0_0_0_1px_var(--color-shot-border)]">
-        {thumbUrl ? <img src={thumbUrl} alt="" className="size-full object-cover object-top" /> : null}
+        {thumbUrl ? (
+          <img src={thumbUrl} alt="" className="size-full object-cover object-top" />
+        ) : null}
       </div>
       <input
         value={label}

@@ -34,11 +34,6 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0"
   },
-  "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tailwindcss": "^4.3.0"
-  },
   "devDependencies": {
     "@open-ui/config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
@@ -56,5 +51,10 @@
     "typescript": "catalog:",
     "vite": "^8.3.3",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.0"
   }
 }

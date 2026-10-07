@@ -1,7 +1,15 @@
 import type { ElementSlug, PatternSlug } from "@open-ui/core/taxonomy";
 import { labelFor } from "@open-ui/core/taxonomy";
 import type { Screen, ScreenDetail } from "@open-ui/core/schemas";
-import { Bookmark, Copy, Download, ExternalLink, Maximize2, Minimize2, Workflow } from "lucide-react";
+import {
+  Bookmark,
+  Copy,
+  Download,
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  Workflow,
+} from "lucide-react";
 import { useRender } from "@base-ui/react/use-render";
 import type * as React from "react";
 
@@ -61,8 +69,18 @@ export function ScreenDetails({
         <h2 className="-mt-2 text-lg font-semibold text-fg">{screen.title}</h2>
       ) : null}
 
-      <TagSection title="Patterns" kind="pattern" slugs={screen.patterns} tagLinkRender={tagLinkRender} />
-      <TagSection title="UI elements" kind="element" slugs={screen.elements} tagLinkRender={tagLinkRender} />
+      <TagSection
+        title="Patterns"
+        kind="pattern"
+        slugs={screen.patterns}
+        tagLinkRender={tagLinkRender}
+      />
+      <TagSection
+        title="UI elements"
+        kind="element"
+        slugs={screen.elements}
+        tagLinkRender={tagLinkRender}
+      />
 
       {screen.flows && screen.flows.length > 0 ? (
         <section className="flex flex-col gap-2.5">
@@ -73,7 +91,9 @@ export function ScreenDetails({
                 <>
                   <Workflow aria-hidden className="size-4 shrink-0 text-fg-muted" />
                   <span className="min-w-0 flex-1 truncate">{flow.name}</span>
-                  <span className="text-sm text-fg-subtle tabular-nums">Step {flow.position + 1}</span>
+                  <span className="text-sm text-fg-subtle tabular-nums">
+                    Step {flow.position + 1}
+                  </span>
                 </>
               );
               return (
@@ -241,7 +261,12 @@ export function ScreenViewer({
             ) : null}
             {onDownload ? (
               <Tooltip content="Download">
-                <Button variant="ghost" icon aria-label="Download" onClick={() => onDownload(screen)}>
+                <Button
+                  variant="ghost"
+                  icon
+                  aria-label="Download"
+                  onClick={() => onDownload(screen)}
+                >
                   <Download />
                 </Button>
               </Tooltip>
@@ -297,7 +322,9 @@ export function ScreenViewer({
             width={screen.width}
             height={screen.height}
             platform={screen.app.platform}
-            alt={screen.title ? `${screen.title} — ${screen.app.name}` : `${screen.app.name} screen`}
+            alt={
+              screen.title ? `${screen.title} — ${screen.app.name}` : `${screen.app.name} screen`
+            }
             layout="natural"
             priority
             placeholderColor={screen.dominantColor}
