@@ -39,14 +39,22 @@ async function targetTab(tabId?: number): Promise<Browser.tabs.Tab> {
   return activeTab();
 }
 
-async function navigate(params: BridgeMethods["navigate"]["params"]): Promise<BridgeMethods["navigate"]["result"]> {
+async function navigate(
+  params: BridgeMethods["navigate"]["params"],
+): Promise<BridgeMethods["navigate"]["result"]> {
   let tab: Browser.tabs.Tab | undefined;
-  if (!params.newTab && bridgeTabId !== null) tab = await browser.tabs.get(bridgeTabId).catch(() => undefined);
+  if (!params.newTab && bridgeTabId !== null)
+    tab = await browser.tabs.get(bridgeTabId).catch(() => undefined);
 
   if (IS_FIREFOX && params.viewport === "mobile") {
     // No device emulation on Firefox: best effort with a phone-sized popup window.
     const size = VIEWPORTS.mobile;
-    const win = await browser.windows.create({ url: params.url, type: "popup", width: size.width + 16, height: size.height + 88 });
+    const win = await browser.windows.create({
+      url: params.url,
+      type: "popup",
+      width: size.width + 16,
+      height: size.height + 88,
+    });
     tab = win?.tabs?.[0];
     if (!tab?.id) throw new CaptureError("Could not open a window", "navigate_failed");
   } else if (!tab) {
@@ -69,9 +77,12 @@ async function navigate(params: BridgeMethods["navigate"]["params"]): Promise<Br
   return { tabId, url: loaded.url ?? params.url, title: loaded.title ?? "" };
 }
 
-async function screenshot(params: BridgeMethods["screenshot"]["params"]): Promise<BridgeMethods["screenshot"]["result"]> {
+async function screenshot(
+  params: BridgeMethods["screenshot"]["params"],
+): Promise<BridgeMethods["screenshot"]["result"]> {
   const tab = await targetTab(params.tabId);
-  if (!isCapturableUrl(tab.url)) throw new CaptureError("This tab can’t be captured", "restricted_page");
+  if (!isCapturableUrl(tab.url))
+    throw new CaptureError("This tab can’t be captured", "restricted_page");
   const settings = await getSettings();
   const options = { method: settings.fullPageMethod, lazyLoad: settings.lazyLoad };
   const raw = params.selector
@@ -90,9 +101,12 @@ async function screenshot(params: BridgeMethods["screenshot"]["params"]): Promis
   };
 }
 
-async function extract(params: BridgeMethods["extract"]["params"]): Promise<BridgeMethods["extract"]["result"]> {
+async function extract(
+  params: BridgeMethods["extract"]["params"],
+): Promise<BridgeMethods["extract"]["result"]> {
   const tab = await targetTab(params.tabId);
-  if (!isCapturableUrl(tab.url)) throw new CaptureError("This tab can’t be read", "restricted_page");
+  if (!isCapturableUrl(tab.url))
+    throw new CaptureError("This tab can’t be read", "restricted_page");
   return runInPage(tab.id!, extractMetadata);
 }
 
@@ -100,7 +114,12 @@ async function listTabs(): Promise<BridgeMethods["listTabs"]["result"]> {
   const tabs = await browser.tabs.query({});
   const result: TabInfo[] = tabs
     .filter((tab) => tab.id !== undefined && isCapturableUrl(tab.url))
-    .map((tab) => ({ id: tab.id!, url: tab.url ?? "", title: tab.title ?? "", active: Boolean(tab.active) }));
+    .map((tab) => ({
+      id: tab.id!,
+      url: tab.url ?? "",
+      title: tab.title ?? "",
+      active: Boolean(tab.active),
+    }));
   return { tabs: result };
 }
 

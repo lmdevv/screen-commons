@@ -17,7 +17,9 @@ async function updateBadge() {
   if (!action) return;
   const [{ count }, recording] = await Promise.all([getItem("trayState"), getItem("recording")]);
   await action.setBadgeBackgroundColor({ color: recording ? "#dc2626" : "#0a0a0a" });
-  await action.setBadgeText({ text: recording ? "REC" : count > 0 ? String(Math.min(count, 999)) : "" });
+  await action.setBadgeText({
+    text: recording ? "REC" : count > 0 ? String(Math.min(count, 999)) : "",
+  });
   action.setBadgeTextColor?.({ color: "#ffffff" })?.catch?.(() => undefined);
 }
 
@@ -50,19 +52,31 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener((command) => {
     const mode: CaptureMode | null =
-      command === "capture-visible" ? "visible" : command === "capture-full" ? "full" : command === "capture-element" ? "element" : null;
+      command === "capture-visible"
+        ? "visible"
+        : command === "capture-full"
+          ? "full"
+          : command === "capture-element"
+            ? "element"
+            : null;
     if (!mode) return;
-    void captureActive(mode).catch((error: unknown) => console.warn("[open-ui] capture failed", error));
+    void captureActive(mode).catch((error: unknown) =>
+      console.warn("[open-ui] capture failed", error),
+    );
   });
 
   browser.runtime.onConnect.addListener((port) => {
-    const fromExtension = port.sender?.id === browser.runtime.id && Boolean(port.sender.url?.startsWith(browser.runtime.getURL("/")));
+    const fromExtension =
+      port.sender?.id === browser.runtime.id &&
+      Boolean(port.sender.url?.startsWith(browser.runtime.getURL("/")));
     if (port.name === UPLOAD_PORT && fromExtension) handleUploadPort(port);
   });
 
   handleMessages((message, sender) => {
     // Only the connect handoff may come from a content script; everything else is extension pages.
-    const fromExtensionPage = sender.id === browser.runtime.id && Boolean(sender.url?.startsWith(browser.runtime.getURL("/")));
+    const fromExtensionPage =
+      sender.id === browser.runtime.id &&
+      Boolean(sender.url?.startsWith(browser.runtime.getURL("/")));
     switch (message.type) {
       case "connect:token":
         return acceptConnectToken(message, sender);

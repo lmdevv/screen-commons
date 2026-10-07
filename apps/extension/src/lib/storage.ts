@@ -61,7 +61,10 @@ export async function getItem<K extends keyof StorageShape>(key: K): Promise<Sto
   return (value ?? DEFAULTS[key]) as StorageShape[K];
 }
 
-export async function setItem<K extends keyof StorageShape>(key: K, value: StorageShape[K]): Promise<void> {
+export async function setItem<K extends keyof StorageShape>(
+  key: K,
+  value: StorageShape[K],
+): Promise<void> {
   await browser.storage.local.set({ [key]: value });
 }
 

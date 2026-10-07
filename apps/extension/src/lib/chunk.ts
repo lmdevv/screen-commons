@@ -4,7 +4,11 @@ import { LIMITS } from "@open-ui/core/schemas";
 export const MAX_BATCH_BYTES = 32 * 1024 * 1024;
 
 /** Approximate JSON bytes contributed by one screen: base64 image + thumbnail + metadata. */
-export function estimateScreenBytes(imageBytes: number, thumbnailBytes: number, textLength = 0): number {
+export function estimateScreenBytes(
+  imageBytes: number,
+  thumbnailBytes: number,
+  textLength = 0,
+): number {
   return Math.ceil(((imageBytes + thumbnailBytes) * 4) / 3) + textLength + 2048;
 }
 

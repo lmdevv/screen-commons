@@ -1,4 +1,9 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+} from "react";
 import { forwardRef, useId } from "react";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -23,7 +28,10 @@ const buttonSizes: Record<ButtonSize, string> = {
 export const Button = forwardRef<
   HTMLButtonElement,
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }
->(function Button({ variant = "secondary", size = "md", className, type = "button", ...props }, ref) {
+>(function Button(
+  { variant = "secondary", size = "md", className, type = "button", ...props },
+  ref,
+) {
   return (
     <button
       ref={ref}
@@ -64,12 +72,11 @@ export function IconButton({
 const fieldBase =
   "h-8 w-full rounded-lg border border-line bg-field px-2.5 text-ui text-fg placeholder:text-subtle transition-colors duration-150 hover:border-[color-mix(in_srgb,var(--ou-fg)_22%,transparent)] focus:border-[color-mix(in_srgb,var(--ou-fg)_45%,transparent)] focus:outline-none disabled:opacity-60";
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
-  { className, ...props },
-  ref,
-) {
-  return <input ref={ref} className={cx(fieldBase, className)} {...props} />;
-});
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className, ...props }, ref) {
+    return <input ref={ref} className={cx(fieldBase, className)} {...props} />;
+  },
+);
 
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
@@ -82,7 +89,13 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
         viewBox="0 0 16 16"
         className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-muted"
       >
-        <path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path
+          d="M4.5 6.5 8 10l3.5-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
       </svg>
     </div>
   );
@@ -141,8 +154,10 @@ export function Switch({
     >
       <span
         className={cx(
-          "inline-block size-3.5 rounded-full bg-bg shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-150",
-          checked ? "translate-x-[14px]" : "translate-x-[2px]",
+          "inline-block size-3.5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-150",
+          checked
+            ? "translate-x-[14px] bg-primary-fg"
+            : "translate-x-[2px] bg-white dark:bg-[#a1a1aa]",
         )}
       />
     </button>
@@ -164,7 +179,9 @@ export function Dot({ tone }: { tone: DotTone }) {
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="font-sans text-[11px] font-medium tracking-wide tabular-nums opacity-55">{children}</kbd>
+    <kbd className="font-sans text-[11px] font-medium tracking-wide tabular-nums opacity-55">
+      {children}
+    </kbd>
   );
 }
 
@@ -172,12 +189,29 @@ export function Logo({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="shrink-0">
       <rect width="32" height="32" rx="8" className="fill-fg" />
-      <rect x="8" y="8" width="16" height="16" rx="4.5" fill="none" strokeWidth="3" className="stroke-bg" />
+      <rect
+        x="8"
+        y="8"
+        width="16"
+        height="16"
+        rx="4.5"
+        fill="none"
+        strokeWidth="3"
+        className="stroke-bg"
+      />
     </svg>
   );
 }
 
-export function Chip({ children, onRemove, label }: { children: ReactNode; onRemove?: () => void; label?: string }) {
+export function Chip({
+  children,
+  onRemove,
+  label,
+}: {
+  children: ReactNode;
+  onRemove?: () => void;
+  label?: string;
+}) {
   return (
     <span className="inline-flex h-6 items-center gap-1 rounded-full border border-line bg-bg pr-1 pl-2.5 text-[12px] font-medium text-fg">
       {children}
@@ -189,7 +223,12 @@ export function Chip({ children, onRemove, label }: { children: ReactNode; onRem
           className="inline-flex size-4 items-center justify-center rounded-full text-subtle hover:bg-hover hover:text-fg"
         >
           <svg viewBox="0 0 16 16" className="size-3" aria-hidden>
-            <path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="m4.5 4.5 7 7m0-7-7 7"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           </svg>
         </button>
       ) : (
@@ -202,8 +241,22 @@ export function Chip({ children, onRemove, label }: { children: ReactNode; onRem
 export function Spinner({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" className={cx("size-3.5 animate-spin", className)} aria-hidden>
-      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2" />
-      <path d="M14 8a6 6 0 0 0-6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity="0.2"
+        strokeWidth="2"
+      />
+      <path
+        d="M14 8a6 6 0 0 0-6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

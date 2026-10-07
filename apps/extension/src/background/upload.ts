@@ -8,7 +8,13 @@ import type { UploadClientMessage, UploadServerMessage } from "../lib/messages";
 import { getSettings, notifyTrayChanged, setItem } from "../lib/storage";
 import { EMPTY_DRAFT, type Shot, type TrayDraft } from "../lib/tray";
 import { deleteShots, listShots } from "../lib/tray-db";
-import { buildAppInput, buildFlowInput, buildScreenInput, planUpload, validateDraft } from "../lib/upload-plan";
+import {
+  buildAppInput,
+  buildFlowInput,
+  buildScreenInput,
+  planUpload,
+  validateDraft,
+} from "../lib/upload-plan";
 import { blobToBase64 } from "./image";
 import { summarize } from "./shots";
 
@@ -51,10 +57,17 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export async function runUpload(draft: TrayDraft, shotIds: readonly string[], report: Report): Promise<void> {
+export async function runUpload(
+  draft: TrayDraft,
+  shotIds: readonly string[],
+  report: Report,
+): Promise<void> {
   const settings = await getSettings();
   if (!settings.apiKey) {
-    report({ type: "error", message: "Connect your Open UI account first (Options → Connect with Open UI)." });
+    report({
+      type: "error",
+      message: "Connect your Open UI account first (Options → Connect with Open UI).",
+    });
     return;
   }
   const byId = new Map((await listShots()).map((shot) => [shot.id, shot]));
@@ -71,7 +84,11 @@ export async function runUpload(draft: TrayDraft, shotIds: readonly string[], re
     apiKey: settings.apiKey,
     headers: { "x-open-ui-client": `extension/${browser.runtime.getManifest().version}` },
   });
-  const plan = planUpload(draft, summaries, shots.map((shot) => shot.thumbnail.size));
+  const plan = planUpload(
+    draft,
+    summaries,
+    shots.map((shot) => shot.thumbnail.size),
+  );
   const app = buildAppInput(draft);
   const flow = buildFlowInput(draft);
   const total = shots.length;
@@ -100,7 +117,10 @@ export async function runUpload(draft: TrayDraft, shotIds: readonly string[], re
         phase: "uploading",
         done: uploadedIds.length,
         total,
-        message: plan.chunks.length > 1 ? `Uploading batch ${chunkIndex + 1} of ${plan.chunks.length}…` : "Uploading…",
+        message:
+          plan.chunks.length > 1
+            ? `Uploading batch ${chunkIndex + 1} of ${plan.chunks.length}…`
+            : "Uploading…",
       });
       const result = await client.captures({
         app: results[0] ? { ...app, slug: results[0].app.slug } : app,
@@ -112,17 +132,28 @@ export async function runUpload(draft: TrayDraft, shotIds: readonly string[], re
       results.push(result);
       for (const index of chunk) uploadedIds.push(shots[index]!.id);
       screenIds.push(...result.screens.map((screen) => screen.id));
-      report({ type: "progress", phase: "uploading", done: uploadedIds.length, total, message: `Uploaded ${uploadedIds.length} of ${total}` });
+      report({
+        type: "progress",
+        phase: "uploading",
+        done: uploadedIds.length,
+        total,
+        message: `Uploaded ${uploadedIds.length} of ${total}`,
+      });
     }
 
-    let flowUrl: string | null = results[0]?.flow ? absolute(settings.serverUrl, results[0].flow.url) : null;
+    let flowUrl: string | null = results[0]?.flow
+      ? absolute(settings.serverUrl, results[0].flow.url)
+      : null;
     if (plan.flowMode === "separate" && flow && results[0]) {
       report({ type: "progress", phase: "linking", done: total, total, message: "Creating flow…" });
       const created = await client.createFlow({
         appId: results[0].app.id,
         name: flow.name,
         ...(flow.type ? { type: flow.type } : {}),
-        steps: screenIds.map((screenId, index) => ({ screenId, label: summaries[index]?.title.slice(0, 80) || undefined })),
+        steps: screenIds.map((screenId, index) => ({
+          screenId,
+          label: summaries[index]?.title.slice(0, 80) || undefined,
+        })),
       });
       flowUrl = absolute(settings.serverUrl, `/flows/${created.flow.id}`);
     }
@@ -145,7 +176,8 @@ export async function runUpload(draft: TrayDraft, shotIds: readonly string[], re
       await deleteShots(uploadedIds);
       await notifyTrayChanged();
     }
-    const prefix = uploadedIds.length > 0 ? `Uploaded ${uploadedIds.length} of ${total}, then failed: ` : "";
+    const prefix =
+      uploadedIds.length > 0 ? `Uploaded ${uploadedIds.length} of ${total}, then failed: ` : "";
     report({ type: "error", message: prefix + describeError(error) });
   }
 }

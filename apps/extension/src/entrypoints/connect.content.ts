@@ -26,16 +26,33 @@ export default defineContentScript({
       if (!data || data.type !== "open-ui:connect" || busy) return;
       if (typeof data.token !== "string" || typeof data.baseUrl !== "string") return;
       busy = true;
-      void (browser.runtime.sendMessage({ type: "connect:token", token: data.token, baseUrl: data.baseUrl }) as Promise<
-        { ok: true; data: { userName: string | null } } | { ok: false; error: string } | undefined
-      >)
+      void (
+        browser.runtime.sendMessage({
+          type: "connect:token",
+          token: data.token,
+          baseUrl: data.baseUrl,
+        }) as Promise<
+          { ok: true; data: { userName: string | null } } | { ok: false; error: string } | undefined
+        >
+      )
         .then((response) => {
           if (response?.ok) {
-            window.postMessage({ type: "open-ui:connect:result", ok: true, userName: response.data.userName }, location.origin);
-            toast(response.data.userName ? `Open UI Capture connected as ${response.data.userName}` : "Open UI Capture connected");
+            window.postMessage(
+              { type: "open-ui:connect:result", ok: true, userName: response.data.userName },
+              location.origin,
+            );
+            toast(
+              response.data.userName
+                ? `Open UI Capture connected as ${response.data.userName}`
+                : "Open UI Capture connected",
+            );
           } else {
-            const error = response && !response.ok ? response.error : "The extension did not respond";
-            window.postMessage({ type: "open-ui:connect:result", ok: false, error }, location.origin);
+            const error =
+              response && !response.ok ? response.error : "The extension did not respond";
+            window.postMessage(
+              { type: "open-ui:connect:result", ok: false, error },
+              location.origin,
+            );
             toast(`Could not connect: ${error}`);
           }
         })
@@ -43,16 +60,21 @@ export default defineContentScript({
     });
 
     const announce = () =>
-      window.postMessage({ type: "open-ui:extension-ready", version: browser.runtime.getManifest().version }, location.origin);
+      window.postMessage(
+        { type: "open-ui:extension-ready", version: browser.runtime.getManifest().version },
+        location.origin,
+      );
     announce();
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", announce, { once: true });
+    if (document.readyState === "loading")
+      document.addEventListener("DOMContentLoaded", announce, { once: true });
   },
 });
 
 function toast(text: string) {
   const mount = () => {
     const host = document.createElement("div");
-    host.style.cssText = "all: initial; position: fixed; right: 20px; bottom: 20px; z-index: 2147483647;";
+    host.style.cssText =
+      "all: initial; position: fixed; right: 20px; bottom: 20px; z-index: 2147483647;";
     const root = host.attachShadow({ mode: "closed" });
     const el = document.createElement("div");
     el.textContent = text;

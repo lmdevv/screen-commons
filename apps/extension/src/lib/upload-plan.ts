@@ -20,7 +20,8 @@ export function validateDraft(draft: TrayDraft, shots: readonly ShotSummary[]): 
   if (draft.app.websiteUrl.trim()) {
     try {
       const url = new URL(draft.app.websiteUrl.trim());
-      if (url.protocol !== "http:" && url.protocol !== "https:") return "Website must be an http(s) URL.";
+      if (url.protocol !== "http:" && url.protocol !== "https:")
+        return "Website must be an http(s) URL.";
     } catch {
       return "Website must be a full URL, like https://example.com.";
     }
@@ -28,7 +29,8 @@ export function validateDraft(draft: TrayDraft, shots: readonly ShotSummary[]): 
   if (draft.flow.enabled) {
     if (!draft.flow.name.trim()) return "Name the flow, or turn off “Save as flow”.";
     if (shots.length < 2) return "A flow needs at least two screens.";
-    if (shots.length > LIMITS.maxFlowSteps) return `Flows hold at most ${LIMITS.maxFlowSteps} screens.`;
+    if (shots.length > LIMITS.maxFlowSteps)
+      return `Flows hold at most ${LIMITS.maxFlowSteps} screens.`;
   }
   return null;
 }
@@ -41,7 +43,9 @@ export function buildAppInput(draft: TrayDraft): AppInput {
   return app;
 }
 
-export function buildFlowInput(draft: TrayDraft): NonNullable<CaptureBatchInput["flow"]> | undefined {
+export function buildFlowInput(
+  draft: TrayDraft,
+): NonNullable<CaptureBatchInput["flow"]> | undefined {
   if (!draft.flow.enabled) return undefined;
   return {
     name: draft.flow.name.trim(),
@@ -59,7 +63,11 @@ export function planUpload(
     estimateScreenBytes(shot.bytes, thumbnailBytes[index] ?? 0, shot.text.length),
   );
   const chunks = chunkByBudget(sizes, { maxCount: LIMITS.maxScreensPerBatch, maxBytes });
-  const flowMode: FlowMode = !draft.flow.enabled ? "none" : chunks.length === 1 ? "inline" : "separate";
+  const flowMode: FlowMode = !draft.flow.enabled
+    ? "none"
+    : chunks.length === 1
+      ? "inline"
+      : "separate";
   return { chunks, flowMode };
 }
 

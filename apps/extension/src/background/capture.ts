@@ -22,6 +22,7 @@ import {
   prepareFullPage,
   restoreFixedElements,
   scrollToPosition,
+  type ElementTarget,
   type PageMetrics,
 } from "./page-scripts";
 
@@ -61,7 +62,10 @@ function captureVisibleTab(windowId: number): Promise<string> {
 }
 
 type FirefoxTabs = {
-  captureTab(tabId: number, options: { format: "png"; rect?: Rect; scale?: number }): Promise<string>;
+  captureTab(
+    tabId: number,
+    options: { format: "png"; rect?: Rect; scale?: number },
+  ): Promise<string>;
 };
 
 function firefoxCaptureTab(tabId: number, rect?: Rect, scale?: number): Promise<string> {
@@ -75,14 +79,20 @@ function firefoxCaptureTab(tabId: number, rect?: Rect, scale?: number): Promise<
 async function resolveTab(tabId: number): Promise<Browser.tabs.Tab> {
   const tab = await getTab(tabId);
   if (!isCapturableUrl(tab.url)) {
-    throw new CaptureError("This page can’t be captured (browser pages and extension stores are protected).", "restricted_page");
+    throw new CaptureError(
+      "This page can’t be captured (browser pages and extension stores are protected).",
+      "restricted_page",
+    );
   }
   return tab;
 }
 
 function checkDimensions(image: EncodedImage, expected: { width: number; height: number }) {
   if (Math.abs(image.width - expected.width) > 2 || Math.abs(image.height - expected.height) > 2) {
-    console.warn("[open-ui] capture size differs from plan", { got: [image.width, image.height], expected });
+    console.warn("[open-ui] capture size differs from plan", {
+      got: [image.width, image.height],
+      expected,
+    });
   }
 }
 
@@ -95,12 +105,17 @@ export async function captureVisible(tabId: number): Promise<RawCapture> {
   let image: EncodedImage;
   if (!IS_FIREFOX && emulationFor(tabId)) {
     image = await withDebugger(tabId, async (send) => {
-      const { data } = await send<{ data: string }>("Page.captureScreenshot", { format: "png", fromSurface: true });
+      const { data } = await send<{ data: string }>("Page.captureScreenshot", {
+        format: "png",
+        fromSurface: true,
+      });
       return decodeBase64Png(data);
     });
   } else {
     await ensureActive(tab);
-    const dataUrl = IS_FIREFOX ? await firefoxCaptureTab(tabId) : await captureVisibleTab(tab.windowId);
+    const dataUrl = IS_FIREFOX
+      ? await firefoxCaptureTab(tabId)
+      : await captureVisibleTab(tab.windowId);
     image = await dataUrlPng(dataUrl);
   }
   return { image, viewportWidth: metrics.viewportWidth, truncated: false, text, tab };
@@ -125,12 +140,17 @@ function decodeBase64Png(base64: string): EncodedImage {
 
 export async function captureFullPage(tabId: number, options: CaptureOptions): Promise<RawCapture> {
   const tab = await resolveTab(tabId);
-  const metrics = await runInPage(tabId, prepareFullPage, { lazyLoad: options.lazyLoad, budgetMs: LAZY_BUDGET_MS });
+  const metrics = await runInPage(tabId, prepareFullPage, {
+    lazyLoad: options.lazyLoad,
+    budgetMs: LAZY_BUDGET_MS,
+  });
   const text = await runInPage(tabId, collectText, "full");
   let result: { image: EncodedImage; truncated: boolean } | undefined;
   if (options.method === "auto") {
     try {
-      result = IS_FIREFOX ? await fullPageFirefox(tabId, metrics) : await fullPageCdp(tabId, metrics);
+      result = IS_FIREFOX
+        ? await fullPageFirefox(tabId, metrics)
+        : await fullPageCdp(tabId, metrics);
     } catch (error) {
       if (error instanceof CaptureError && error.code === "restricted_page") throw error;
       console.warn("[open-ui] full-page capture failed, falling back to stitching", error);
@@ -147,7 +167,10 @@ async function fullPageCdp(tabId: number, metrics: PageMetrics) {
       contentSize: { width: number; height: number };
     }>("Page.getLayoutMetrics");
     const size = layout.cssContentSize ?? layout.contentSize;
-    const plan = planCapture({ x: 0, y: 0, width: size.width, height: Math.max(size.height, metrics.height) }, metrics.dpr);
+    const plan = planCapture(
+      { x: 0, y: 0, width: size.width, height: Math.max(size.height, metrics.height) },
+      metrics.dpr,
+    );
     const { data } = await send<{ data: string }>("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
@@ -161,7 +184,10 @@ async function fullPageCdp(tabId: number, metrics: PageMetrics) {
 }
 
 async function fullPageFirefox(tabId: number, metrics: PageMetrics) {
-  const plan = planCapture({ x: 0, y: 0, width: metrics.width, height: metrics.height }, metrics.dpr);
+  const plan = planCapture(
+    { x: 0, y: 0, width: metrics.width, height: metrics.height },
+    metrics.dpr,
+  );
   const image = await dataUrlPng(await firefoxCaptureTab(tabId, plan.clip, plan.scale));
   checkDimensions(image, { width: plan.outputWidth, height: plan.outputHeight });
   return { image, truncated: plan.truncated };
@@ -188,11 +214,18 @@ async function fullPageStitched(tab: Browser.tabs.Tab, metrics: PageMetrics) {
       if (index === 0) {
         ratio = bitmap.width / metrics.viewportWidth;
         // Same output limits as the native paths.
-        const plan = planCapture({ x: 0, y: 0, width: metrics.viewportWidth, height: metrics.height }, ratio, {
-          maxHeight: 16_384,
-        });
+        const plan = planCapture(
+          { x: 0, y: 0, width: metrics.viewportWidth, height: metrics.height },
+          ratio,
+          {
+            maxHeight: 16_384,
+          },
+        );
         canvasWidth = bitmap.width;
-        canvasHeight = Math.min(Math.round(metrics.height * ratio), Math.round(plan.clip.height * ratio));
+        canvasHeight = Math.min(
+          Math.round(metrics.height * ratio),
+          Math.round(plan.clip.height * ratio),
+        );
         truncated = plan.truncated;
       }
       const placement = tilePlacement(scrollY, bitmap.height, ratio, canvasHeight);
@@ -213,9 +246,24 @@ async function fullPageStitched(tab: Browser.tabs.Tab, metrics: PageMetrics) {
 
 // --- Element ------------------------------------------------------------------------------------
 
-export async function captureElement(tabId: number, selector: string, options: CaptureOptions): Promise<RawCapture> {
+async function locate(
+  tabId: number,
+  selector: string,
+  scrollIntoView: boolean,
+): Promise<ElementTarget> {
+  const target = await runInPage(tabId, findElement, selector, scrollIntoView);
+  if (!target) throw new CaptureError("The page did not respond.");
+  if ("error" in target) throw new CaptureError(target.error, "element_not_found");
+  return target;
+}
+
+export async function captureElement(
+  tabId: number,
+  selector: string,
+  options: CaptureOptions,
+): Promise<RawCapture> {
   const tab = await resolveTab(tabId);
-  const target = await runInPage(tabId, findElement, selector, false);
+  const target = await locate(tabId, selector, false);
   const { rect, metrics, text } = target;
 
   if (options.method === "auto") {
@@ -223,7 +271,13 @@ export async function captureElement(tabId: number, selector: string, options: C
       if (IS_FIREFOX) {
         const plan = planCapture(rect, metrics.dpr);
         const image = await dataUrlPng(await firefoxCaptureTab(tabId, plan.clip, plan.scale));
-        return { image, viewportWidth: metrics.viewportWidth, truncated: plan.truncated, text, tab };
+        return {
+          image,
+          viewportWidth: metrics.viewportWidth,
+          truncated: plan.truncated,
+          text,
+          tab,
+        };
       }
       return await withDebugger(tabId, async (send) => {
         const plan = planCapture(rect, metrics.dpr);
@@ -235,7 +289,13 @@ export async function captureElement(tabId: number, selector: string, options: C
         });
         const image = decodeBase64Png(data);
         checkDimensions(image, { width: plan.outputWidth, height: plan.outputHeight });
-        return { image, viewportWidth: metrics.viewportWidth, truncated: plan.truncated, text, tab };
+        return {
+          image,
+          viewportWidth: metrics.viewportWidth,
+          truncated: plan.truncated,
+          text,
+          tab,
+        };
       });
     } catch (error) {
       console.warn("[open-ui] element capture failed, falling back to viewport crop", error);
@@ -248,12 +308,17 @@ export async function captureElement(tabId: number, selector: string, options: C
     await ensureActive(tab);
     const original = { x: metrics.scrollX, y: metrics.scrollY };
     try {
-      const scrolled = await runInPage(tabId, findElement, selector, true);
+      const scrolled = await locate(tabId, selector, true);
       const dataUrl = await captureVisibleTab(tab.windowId);
       const bitmap = await decode(dataUrlToBlob(dataUrl));
       const ratio = bitmap.width / scrolled.metrics.viewportWidth;
       const v = scrolled.viewportRect;
-      const image = await cropToPng(bitmap, { x: v.x * ratio, y: v.y * ratio, width: v.width * ratio, height: v.height * ratio });
+      const image = await cropToPng(bitmap, {
+        x: v.x * ratio,
+        y: v.y * ratio,
+        width: v.width * ratio,
+        height: v.height * ratio,
+      });
       bitmap.close();
       return { image, viewportWidth: metrics.viewportWidth, truncated: false, text, tab };
     } finally {
@@ -263,7 +328,12 @@ export async function captureElement(tabId: number, selector: string, options: C
   const full = await fullPageStitched(tab, metrics);
   const bitmap = await decode(full.image.blob);
   const ratio = bitmap.width / metrics.viewportWidth;
-  const image = await cropToPng(bitmap, { x: rect.x * ratio, y: rect.y * ratio, width: rect.width * ratio, height: rect.height * ratio });
+  const image = await cropToPng(bitmap, {
+    x: rect.x * ratio,
+    y: rect.y * ratio,
+    width: rect.width * ratio,
+    height: rect.height * ratio,
+  });
   bitmap.close();
   return { image, viewportWidth: metrics.viewportWidth, truncated: full.truncated, text, tab };
 }

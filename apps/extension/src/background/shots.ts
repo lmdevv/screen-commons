@@ -2,7 +2,13 @@ import { appNameFromUrl, hostnameOf, suggestPatterns } from "@open-ui/core/utils
 
 import { kindForViewport } from "../lib/geometry";
 import { getItem, getSettings, notifyTrayChanged, setItem } from "../lib/storage";
-import { normalizeText, nextOrder, type CaptureMode, type Shot, type ShotSummary } from "../lib/tray";
+import {
+  normalizeText,
+  nextOrder,
+  type CaptureMode,
+  type Shot,
+  type ShotSummary,
+} from "../lib/tray";
 import { listShots, putShots } from "../lib/tray-db";
 import { CaptureError, runInPage } from "./browser-utils";
 import { captureElement, captureFullPage, captureVisible, type RawCapture } from "./capture";
@@ -75,7 +81,10 @@ export async function addToTray(shot: Shot): Promise<void> {
       ...draft,
       app: {
         ...draft.app,
-        name: (shot.siteName && shot.siteName.length <= 40 ? shot.siteName : appNameFromUrl(shot.url, shot.pageTitle)).slice(0, 80),
+        name: (shot.siteName && shot.siteName.length <= 40
+          ? shot.siteName
+          : appNameFromUrl(shot.url, shot.pageTitle)
+        ).slice(0, 80),
         websiteUrl: website,
       },
     });

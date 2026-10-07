@@ -2,7 +2,13 @@ import { API_KEY_PREFIX } from "@open-ui/core/api";
 import { createOpenUiClient, OpenUiApiError } from "@open-ui/core/client";
 import { browser, type Browser } from "wxt/browser";
 
-import { DEFAULT_SERVER_URL, normalizeServerUrl, originMatchPattern, originOf, type Settings } from "../lib/settings";
+import {
+  DEFAULT_SERVER_URL,
+  normalizeServerUrl,
+  originMatchPattern,
+  originOf,
+  type Settings,
+} from "../lib/settings";
 import { getSettings, saveSettings, setItem } from "../lib/storage";
 
 const SCRIPT_ID = "open-ui-connect";
@@ -26,7 +32,13 @@ export async function syncConnectScript(settings: Settings): Promise<void> {
       return;
     }
     await browser.scripting.registerContentScripts([
-      { id: SCRIPT_ID, matches: [pattern], js: [SCRIPT_FILE], runAt: "document_start", persistAcrossSessions: false },
+      {
+        id: SCRIPT_ID,
+        matches: [pattern],
+        js: [SCRIPT_FILE],
+        runAt: "document_start",
+        persistAcrossSessions: false,
+      },
     ]);
   } catch (error) {
     console.warn("[open-ui] could not register the connect content script", error);
@@ -47,16 +59,19 @@ export async function acceptConnectToken(
   if (!senderOrigin || !allowed.has(senderOrigin)) {
     throw new Error(`${senderOrigin ?? "This page"} is not your configured Open UI server`);
   }
-  if (typeof message.token !== "string" || !TOKEN_PATTERN.test(message.token)) throw new Error("Invalid API key");
+  if (typeof message.token !== "string" || !TOKEN_PATTERN.test(message.token))
+    throw new Error("Invalid API key");
   const baseUrl = typeof message.baseUrl === "string" ? normalizeServerUrl(message.baseUrl) : null;
-  if (!baseUrl || originOf(baseUrl) !== senderOrigin) throw new Error("baseUrl must match the page origin");
+  if (!baseUrl || originOf(baseUrl) !== senderOrigin)
+    throw new Error("baseUrl must match the page origin");
 
   let userName: string | null = null;
   try {
     const me = await createOpenUiClient({ baseUrl, apiKey: message.token }).me();
     userName = me.name || me.email;
   } catch (error) {
-    if (error instanceof OpenUiApiError && error.status === 401) throw new Error("The server rejected the new key");
+    if (error instanceof OpenUiApiError && error.status === 401)
+      throw new Error("The server rejected the new key");
     // Network hiccup: keep the key, the popup will show the account state later.
   }
   await saveSettings({ serverUrl: baseUrl, apiKey: message.token });

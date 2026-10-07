@@ -1,4 +1,11 @@
-import { CATEGORIES, FLOW_TYPES, PATTERNS, PLATFORMS, labelFor, type PatternSlug } from "@open-ui/core/taxonomy";
+import {
+  CATEGORIES,
+  FLOW_TYPES,
+  PATTERNS,
+  PLATFORMS,
+  labelFor,
+  type PatternSlug,
+} from "@open-ui/core/taxonomy";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, GripVertical, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { browser } from "wxt/browser";
@@ -8,7 +15,19 @@ import { notifyTrayChanged, setItem } from "../../lib/storage";
 import { EMPTY_DRAFT, moveItem, reindex, type Shot, type TrayDraft } from "../../lib/tray";
 import { clearShots, deleteShots, listShots, updateShots } from "../../lib/tray-db";
 import { validateDraft } from "../../lib/upload-plan";
-import { Button, Chip, Field, IconButton, Input, Logo, Select, Spinner, Switch, cx, useFieldId } from "../../ui/components";
+import {
+  Button,
+  Chip,
+  Field,
+  IconButton,
+  Input,
+  Logo,
+  Select,
+  Spinner,
+  Switch,
+  cx,
+  useFieldId,
+} from "../../ui/components";
 import { useStorage } from "../../ui/hooks";
 
 interface TrayShot extends Shot {
@@ -77,7 +96,10 @@ export function Tray() {
 
   const editShot = useCallback(
     (id: string, patch: Partial<Pick<Shot, "title" | "patterns">>) => {
-      setShots((current) => current?.map((shot) => (shot.id === id ? { ...shot, ...patch } : shot)) ?? null);
+      setShots(
+        (current) =>
+          current?.map((shot) => (shot.id === id ? { ...shot, ...patch } : shot)) ?? null,
+      );
       void updateShots([{ id, ...patch }]);
     },
     [setShots],
@@ -101,7 +123,8 @@ export function Tray() {
   }
 
   async function clearAll() {
-    if (!shots?.length || !window.confirm(`Remove all ${shots.length} shots from the tray?`)) return;
+    if (!shots?.length || !window.confirm(`Remove all ${shots.length} shots from the tray?`))
+      return;
     await clearShots();
     await setItem("draft", EMPTY_DRAFT);
     await notifyTrayChanged();
@@ -113,9 +136,23 @@ export function Tray() {
     setUpload({ phase: "running", done: 0, total: shots.length, message: "Starting…" });
     const port = browser.runtime.connect({ name: UPLOAD_PORT });
     port.onMessage.addListener((message: UploadServerMessage) => {
-      if (message.type === "progress") setUpload({ phase: "running", done: message.done, total: message.total, message: message.message });
+      if (message.type === "progress")
+        setUpload({
+          phase: "running",
+          done: message.done,
+          total: message.total,
+          message: message.message,
+        });
       else if (message.type === "done") {
-        setUpload({ phase: "done", appUrl: message.appUrl, flowUrl: message.flowUrl, uploaded: message.uploaded, appName });
+        setUpload({
+          phase: "done",
+          appUrl: message.appUrl,
+          flowUrl: message.flowUrl,
+          uploaded: message.uploaded,
+          appName,
+        });
+        lastLocalEdit.current = 0;
+        setDraft(EMPTY_DRAFT);
         port.disconnect();
       } else if (message.type === "error") {
         setUpload({ phase: "error", message: message.message });
@@ -123,7 +160,9 @@ export function Tray() {
       }
     });
     port.onDisconnect.addListener(() =>
-      setUpload((current) => (current.phase === "running" ? { phase: "error", message: "Upload interrupted." } : current)),
+      setUpload((current) =>
+        current.phase === "running" ? { phase: "error", message: "Upload interrupted." } : current,
+      ),
     );
     port.postMessage({ type: "start", draft, shotIds: shots.map((shot) => shot.id) });
   }
@@ -219,7 +258,10 @@ export function Tray() {
                   )}
                 >
                   {overIndex === index && dragId && dragId !== shot.id ? (
-                    <span className="absolute top-0 bottom-16 -left-3 w-0.5 rounded-full bg-fg" aria-hidden />
+                    <span
+                      className="absolute top-0 bottom-16 -left-3 w-0.5 rounded-full bg-fg"
+                      aria-hidden
+                    />
                   ) : null}
                   <ShotCard
                     shot={shot}
@@ -262,12 +304,20 @@ function AppPanel({
   const nameId = useFieldId("app-name");
   const siteId = useFieldId("app-site");
   const categoryId = useFieldId("app-category");
-  const setApp = (patch: Partial<TrayDraft["app"]>) => editDraft((d) => ({ ...d, app: { ...d.app, ...patch } }));
+  const setApp = (patch: Partial<TrayDraft["app"]>) =>
+    editDraft((d) => ({ ...d, app: { ...d.app, ...patch } }));
   return (
     <div className="flex flex-col gap-4">
       <SectionTitle title="App" />
       <Field label="Name" htmlFor={nameId}>
-        <Input id={nameId} value={draft.app.name} maxLength={80} placeholder="Linear" disabled={disabled} onChange={(e) => setApp({ name: e.target.value })} />
+        <Input
+          id={nameId}
+          value={draft.app.name}
+          maxLength={80}
+          placeholder="Linear"
+          disabled={disabled}
+          onChange={(e) => setApp({ name: e.target.value })}
+        />
       </Field>
       <Field label="Website" htmlFor={siteId}>
         <Input
@@ -281,7 +331,11 @@ function AppPanel({
         />
       </Field>
       <Field label="Platform">
-        <div role="radiogroup" aria-label="Platform" className="grid grid-cols-3 rounded-lg border border-line p-0.5">
+        <div
+          role="radiogroup"
+          aria-label="Platform"
+          className="grid grid-cols-3 rounded-lg border border-line p-0.5"
+        >
           {PLATFORMS.map((platform) => (
             <button
               key={platform.slug}
@@ -292,7 +346,9 @@ function AppPanel({
               onClick={() => setApp({ platform: platform.slug })}
               className={cx(
                 "h-7 rounded-md text-[12px] font-medium transition-colors duration-150",
-                draft.app.platform === platform.slug ? "bg-tile text-fg shadow-[inset_0_0_0_1px_var(--ou-line)]" : "text-muted hover:text-fg",
+                draft.app.platform === platform.slug
+                  ? "bg-tile text-fg shadow-[inset_0_0_0_1px_var(--ou-line)]"
+                  : "text-muted hover:text-fg",
               )}
             >
               {platform.label}
@@ -332,19 +388,37 @@ function FlowPanel({
 }) {
   const nameId = useFieldId("flow-name");
   const typeId = useFieldId("flow-type");
-  const setFlow = (patch: Partial<TrayDraft["flow"]>) => editDraft((d) => ({ ...d, flow: { ...d.flow, ...patch } }));
+  const setFlow = (patch: Partial<TrayDraft["flow"]>) =>
+    editDraft((d) => ({ ...d, flow: { ...d.flow, ...patch } }));
   return (
     <div className="flex flex-col gap-4 border-t border-line pt-6">
       <SectionTitle title="Save as flow">
-        <Switch label="Save as flow" checked={draft.flow.enabled} disabled={disabled} onChange={(enabled) => setFlow({ enabled })} />
+        <Switch
+          label="Save as flow"
+          checked={draft.flow.enabled}
+          disabled={disabled}
+          onChange={(enabled) => setFlow({ enabled })}
+        />
       </SectionTitle>
       {draft.flow.enabled ? (
         <>
           <Field label="Flow name" htmlFor={nameId}>
-            <Input id={nameId} value={draft.flow.name} maxLength={80} placeholder="Signing up" disabled={disabled} onChange={(e) => setFlow({ name: e.target.value })} />
+            <Input
+              id={nameId}
+              value={draft.flow.name}
+              maxLength={80}
+              placeholder="Signing up"
+              disabled={disabled}
+              onChange={(e) => setFlow({ name: e.target.value })}
+            />
           </Field>
           <Field label="Type" htmlFor={typeId}>
-            <Select id={typeId} value={draft.flow.type} disabled={disabled} onChange={(e) => setFlow({ type: e.target.value as TrayDraft["flow"]["type"] })}>
+            <Select
+              id={typeId}
+              value={draft.flow.type}
+              disabled={disabled}
+              onChange={(e) => setFlow({ type: e.target.value as TrayDraft["flow"]["type"] })}
+            >
               <option value="">No type</option>
               {FLOW_TYPES.map((type) => (
                 <option key={type.slug} value={type.slug}>
@@ -354,11 +428,14 @@ function FlowPanel({
             </Select>
           </Field>
           <p className="text-[12px] leading-4 text-subtle">
-            {count} {count === 1 ? "step" : "steps"} in tray order. Drag shots to reorder; titles become step labels.
+            {count} {count === 1 ? "step" : "steps"} in tray order. Drag shots to reorder; titles
+            become step labels.
           </p>
         </>
       ) : (
-        <p className="-mt-1 text-[12px] leading-4 text-subtle">Upload the shots as an ordered flow, like onboarding or checkout.</p>
+        <p className="-mt-1 text-[12px] leading-4 text-subtle">
+          Upload the shots as an ordered flow, like onboarding or checkout.
+        </p>
       )}
     </div>
   );
@@ -384,16 +461,26 @@ function UploadPanel({
           <span className="text-muted tabular-nums">{pct}%</span>
         </div>
         <div className="h-1 overflow-hidden rounded-full bg-tile">
-          <div className="h-full rounded-full bg-fg transition-[width] duration-300" style={{ width: `${Math.max(4, pct)}%` }} />
+          <div
+            className="h-full rounded-full bg-fg transition-[width] duration-300"
+            style={{ width: `${Math.max(4, pct)}%` }}
+          />
         </div>
       </div>
     );
   }
   if (upload.phase === "error") {
     return (
-      <div className="flex items-start justify-between gap-3 border-t border-line pt-6" role="alert">
+      <div
+        className="flex items-start justify-between gap-3 border-t border-line pt-6"
+        role="alert"
+      >
         <p className="text-[12px] leading-4 text-danger">{upload.message}</p>
-        <button type="button" className="text-[12px] font-medium text-muted hover:text-fg" onClick={onDismiss}>
+        <button
+          type="button"
+          className="text-[12px] font-medium text-muted hover:text-fg"
+          onClick={onDismiss}
+        >
           Dismiss
         </button>
       </div>
@@ -403,7 +490,11 @@ function UploadPanel({
     return (
       <div className="flex flex-col gap-2 border-t border-line pt-6">
         <p className="text-[12px] leading-4 text-muted">Connect your Open UI account to upload.</p>
-        <Button size="sm" className="self-start" onClick={() => void browser.runtime.openOptionsPage()}>
+        <Button
+          size="sm"
+          className="self-start"
+          onClick={() => void browser.runtime.openOptionsPage()}
+        >
           Open settings
         </Button>
       </div>
@@ -455,17 +546,40 @@ function ShotCard({
         </div>
         <div className="absolute top-2 left-2 flex items-center gap-1">
           <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-bg px-1.5 text-[11px] font-semibold tabular-nums shadow-[0_0_0_1px_var(--ou-line)]">
-            {flow ? index + 1 : <GripVertical className="size-3.5 cursor-grab text-muted" strokeWidth={1.75} aria-label="Drag to reorder" />}
+            {flow ? (
+              index + 1
+            ) : (
+              <GripVertical
+                className="size-3.5 cursor-grab text-muted"
+                strokeWidth={1.75}
+                aria-label="Drag to reorder"
+              />
+            )}
           </span>
         </div>
         <div className="absolute top-2 right-2 flex items-center gap-0.5 rounded-full bg-bg p-0.5 opacity-0 shadow-[0_0_0_1px_var(--ou-line)] transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-          <IconButton label="Move earlier" className="size-6" disabled={disabled || index === 0} onClick={() => onMove(index - 1)}>
+          <IconButton
+            label="Move earlier"
+            className="size-6"
+            disabled={disabled || index === 0}
+            onClick={() => onMove(index - 1)}
+          >
             <ArrowLeft className="size-3.5" strokeWidth={1.75} />
           </IconButton>
-          <IconButton label="Move later" className="size-6" disabled={disabled || index === total - 1} onClick={() => onMove(index + 1)}>
+          <IconButton
+            label="Move later"
+            className="size-6"
+            disabled={disabled || index === total - 1}
+            onClick={() => onMove(index + 1)}
+          >
             <ArrowRight className="size-3.5" strokeWidth={1.75} />
           </IconButton>
-          <IconButton label="Delete shot" className="size-6 hover:text-danger" disabled={disabled} onClick={onDelete}>
+          <IconButton
+            label="Delete shot"
+            className="size-6 hover:text-danger"
+            disabled={disabled}
+            onClick={onDelete}
+          >
             <Trash2 className="size-3.5" strokeWidth={1.75} />
           </IconButton>
         </div>
@@ -499,7 +613,11 @@ function ShotCard({
             <Chip
               key={pattern}
               label={labelFor(pattern)}
-              onRemove={disabled ? undefined : () => onEdit({ patterns: shot.patterns.filter((p) => p !== pattern) })}
+              onRemove={
+                disabled
+                  ? undefined
+                  : () => onEdit({ patterns: shot.patterns.filter((p) => p !== pattern) })
+              }
             >
               {labelFor(pattern)}
             </Chip>
@@ -511,7 +629,10 @@ function ShotCard({
                 aria-label="Add pattern"
                 value=""
                 disabled={disabled}
-                onChange={(e) => e.target.value && onEdit({ patterns: [...shot.patterns, e.target.value as PatternSlug] })}
+                onChange={(e) =>
+                  e.target.value &&
+                  onEdit({ patterns: [...shot.patterns, e.target.value as PatternSlug] })
+                }
                 className="absolute inset-0 cursor-pointer opacity-0"
               >
                 <option value="">Add pattern</option>
@@ -539,8 +660,9 @@ function EmptyState() {
       </div>
       <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Your tray is empty</h2>
       <p className="mt-1.5 max-w-[340px] text-muted">
-        Capture pages from the toolbar popup or press <span className="font-medium text-fg">Alt+Shift+S</span>. Shots wait here for
-        tagging before you upload them.
+        Capture pages from the toolbar popup or press{" "}
+        <span className="font-medium text-fg">Alt+Shift+S</span>. Shots wait here for tagging before
+        you upload them.
       </p>
     </div>
   );
@@ -548,7 +670,10 @@ function EmptyState() {
 
 function SuccessState({ upload }: { upload: Extract<UploadState, { phase: "done" }> }) {
   return (
-    <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl bg-tile px-6 text-center" role="status">
+    <div
+      className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl bg-tile px-6 text-center"
+      role="status"
+    >
       <span className="mb-4 flex size-9 items-center justify-center rounded-full bg-fg text-bg">
         <Check className="size-4.5" strokeWidth={2.25} />
       </span>
@@ -556,7 +681,9 @@ function SuccessState({ upload }: { upload: Extract<UploadState, { phase: "done"
         Uploaded {upload.uploaded} {upload.uploaded === 1 ? "screen" : "screens"}
         {upload.appName ? ` to ${upload.appName}` : ""}
       </h2>
-      <p className="mt-1.5 text-muted">Members’ uploads appear in the library once an admin approves them.</p>
+      <p className="mt-1.5 text-muted">
+        Members’ uploads appear in the library once an admin approves them.
+      </p>
       <div className="mt-5 flex gap-2">
         <Button variant="primary" onClick={() => void browser.tabs.create({ url: upload.appUrl })}>
           View app
@@ -569,7 +696,13 @@ function SuccessState({ upload }: { upload: Extract<UploadState, { phase: "done"
           </Button>
         ) : null}
       </div>
-      <a href={upload.appUrl} target="_blank" rel="noreferrer" className="mt-3 text-[12px] text-subtle hover:text-fg" data-testid="app-link">
+      <a
+        href={upload.appUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 text-[12px] text-subtle hover:text-fg"
+        data-testid="app-link"
+      >
         {upload.appUrl}
       </a>
     </div>

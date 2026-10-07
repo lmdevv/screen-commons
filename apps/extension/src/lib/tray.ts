@@ -77,7 +77,9 @@ export function reindex<T extends { id: string; order: number }>(items: readonly
   return changed;
 }
 
-export function sortShots<T extends { order: number; capturedAt: string }>(items: readonly T[]): T[] {
+export function sortShots<T extends { order: number; capturedAt: string }>(
+  items: readonly T[],
+): T[] {
   return [...items].sort((a, b) => a.order - b.order || a.capturedAt.localeCompare(b.capturedAt));
 }
 

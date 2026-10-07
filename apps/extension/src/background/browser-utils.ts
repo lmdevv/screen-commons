@@ -28,8 +28,15 @@ export async function runInPage<Args extends unknown[], Result>(
     })) as Browser.scripting.InjectionResult[];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/cannot (access|be scripted)|chrome:\/\/|extensions gallery|webstore|Missing host permission|about:/iu.test(message)) {
-      throw new CaptureError("This page can’t be captured (browser pages and extension stores are protected).", "restricted_page");
+    if (
+      /cannot (access|be scripted)|chrome:\/\/|extensions gallery|webstore|Missing host permission|about:/iu.test(
+        message,
+      )
+    ) {
+      throw new CaptureError(
+        "This page can’t be captured (browser pages and extension stores are protected).",
+        "restricted_page",
+      );
     }
     throw new CaptureError(message);
   }
@@ -37,7 +44,10 @@ export async function runInPage<Args extends unknown[], Result>(
   if (!first) throw new CaptureError("The page did not respond.");
   if (first.error) {
     const error = first.error as { message?: string } | string;
-    throw new CaptureError(typeof error === "string" ? error : (error.message ?? "Script failed in page"), "page_error");
+    throw new CaptureError(
+      typeof error === "string" ? error : (error.message ?? "Script failed in page"),
+      "page_error",
+    );
   }
   return first.result as Result;
 }
@@ -86,7 +96,10 @@ export function waitForTabLoad(tabId: number, timeoutMs = 30_000): Promise<Brows
     const onRemoved = (id: number) => {
       if (id === tabId) finish(new CaptureError("The tab was closed", "tab_closed"));
     };
-    const timer = setTimeout(() => finish(new CaptureError("Timed out waiting for the page to load", "timeout")), timeoutMs);
+    const timer = setTimeout(
+      () => finish(new CaptureError("Timed out waiting for the page to load", "timeout")),
+      timeoutMs,
+    );
     browser.tabs.onUpdated.addListener(onUpdated);
     browser.tabs.onRemoved.addListener(onRemoved);
     void browser.tabs.get(tabId).then(
@@ -100,7 +113,8 @@ export function waitForTabLoad(tabId: number, timeoutMs = 30_000): Promise<Brows
 
 /** `action` (MV3) or `browserAction` (Firefox MV2). */
 export function actionApi(): typeof browser.action | undefined {
-  return (browser.action ?? (browser as unknown as { browserAction?: typeof browser.action }).browserAction) as
+  return (browser.action ??
+    (browser as unknown as { browserAction?: typeof browser.action }).browserAction) as
     | typeof browser.action
     | undefined;
 }

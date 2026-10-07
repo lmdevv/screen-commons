@@ -32,8 +32,14 @@ export function decode(blob: Blob): Promise<ImageBitmap> {
   return createImageBitmap(blob);
 }
 
-function canvas2d(width: number, height: number): [OffscreenCanvas, OffscreenCanvasRenderingContext2D] {
-  const canvas = new OffscreenCanvas(Math.max(1, Math.round(width)), Math.max(1, Math.round(height)));
+function canvas2d(
+  width: number,
+  height: number,
+): [OffscreenCanvas, OffscreenCanvasRenderingContext2D] {
+  const canvas = new OffscreenCanvas(
+    Math.max(1, Math.round(width)),
+    Math.max(1, Math.round(height)),
+  );
   const context = canvas.getContext("2d");
   if (!context) throw new Error("OffscreenCanvas 2D context unavailable");
   return [canvas, context];
@@ -47,7 +53,12 @@ export async function cropToPng(bitmap: ImageBitmap, rect: Rect): Promise<Encode
   const height = Math.max(1, Math.min(bitmap.height - y, Math.round(rect.height)));
   const [canvas, context] = canvas2d(width, height);
   context.drawImage(bitmap, x, y, width, height, 0, 0, width, height);
-  return { blob: await canvas.convertToBlob({ type: "image/png" }), type: "image/png", width, height };
+  return {
+    blob: await canvas.convertToBlob({ type: "image/png" }),
+    type: "image/png",
+    width,
+    height,
+  };
 }
 
 /** Compose stitched tiles onto one canvas and encode as PNG. */
@@ -60,9 +71,24 @@ export async function composeTiles(
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
   for (const tile of tiles) {
-    context.drawImage(tile.bitmap, 0, 0, Math.min(tile.bitmap.width, width), tile.srcHeight, 0, tile.destY, Math.min(tile.bitmap.width, width), tile.srcHeight);
+    context.drawImage(
+      tile.bitmap,
+      0,
+      0,
+      Math.min(tile.bitmap.width, width),
+      tile.srcHeight,
+      0,
+      tile.destY,
+      Math.min(tile.bitmap.width, width),
+      tile.srcHeight,
+    );
   }
-  return { blob: await canvas.convertToBlob({ type: "image/png" }), type: "image/png", width: canvas.width, height: canvas.height };
+  return {
+    blob: await canvas.convertToBlob({ type: "image/png" }),
+    type: "image/png",
+    width: canvas.width,
+    height: canvas.height,
+  };
 }
 
 /** 640px-wide WebP thumbnail, top-anchored crop (16:10 desktop / 9:19.5 mobile). */
@@ -77,7 +103,8 @@ export async function makeThumbnail(
   context.drawImage(bitmap, plan.sx, plan.sy, plan.sw, plan.sh, 0, 0, plan.width, plan.height);
   let blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.8 });
   if (blob.type !== "image/webp") throw new Error("This browser cannot encode WebP thumbnails");
-  if (blob.size > LIMITS.maxThumbnailBytes) blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.6 });
+  if (blob.size > LIMITS.maxThumbnailBytes)
+    blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.6 });
   return { blob, width: plan.width, height: plan.height };
 }
 
@@ -93,7 +120,10 @@ export function dominantColorOf(bitmap: ImageBitmap): string | null {
  * Make sure a capture fits the server limits: width ≤ 4096 (downscale), bytes ≤ 15 MB
  * (re-encode PNG as high-quality WebP, then lower quality).
  */
-export async function ensureUploadable(image: EncodedImage, bitmap: ImageBitmap): Promise<EncodedImage> {
+export async function ensureUploadable(
+  image: EncodedImage,
+  bitmap: ImageBitmap,
+): Promise<EncodedImage> {
   let { width, height } = image;
   const needsResize = width > LIMITS.maxImageWidth || height > LIMITS.maxImageHeight;
   if (!needsResize && image.blob.size <= LIMITS.maxImageBytes) return image;

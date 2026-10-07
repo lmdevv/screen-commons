@@ -18,7 +18,10 @@ let listening = false;
 const MOBILE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
 
-export type Send = <T = Record<string, unknown>>(method: string, params?: Record<string, unknown>) => Promise<T>;
+export type Send = <T = Record<string, unknown>>(
+  method: string,
+  params?: Record<string, unknown>,
+) => Promise<T>;
 
 function listen() {
   if (listening) return;
@@ -30,7 +33,7 @@ function listen() {
 }
 
 function sender(tabId: number): Send {
-  return async <T,>(method: string, params: Record<string, unknown> = {}) =>
+  return async <T>(method: string, params: Record<string, unknown> = {}) =>
     (await browser.debugger.sendCommand({ tabId }, method, params)) as T;
 }
 

@@ -1,11 +1,28 @@
-import { ArrowUpRight, Crosshair, Maximize2, RotateCw, ScanLine, Settings as SettingsIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  Crosshair,
+  Maximize2,
+  RotateCw,
+  ScanLine,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { browser } from "wxt/browser";
 
 import { sendToBackground } from "../../lib/messages";
 import type { BridgeStatus } from "../../lib/storage";
 import type { CaptureMode } from "../../lib/tray";
-import { Button, Dot, IconButton, Kbd, Logo, Spinner, Switch, cx, type DotTone } from "../../ui/components";
+import {
+  Button,
+  Dot,
+  IconButton,
+  Kbd,
+  Logo,
+  Spinner,
+  Switch,
+  cx,
+  type DotTone,
+} from "../../ui/components";
 import { hostLabel, useAccount, useStorage } from "../../ui/hooks";
 
 const BRIDGE_COPY: Record<BridgeStatus["state"], { label: string; tone: DotTone }> = {
@@ -23,7 +40,8 @@ function useShortcuts(): Record<string, string> {
   useEffect(() => {
     void browser.commands?.getAll().then((commands) => {
       const map: Record<string, string> = {};
-      for (const command of commands) if (command.name && command.shortcut) map[command.name] = command.shortcut;
+      for (const command of commands)
+        if (command.name && command.shortcut) map[command.name] = command.shortcut;
       setShortcuts(map);
     });
   }, []);
@@ -40,6 +58,12 @@ function prettyShortcut(value: string | undefined): string | null {
     .replace(/(Command|MacCtrl)\+?/gu, "⌘")
     .replace(/Ctrl\+?/gu, "⌃");
 }
+
+/** `popup.html?tabId=N` targets a specific tab (used when the popup is opened as a page, e.g. in tests). */
+const targetTabId = (() => {
+  const value = Number(new URLSearchParams(location.search).get("tabId"));
+  return Number.isInteger(value) && value > 0 ? value : undefined;
+})();
 
 function openPage(path: "/tray.html" | "/options.html") {
   void browser.tabs.create({ url: browser.runtime.getURL(path) });
@@ -58,22 +82,30 @@ export function Popup() {
   const [capturable, setCapturable] = useState(true);
 
   useEffect(() => {
-    void browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
-      setCapturable(Boolean(tab?.url && /^(https?|file):/u.test(tab.url)));
-    });
+    const check = (url: string | undefined) =>
+      setCapturable(Boolean(url && /^(https?|file):/u.test(url)));
+    if (targetTabId !== undefined)
+      void browser.tabs.get(targetTabId).then(
+        (tab) => check(tab.url),
+        () => check(undefined),
+      );
+    else
+      void browser.tabs
+        .query({ active: true, currentWindow: true })
+        .then(([tab]) => check(tab?.url));
   }, []);
 
   async function capture(mode: CaptureMode) {
     setNotice(null);
     if (mode === "element") {
       // The popup must close so the page can receive the pointer; the background keeps going.
-      void sendToBackground({ type: "capture", mode }).catch(() => undefined);
+      void sendToBackground({ type: "capture", mode, tabId: targetTabId }).catch(() => undefined);
       window.close();
       return;
     }
     setBusy(mode);
     try {
-      const { shot } = await sendToBackground({ type: "capture", mode });
+      const { shot } = await sendToBackground({ type: "capture", mode, tabId: targetTabId });
       if (shot) {
         setNotice({
           tone: "ok",
@@ -98,7 +130,10 @@ export function Popup() {
           <Logo size={20} />
           <span className="text-[14px] font-semibold tracking-[-0.01em]">Open UI</span>
         </div>
-        <IconButton label="Settings" onClick={() => void browser.runtime.openOptionsPage().then(() => window.close())}>
+        <IconButton
+          label="Settings"
+          onClick={() => void browser.runtime.openOptionsPage().then(() => window.close())}
+        >
           <SettingsIcon className="size-4" strokeWidth={1.75} />
         </IconButton>
       </header>
@@ -109,7 +144,9 @@ export function Popup() {
             <>
               <Avatar name={account.user.name || account.user.email} image={account.user.image} />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{account.user.name || account.user.email}</div>
+                <div className="truncate font-medium">
+                  {account.user.name || account.user.email}
+                </div>
                 <div className="truncate text-[12px] text-muted">{server}</div>
               </div>
               <Dot tone="ok" />
@@ -186,7 +223,11 @@ export function Popup() {
             onClick={() => void capture("visible")}
           >
             <span className="flex items-center gap-2">
-              {busy === "visible" ? <Spinner /> : <ScanLine className="size-4" strokeWidth={1.75} />}
+              {busy === "visible" ? (
+                <Spinner />
+              ) : (
+                <ScanLine className="size-4" strokeWidth={1.75} />
+              )}
               Visible
             </span>
             <Kbd>{prettyShortcut(shortcuts["capture-visible"])}</Kbd>
@@ -205,7 +246,9 @@ export function Popup() {
           </Button>
         </div>
         {!capturable ? (
-          <p className="px-1 pt-0.5 text-[12px] text-muted">This page can’t be captured. Open a website to start.</p>
+          <p className="px-1 pt-0.5 text-[12px] text-muted">
+            This page can’t be captured. Open a website to start.
+          </p>
         ) : null}
       </section>
 
@@ -213,7 +256,9 @@ export function Popup() {
         <div className="min-w-0 flex-1 pl-0.5">
           <div className="flex items-center gap-2 font-medium">
             Record flow
-            {recording ? <span className="size-1.5 animate-pulse rounded-full bg-danger" aria-hidden /> : null}
+            {recording ? (
+              <span className="size-1.5 animate-pulse rounded-full bg-danger" aria-hidden />
+            ) : null}
           </div>
           <div className="text-[12px] text-muted">Each capture becomes the next step</div>
         </div>
@@ -226,7 +271,13 @@ export function Popup() {
 
       <div className="min-h-3 px-4 pt-1.5">
         {notice ? (
-          <p className={cx("truncate text-[12px]", notice.tone === "error" ? "text-danger" : "text-muted")} role="status">
+          <p
+            className={cx(
+              "truncate text-[12px]",
+              notice.tone === "error" ? "text-danger" : "text-muted",
+            )}
+            role="status"
+          >
             {notice.text}
           </p>
         ) : null}
@@ -234,9 +285,15 @@ export function Popup() {
 
       <footer className="mt-1.5 flex items-center justify-between border-t border-line px-4 py-3">
         <span className="text-muted tabular-nums">
-          <span className="font-medium text-fg">{count}</span> {count === 1 ? "shot" : "shots"} in tray
+          <span className="font-medium text-fg">{count}</span> {count === 1 ? "shot" : "shots"} in
+          tray
         </span>
-        <Button size="sm" variant="secondary" onClick={() => openPage("/tray.html")} className="pr-2.5">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => openPage("/tray.html")}
+          className="pr-2.5"
+        >
           Open tray
           <ArrowUpRight className="size-3.5" strokeWidth={1.75} />
         </Button>
@@ -246,7 +303,8 @@ export function Popup() {
 }
 
 function Avatar({ name, image }: { name: string; image: string | null }) {
-  if (image) return <img src={image} alt="" className="size-6 shrink-0 rounded-full object-cover" />;
+  if (image)
+    return <img src={image} alt="" className="size-6 shrink-0 rounded-full object-cover" />;
   return (
     <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-tile text-[11px] font-semibold uppercase">
       {name.trim().charAt(0) || "?"}

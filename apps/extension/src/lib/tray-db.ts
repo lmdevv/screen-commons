@@ -76,7 +76,9 @@ export async function putShots(shots: readonly Shot[]): Promise<void> {
 }
 
 /** Patch non-blob fields of shots. */
-export async function updateShots(patches: readonly ({ id: string } & Partial<Omit<Shot, "id" | "image" | "thumbnail">>)[]): Promise<void> {
+export async function updateShots(
+  patches: readonly ({ id: string } & Partial<Omit<Shot, "id" | "image" | "thumbnail">>)[],
+): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");

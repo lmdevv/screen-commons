@@ -14,7 +14,19 @@ import {
   type Settings,
 } from "../../lib/settings";
 import { getItem, saveSettings, type BridgeStatus } from "../../lib/storage";
-import { Button, Dot, Field, IconButton, Input, Logo, Spinner, Switch, cx, useFieldId, type DotTone } from "../../ui/components";
+import {
+  Button,
+  Dot,
+  Field,
+  IconButton,
+  Input,
+  Logo,
+  Spinner,
+  Switch,
+  cx,
+  useFieldId,
+  type DotTone,
+} from "../../ui/components";
 import { checkAccount, useStorage, type AccountState } from "../../ui/hooks";
 
 interface FormState {
@@ -61,7 +73,9 @@ export function Options() {
     const previous = savedRef.current;
     savedRef.current = next;
     setSaved(next);
-    setForm((current) => (!current || JSON.stringify(current) === JSON.stringify(previous) ? next : current));
+    setForm((current) =>
+      !current || JSON.stringify(current) === JSON.stringify(previous) ? next : current,
+    );
   }, [settings]);
 
   useEffect(() => {
@@ -103,8 +117,13 @@ export function Options() {
     if (originOf(serverUrl) !== originOf(DEFAULT_SERVER_URL)) {
       const pattern = originMatchPattern(serverUrl);
       if (pattern && !(await browser.permissions.contains({ origins: [pattern] }))) {
-        const granted = await browser.permissions.request({ origins: [pattern] }).catch(() => false);
-        if (!granted) setError("Without access to that site the one-click connect won’t work. Paste an API key instead.");
+        const granted = await browser.permissions
+          .request({ origins: [pattern] })
+          .catch(() => false);
+        if (!granted)
+          setError(
+            "Without access to that site the one-click connect won’t work. Paste an API key instead.",
+          );
       }
     }
     const next = await saveSettings({
@@ -173,14 +192,26 @@ export function Options() {
 
       <main className="mx-auto flex max-w-[640px] flex-col gap-10 px-6 pt-10">
         {flash ? (
-          <div className="flex h-10 items-center gap-2.5 rounded-xl border border-line px-3.5" role="status">
+          <div
+            className="flex h-10 items-center gap-2.5 rounded-xl border border-line px-3.5"
+            role="status"
+          >
             <Dot tone="ok" />
             <span className="font-medium">{flash}</span>
           </div>
         ) : null}
 
-        <Section title="Account" description="Uploads go to this Open UI instance with your API key.">
-          <TextField label="Server URL" value={form.serverUrl} onChange={(serverUrl) => set({ serverUrl })} placeholder={DEFAULT_SERVER_URL} spellCheck={false} />
+        <Section
+          title="Account"
+          description="Uploads go to this Open UI instance with your API key."
+        >
+          <TextField
+            label="Server URL"
+            value={form.serverUrl}
+            onChange={(serverUrl) => set({ serverUrl })}
+            placeholder={DEFAULT_SERVER_URL}
+            spellCheck={false}
+          />
           <SecretField
             label="API key"
             value={form.apiKey}
@@ -204,7 +235,13 @@ export function Options() {
         <Section
           title="MCP bridge"
           description="Lets a local agent running open-ui-mcp drive this browser: navigate, screenshot and read pages."
-          aside={<Switch label="Enable MCP bridge" checked={form.bridgeEnabled} onChange={(bridgeEnabled) => set({ bridgeEnabled })} />}
+          aside={
+            <Switch
+              label="Enable MCP bridge"
+              checked={form.bridgeEnabled}
+              onChange={(bridgeEnabled) => set({ bridgeEnabled })}
+            />
+          }
         >
           <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4">
             <TextField
@@ -224,34 +261,60 @@ export function Options() {
             />
           </div>
           <p className="-mt-1 text-[12px] leading-4 text-subtle">
-            Run <code className="font-mono text-[11.5px] text-muted">npx open-ui-mcp</code>; the token is printed on start and saved to{" "}
-            <code className="font-mono text-[11.5px] text-muted">~/.config/open-ui/bridge-token</code>.
+            Run <code className="font-mono text-[11.5px] text-muted">npx open-ui-mcp</code>; the
+            token is printed on start and saved to{" "}
+            <code className="font-mono text-[11.5px] text-muted">
+              ~/.config/open-ui/bridge-token
+            </code>
+            .
           </p>
           <div className="flex items-center gap-3">
-            <Button onClick={() => void testBridge()} disabled={testingBridge || !form.bridgeEnabled}>
+            <Button
+              onClick={() => void testBridge()}
+              disabled={testingBridge || !form.bridgeEnabled}
+            >
               {testingBridge ? <Spinner /> : null}
               Test bridge
             </Button>
-            <span className="flex items-center gap-2 text-muted">
+            <span className="flex min-w-0 items-center gap-2 text-muted" role="status">
               <Dot tone={bridgeLabel[1]} />
-              {bridgeLabel[0]}
-              {bridge?.state === "connected" && bridge.server ? (
-                <span className="text-subtle">
-                  · {bridge.server.name} {bridge.server.version}
+              <span className="truncate">
+                {bridgeLabel[0]}
+                {bridge?.state === "connected" && bridge.server ? (
+                  <span className="text-subtle">
+                    {" · "}
+                    {bridge.server.name} {bridge.server.version}
+                  </span>
+                ) : null}
+                <span className="text-subtle tabular-nums">
+                  {" "}
+                  · 127.0.0.1:{bridge?.port || form.bridgePort}
                 </span>
-              ) : null}
-              <span className="text-subtle tabular-nums">· 127.0.0.1:{bridge?.port || form.bridgePort}</span>
+              </span>
             </span>
           </div>
         </Section>
 
         <Section title="Capture">
           <Field label="Full-page method">
-            <div role="radiogroup" className="flex flex-col divide-y divide-line rounded-xl border border-line">
+            <div
+              role="radiogroup"
+              className="flex flex-col divide-y divide-line rounded-xl border border-line"
+            >
               {(
                 [
-                  ["auto", "Automatic", isChromium ? "Chrome DevTools Protocol, one exact render of the whole page." : "Firefox full-page capture in one pass."],
-                  ["stitch", "Scroll and stitch", "Scrolls and combines viewport captures. Slower; try it if a page renders oddly."],
+                  [
+                    "auto",
+                    "Automatic",
+                    isChromium
+                      ? "Chrome DevTools Protocol, one exact render of the whole page."
+                      : "Firefox full-page capture in one pass.",
+                  ],
+                  [
+                    "stitch",
+                    "Scroll and stitch",
+                    "Scrolls and combines viewport captures. Slower; try it if a page renders oddly.",
+                  ],
                 ] as const
               ).map(([value, label, hint]) => (
                 <label key={value} className="flex cursor-pointer items-start gap-3 px-3.5 py-3">
@@ -274,9 +337,15 @@ export function Options() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="font-medium">Load lazy content first</div>
-              <div className="text-[12px] text-muted">Scroll through the page before full-page captures so images load.</div>
+              <div className="text-[12px] text-muted">
+                Scroll through the page before full-page captures so images load.
+              </div>
             </div>
-            <Switch label="Load lazy content first" checked={form.lazyLoad} onChange={(lazyLoad) => set({ lazyLoad })} />
+            <Switch
+              label="Load lazy content first"
+              checked={form.lazyLoad}
+              onChange={(lazyLoad) => set({ lazyLoad })}
+            />
           </div>
           {isChromium ? (
             <button
@@ -293,13 +362,21 @@ export function Options() {
       <div
         className={cx(
           "fixed inset-x-0 bottom-0 border-t border-line bg-bg/90 backdrop-blur transition-[opacity,transform] duration-150",
-          dirty || error ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-2 opacity-0",
+          dirty || error
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-2 opacity-0",
         )}
       >
         <div className="mx-auto flex h-14 max-w-[640px] items-center justify-between gap-4 px-6">
-          <p className={cx("truncate text-[12px]", error ? "text-danger" : "text-muted")}>{error ?? "You have unsaved changes"}</p>
+          <p className={cx("truncate text-[12px]", error ? "text-danger" : "text-muted")}>
+            {error ?? "You have unsaved changes"}
+          </p>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => saved && (setForm(saved), setError(null))} disabled={!dirty}>
+            <Button
+              variant="ghost"
+              onClick={() => saved && (setForm(saved), setError(null))}
+              disabled={!dirty}
+            >
               Discard
             </Button>
             <Button variant="primary" onClick={() => void onSave()} disabled={!dirty}>
@@ -312,7 +389,17 @@ export function Options() {
   );
 }
 
-function Section({ title, description, aside, children }: { title: string; description?: string; aside?: ReactNode; children: ReactNode }) {
+function Section({
+  title,
+  description,
+  aside,
+  children,
+}: {
+  title: string;
+  description?: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-6 border-b border-line pb-3">
@@ -382,7 +469,11 @@ function SecretField({
           onClick={() => setVisible((v) => !v)}
           disabled={disabled}
         >
-          {visible ? <EyeOff className="size-3.5" strokeWidth={1.75} /> : <Eye className="size-3.5" strokeWidth={1.75} />}
+          {visible ? (
+            <EyeOff className="size-3.5" strokeWidth={1.75} />
+          ) : (
+            <Eye className="size-3.5" strokeWidth={1.75} />
+          )}
         </IconButton>
       </div>
     </Field>
@@ -395,8 +486,11 @@ function AccountResult({ account }: { account: AccountState | null }) {
     return (
       <span className="ml-1 flex items-center gap-2 text-muted" role="status">
         <Dot tone="ok" />
-        Signed in as <span className="font-medium text-fg">{account.user.name || account.user.email}</span>
-        <span className="text-subtle">· {account.user.role}</span>
+        <span>
+          Signed in as{" "}
+          <span className="font-medium text-fg">{account.user.name || account.user.email}</span>
+          <span className="text-subtle"> · {account.user.role}</span>
+        </span>
       </span>
     );
   }

@@ -2,8 +2,8 @@
   "name": "@open-ui/extension",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Open UI Capture: browser extension for capturing screens and flows into Open UI",
+  "type": "module",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -15,7 +15,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "check-types": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "wxt build && node --test e2e/extension.e2e.mjs"
+    "test:e2e": "wxt build && vitest run -c vitest.e2e.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

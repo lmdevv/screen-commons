@@ -43,10 +43,13 @@ export function pageMetrics(): PageMetrics {
  * Bounded lazy-load pass: scroll viewport by viewport (triggers IntersectionObserver and native
  * lazy loading), promote lazy images, wait for images and fonts with deadlines, return to top.
  */
-export async function prepareFullPage(options: { lazyLoad: boolean; budgetMs: number }): Promise<PageMetrics> {
+export async function prepareFullPage(options: {
+  lazyLoad: boolean;
+  budgetMs: number;
+}): Promise<PageMetrics> {
   const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
   const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  const withDeadline = <T,>(promise: Promise<T>, ms: number) =>
+  const withDeadline = <T>(promise: Promise<T>, ms: number) =>
     Promise.race([promise.then(() => undefined), sleep(ms)]);
   const doc = document.documentElement;
   const previousBehavior = doc.style.scrollBehavior;
@@ -67,7 +70,10 @@ export async function prepareFullPage(options: { lazyLoad: boolean; budgetMs: nu
         steps += 1;
         await sleep(120);
       }
-      window.scrollTo(0, Math.max(doc.scrollHeight, document.body ? document.body.scrollHeight : 0));
+      window.scrollTo(
+        0,
+        Math.max(doc.scrollHeight, document.body ? document.body.scrollHeight : 0),
+      );
       await sleep(150);
       const remaining = Math.max(300, options.budgetMs - (Date.now() - started));
       const pending = Array.from(document.images)
@@ -97,13 +103,18 @@ export async function prepareFullPage(options: { lazyLoad: boolean; budgetMs: nu
 }
 
 /** Scroll to an absolute position and report where the page actually ended up. */
-export async function scrollToPosition(x: number, y: number): Promise<{ scrollX: number; scrollY: number }> {
+export async function scrollToPosition(
+  x: number,
+  y: number,
+): Promise<{ scrollX: number; scrollY: number }> {
   const doc = document.documentElement;
   const previousBehavior = doc.style.scrollBehavior;
   doc.style.scrollBehavior = "auto";
   window.scrollTo(x, y);
   doc.style.scrollBehavior = previousBehavior;
-  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
   return { scrollX: window.scrollX, scrollY: window.scrollY };
 }
 
@@ -115,7 +126,10 @@ export function hideFixedElements(): number {
     const position = getComputedStyle(el).position;
     if (position !== "fixed" && position !== "sticky") continue;
     if (el.hasAttribute("data-open-ui-hidden")) continue;
-    el.setAttribute("data-open-ui-hidden", el.style.getPropertyValue("visibility") + "|" + el.style.getPropertyPriority("visibility"));
+    el.setAttribute(
+      "data-open-ui-hidden",
+      el.style.getPropertyValue("visibility") + "|" + el.style.getPropertyPriority("visibility"),
+    );
     el.style.setProperty("visibility", "hidden", "important");
     count += 1;
   }
@@ -143,7 +157,11 @@ export function collectText(mode: "visible" | "full"): string {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   let visited = 0;
-  for (let node = walker.nextNode(); node && visited < 50_000 && length < 20_000; node = walker.nextNode()) {
+  for (
+    let node = walker.nextNode();
+    node && visited < 50_000 && length < 20_000;
+    node = walker.nextNode()
+  ) {
     visited += 1;
     const value = node.nodeValue;
     if (!value || !value.trim()) continue;
@@ -162,26 +180,42 @@ export function collectText(mode: "visible" | "full"): string {
   return parts.join(" ").slice(0, 20_000);
 }
 
-/** Locate an element by CSS selector. Throws a readable error for invalid or missing selectors. */
-export async function findElement(selector: string, scrollIntoView: boolean): Promise<ElementTarget> {
+/**
+ * Locate an element by CSS selector. Returns `{ error }` for invalid or missing selectors
+ * (Chromium does not propagate exceptions thrown by injected functions).
+ */
+export async function findElement(
+  selector: string,
+  scrollIntoView: boolean,
+): Promise<ElementTarget | { error: string }> {
   let el: Element | null;
   try {
     el = document.querySelector(selector);
   } catch {
-    throw new Error(`Invalid CSS selector: ${selector}`);
+    return { error: `Invalid CSS selector: ${selector}` };
   }
-  if (!el) throw new Error(`No element matches ${selector}`);
+  if (!el) return { error: `No element matches ${selector}` };
   if (scrollIntoView) {
     el.scrollIntoView({ block: "start", inline: "nearest", behavior: "instant" as ScrollBehavior });
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
   }
   const box = el.getBoundingClientRect();
-  if (box.width < 1 || box.height < 1) throw new Error(`Element ${selector} has no visible size`);
+  if (box.width < 1 || box.height < 1) return { error: `Element ${selector} has no visible size` };
   const doc = document.documentElement;
   const body = document.body;
-  const text = ((el as HTMLElement).innerText || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 20_000);
+  const text = ((el as HTMLElement).innerText || el.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 20_000);
   return {
-    rect: { x: box.left + window.scrollX, y: box.top + window.scrollY, width: box.width, height: box.height },
+    rect: {
+      x: box.left + window.scrollX,
+      y: box.top + window.scrollY,
+      width: box.width,
+      height: box.height,
+    },
     viewportRect: { x: box.left, y: box.top, width: box.width, height: box.height },
     metrics: {
       width: Math.max(doc.scrollWidth, body ? body.scrollWidth : 0, doc.clientWidth),
@@ -207,7 +241,8 @@ export function pickElement(): Promise<{ selector: string } | null> {
   return new Promise((resolve) => {
     const host = document.createElement("div");
     host.id = "__open-ui-picker";
-    host.style.cssText = "all: initial; position: fixed; inset: 0; pointer-events: none; z-index: 2147483647;";
+    host.style.cssText =
+      "all: initial; position: fixed; inset: 0; pointer-events: none; z-index: 2147483647;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `
       <style>
@@ -252,7 +287,9 @@ export function pickElement(): Promise<{ selector: string } | null> {
         const parentEl: Element | null = node.parentElement;
         let part = node.tagName.toLowerCase();
         if (parentEl) {
-          const same = Array.from(parentEl.children).filter((child) => child.tagName === node!.tagName);
+          const same = Array.from(parentEl.children).filter(
+            (child) => child.tagName === node!.tagName,
+          );
           if (same.length > 1) part += `:nth-of-type(${same.indexOf(node) + 1})`;
         }
         parts.unshift(part);
@@ -289,7 +326,11 @@ export function pickElement(): Promise<{ selector: string } | null> {
       if (event.key === "Escape") {
         block(event);
         finish(null);
-      } else if (event.key === "ArrowUp" && current?.parentElement && current.parentElement !== document.documentElement) {
+      } else if (
+        event.key === "ArrowUp" &&
+        current?.parentElement &&
+        current.parentElement !== document.documentElement
+      ) {
         block(event);
         current = current.parentElement;
         draw();
@@ -317,22 +358,32 @@ export function extractMetadata(): PageMetadata {
     if (!value) return null;
     try {
       const url = new URL(value, document.baseURI);
-      return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "data:" ? url.href : null;
+      return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "data:"
+        ? url.href
+        : null;
     } catch {
       return null;
     }
   };
-  const meta = (selector: string) => document.querySelector<HTMLMetaElement>(selector)?.content?.trim() || null;
+  const meta = (selector: string) =>
+    document.querySelector<HTMLMetaElement>(selector)?.content?.trim() || null;
   const collapse = (value: string) => value.replace(/\s+/g, " ").trim();
 
   const icons = Array.from(document.querySelectorAll<HTMLLinkElement>("link[rel][href]"))
     .map((link) => {
       const rel = link.rel.toLowerCase();
-      if (!/(^|\s)(icon|apple-touch-icon|apple-touch-icon-precomposed|shortcut)(\s|$)/.test(rel)) return null;
-      const size = Math.max(0, ...(link.getAttribute("sizes") ?? "").split(/\s+/).map((s) => Number.parseInt(s, 10) || 0));
+      if (!/(^|\s)(icon|apple-touch-icon|apple-touch-icon-precomposed|shortcut)(\s|$)/.test(rel))
+        return null;
+      const size = Math.max(
+        0,
+        ...(link.getAttribute("sizes") ?? "").split(/\s+/).map((s) => Number.parseInt(s, 10) || 0),
+      );
       const apple = rel.includes("apple-touch-icon");
       const svg = (link.type || "").includes("svg") || link.href.endsWith(".svg");
-      return { href: link.href, score: (apple ? 1000 : 0) + (svg ? 500 : 0) + (size || (apple ? 180 : 16)) };
+      return {
+        href: link.href,
+        score: (apple ? 1000 : 0) + (svg ? 500 : 0) + (size || (apple ? 180 : 16)),
+      };
     })
     .filter((icon): icon is { href: string; score: number } => icon !== null)
     .sort((a, b) => b.score - a.score);
@@ -358,7 +409,13 @@ export function extractMetadata(): PageMetadata {
     const href = url.href;
     if (seen.has(href)) continue;
     seen.add(href);
-    links.push({ url: href, text: collapse(a.innerText || a.textContent || a.getAttribute("aria-label") || "").slice(0, 160) });
+    links.push({
+      url: href,
+      text: collapse(a.innerText || a.textContent || a.getAttribute("aria-label") || "").slice(
+        0,
+        160,
+      ),
+    });
   }
 
   return {

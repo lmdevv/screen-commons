@@ -53,7 +53,12 @@ export function planCapture(
   const clipHeight = Math.min(height, Math.floor(maxHeight / scale));
   return {
     scale,
-    clip: { x: Math.max(0, Math.floor(area.x)), y: Math.max(0, Math.floor(area.y)), width, height: clipHeight },
+    clip: {
+      x: Math.max(0, Math.floor(area.x)),
+      y: Math.max(0, Math.floor(area.y)),
+      width,
+      height: clipHeight,
+    },
     outputWidth: Math.round(width * scale),
     outputHeight: Math.round(clipHeight * scale),
     truncated: clipHeight < height,

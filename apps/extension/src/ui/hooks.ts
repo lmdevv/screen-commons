@@ -32,7 +32,8 @@ export async function checkAccount(serverUrl: string, apiKey: string): Promise<A
     const user = await createOpenUiClient({ baseUrl: serverUrl, apiKey }).me();
     return { state: "ok", user };
   } catch (error) {
-    if (error instanceof OpenUiApiError && error.status === 401) return { state: "error", message: "API key rejected" };
+    if (error instanceof OpenUiApiError && error.status === 401)
+      return { state: "error", message: "API key rejected" };
     if (error instanceof TypeError) return { state: "error", message: "Server unreachable" };
     return { state: "error", message: error instanceof Error ? error.message : String(error) };
   }
@@ -46,7 +47,9 @@ export function useAccount(settings: Settings | undefined): [AccountState, () =>
     if (!settings) return;
     let alive = true;
     setAccount({ state: "loading" });
-    void checkAccount(settings.serverUrl, settings.apiKey).then((next) => alive && setAccount(next));
+    void checkAccount(settings.serverUrl, settings.apiKey).then(
+      (next) => alive && setAccount(next),
+    );
     return () => {
       alive = false;
     };

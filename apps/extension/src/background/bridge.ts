@@ -132,7 +132,11 @@ function connect() {
         break;
       case "request":
         if (status.state !== "connected") {
-          send({ type: "response", id: message.request.id, error: { code: "unauthorized", message: "Not paired" } });
+          send({
+            type: "response",
+            id: message.request.id,
+            error: { code: "unauthorized", message: "Not paired" },
+          });
           break;
         }
         void respond(message.request);
@@ -161,7 +165,9 @@ function connect() {
       parked = true;
       setStatus("replaced", { error: "Another browser connected to the bridge" });
     } else {
-      setStatus("offline", { error: status.state === "connected" ? "Connection lost" : "Bridge not running" });
+      setStatus("offline", {
+        error: status.state === "connected" ? "Connection lost" : "Bridge not running",
+      });
       scheduleReconnect();
     }
   };
@@ -173,7 +179,10 @@ async function respond(request: BridgeRequest) {
     const result = await Promise.race([
       handleBridgeRequest(request),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new CaptureError(`${request.method} timed out`, "timeout")), REQUEST_TIMEOUT_MS);
+        timer = setTimeout(
+          () => reject(new CaptureError(`${request.method} timed out`, "timeout")),
+          REQUEST_TIMEOUT_MS,
+        );
       }),
     ]);
     send({ type: "response", id: request.id, result });

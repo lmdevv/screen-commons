@@ -11,5 +11,12 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": [".wxt/wxt.d.ts", "src", "wxt.config.ts", "vitest.config.ts"]
+  "include": [
+    ".wxt/wxt.d.ts",
+    "src",
+    "e2e",
+    "wxt.config.ts",
+    "vitest.config.ts",
+    "vitest.e2e.config.ts"
+  ]
 }

@@ -86,8 +86,16 @@ export function parseInbound(raw: unknown): InboundMessage {
   const envelope = envelopeSchema.safeParse(data);
   if (!envelope.success) {
     const id = (data as { id?: unknown } | null)?.id;
-    if ((data as { type?: unknown } | null)?.type === "request" && typeof id === "string" && id.length <= 128) {
-      return { type: "invalid-request", id, error: { code: "bad_request", message: formatIssues(envelope.error) } };
+    if (
+      (data as { type?: unknown } | null)?.type === "request" &&
+      typeof id === "string" &&
+      id.length <= 128
+    ) {
+      return {
+        type: "invalid-request",
+        id,
+        error: { code: "bad_request", message: formatIssues(envelope.error) },
+      };
     }
     return { type: "ignored", reason: "unknown message" };
   }
@@ -110,11 +118,18 @@ export function parseInbound(raw: unknown): InboundMessage {
       error: { code: "bad_request", message: formatIssues(params.error) },
     };
   }
-  return { type: "request", request: { id: message.id, method, params: params.data } as BridgeRequest };
+  return {
+    type: "request",
+    request: { id: message.id, method, params: params.data } as BridgeRequest,
+  };
 }
 
 /** Reconnect delay: exponential from 1s, capped, with ±20% jitter. */
-export function backoffDelay(attempt: number, random: () => number = Math.random, capMs = 30_000): number {
+export function backoffDelay(
+  attempt: number,
+  random: () => number = Math.random,
+  capMs = 30_000,
+): number {
   const base = Math.min(capMs, 1000 * 2 ** Math.max(0, attempt));
   const jitter = 1 + (random() * 0.4 - 0.2);
   return Math.round(base * jitter);
