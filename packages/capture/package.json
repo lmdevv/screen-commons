@@ -1,0 +1,31 @@
+{
+  "name": "@open-ui/capture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Page capture, settle, metadata extraction, crawling and image helpers for Open UI (playwright-core + sharp).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./extract": "./src/extract.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx ../../scripts/seed/index.ts"
+  },
+  "dependencies": {
+    "@open-ui/core": "workspace:*",
+    "playwright-core": "^1.63.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@open-ui/config": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
+  }
+}

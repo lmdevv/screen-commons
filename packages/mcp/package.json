@@ -1,0 +1,42 @@
+{
+  "name": "@open-ui/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "open-ui-mcp: stdio MCP server for Open UI (catalog tools + browser capture via the extension bridge or headless Chromium).",
+  "type": "module",
+  "bin": {
+    "open-ui-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "playwright-core": "^1.63.0",
+    "sharp": "^0.35.5",
+    "ws": "^8.22.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@open-ui/capture": "workspace:*",
+    "@open-ui/config": "workspace:*",
+    "@open-ui/core": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/ws": "^8.18.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
