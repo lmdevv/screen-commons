@@ -1,0 +1,117 @@
+{
+  "northwind-landing.webp": {
+    "width": 1440,
+    "height": 2262,
+    "bytes": 28370
+  },
+  "northwind-pricing.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 14034
+  },
+  "northwind-dashboard.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 11024
+  },
+  "northwind-login.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 7676
+  },
+  "northwind-settings.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 9232
+  },
+  "lumen-landing.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 10380
+  },
+  "lumen-editor.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 16766
+  },
+  "lumen-pricing.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 13164
+  },
+  "relay-landing.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 14876
+  },
+  "relay-docs.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 11358
+  },
+  "relay-changelog.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 10776
+  },
+  "atlas-landing.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 15052
+  },
+  "atlas-checkout.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 6814
+  },
+  "atlas-dashboard.webp": {
+    "width": 1440,
+    "height": 900,
+    "bytes": 11276
+  },
+  "tally-onboarding-1.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 12964
+  },
+  "tally-onboarding-2.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 9994
+  },
+  "tally-onboarding-3.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 10572
+  },
+  "tally-signup.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 12678
+  },
+  "tally-home.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 16812
+  },
+  "wander-explore.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 12472
+  },
+  "wander-detail.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 12158
+  },
+  "pulse-today.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 14760
+  },
+  "pulse-workout.webp": {
+    "width": 390,
+    "height": 844,
+    "bytes": 10752
+  }
+}

@@ -48,7 +48,7 @@ export function Chip({
         className: cn(
           chipBase,
           chipSizes[size],
-          tone === "outline" && "border border-border-strong text-fg",
+          tone === "outline" && "border border-border text-fg",
           tone === "soft" && "bg-muted text-fg",
           tone === "solid" && "bg-inverse text-inverse-fg",
           interactive && tone === "outline" && "hover:bg-muted",
@@ -118,7 +118,7 @@ export function FilterChip({
         "active:scale-[0.97]",
         selected
           ? "border border-inverse bg-inverse text-inverse-fg"
-          : "border border-border-strong bg-bg text-fg hover:border-fg-faint hover:bg-muted",
+          : "border border-border bg-bg text-fg hover:border-border-strong hover:bg-muted",
         className,
       )}
       {...props}

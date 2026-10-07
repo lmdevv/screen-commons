@@ -16,8 +16,8 @@ export function Checkbox({ label, description, className, ...props }: CheckboxPr
   const box = (
     <BaseCheckbox.Root
       className={cn(
-        "ou-focus-ring flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border border-border-strong bg-bg text-inverse-fg",
-        "transition-[background-color,border-color] duration-120 ease-out hover:border-fg-faint",
+        "ou-focus-ring flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] border-control-border bg-bg text-inverse-fg",
+        "transition-[background-color,border-color] duration-120 ease-out hover:border-fg-muted",
         "data-[checked]:border-inverse data-[checked]:bg-inverse data-[indeterminate]:border-inverse data-[indeterminate]:bg-inverse",
         "data-[disabled]:opacity-45",
         label ? undefined : className,
@@ -61,7 +61,7 @@ export function Switch({ label, description, size = "md", className, ...props }:
   const control = (
     <BaseSwitch.Root
       className={cn(
-        "ou-focus-ring relative inline-flex shrink-0 items-center rounded-pill bg-muted-strong p-0.5",
+        "ou-focus-ring relative inline-flex shrink-0 items-center rounded-pill bg-control-border p-0.5",
         "transition-colors duration-150 ease-out data-[checked]:bg-inverse data-[disabled]:opacity-45",
         size === "md" ? "h-6 w-10" : "h-5 w-8",
         label ? undefined : className,

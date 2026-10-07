@@ -1,0 +1,4 @@
+@import "../../src/styles.css";
+
+/* Showcase sources (the package's own components are covered by styles.css). */
+@source "./";

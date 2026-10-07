@@ -93,7 +93,7 @@ export function ScreenGridSkeleton({
               recipe === "mobile" && "aspect-[9/19.5] rounded-[28px]",
               recipe === "apps-web" && "aspect-[8/7] rounded-tile",
               recipe === "apps-mobile" && "aspect-[10/19] rounded-tile",
-              recipe === "flows" && "aspect-[16/9] rounded-tile",
+              recipe === "flows" && "aspect-[2/1] rounded-tile",
               !mobile && recipe === "web" && "bg-tile",
             )}
           />

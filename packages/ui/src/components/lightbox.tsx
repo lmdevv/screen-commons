@@ -26,11 +26,17 @@ export interface LightboxProps {
 }
 
 export function Lightbox({ open, onOpenChange, children, className }: LightboxProps) {
+  // Focus the overlay itself on open (not the first button), so no tooltip/focus ring flashes;
+  // Tab then reaches the header actions, ←/→ work immediately.
+  const popupRef = React.useRef<HTMLDivElement>(null);
   return (
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={backdropClassName} />
         <BaseDialog.Popup
+          ref={popupRef}
+          tabIndex={-1}
+          initialFocus={popupRef}
           className={cn(
             "fixed inset-0 z-50 flex flex-col overflow-hidden bg-bg text-fg outline-none md:inset-4 md:rounded-overlay md:shadow-overlay lg:inset-6",
             "transition-[opacity,scale] duration-180 ease-out",

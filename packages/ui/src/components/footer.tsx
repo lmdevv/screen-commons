@@ -58,7 +58,7 @@ export function Footer({
                   <h2 className="text-sm font-medium text-fg">{column.title}</h2>
                   <ul className="flex flex-col gap-2.5">
                     {column.links.map((link) => (
-                      <li key={link.href}>
+                      <li key={`${link.label}:${link.href}`}>
                         {renderLink && !link.external ? (
                           renderLink(link, linkClassName)
                         ) : (

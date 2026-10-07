@@ -37,7 +37,7 @@ export function FlowCard({
   ...props
 }: FlowCardProps) {
   const kind = frameKind(flow.app.platform);
-  const max = kind === "web" ? 3 : 4;
+  const max = kind === "web" ? 2 : 4;
   const previews = flow.previews.slice(0, max);
   const extra = flow.stepCount - previews.length;
 
@@ -55,7 +55,7 @@ export function FlowCard({
             <div
               className={cn(
                 "relative flex items-start gap-[3%] overflow-hidden rounded-tile bg-tile px-[5%] transition-colors duration-150 ease-out group-hover/flow:bg-tile-hover",
-                kind === "web" ? "aspect-[16/9] items-center" : "aspect-[16/11] pt-[6%]",
+                kind === "web" ? "aspect-[2/1] items-center" : "aspect-[16/11] pt-[6%]",
               )}
             >
               {previews.map((preview, index) => (
@@ -67,7 +67,7 @@ export function FlowCard({
                   platform={flow.app.platform}
                   alt=""
                   priority={priority && index === 0}
-                  sizes={kind === "web" ? "(min-width: 1024px) 14vw, 30vw" : "(min-width: 1024px) 9vw, 22vw"}
+                  sizes={kind === "web" ? "(min-width: 1024px) 20vw, 45vw" : "(min-width: 1024px) 9vw, 22vw"}
                   className="min-w-0 flex-1 transition-transform duration-180 ease-out group-hover/flow:-translate-y-0.5"
                   style={{ transitionDelay: `${index * 25}ms` }}
                 />

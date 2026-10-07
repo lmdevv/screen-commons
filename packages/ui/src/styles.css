@@ -44,6 +44,8 @@
 
   --ou-border: #ececee;
   --ou-border-strong: #dcdce0;
+  /* Boundaries of form controls (checkbox, switch track): ≥3:1 against the page (WCAG 1.4.11). */
+  --ou-control-border: #929298;
   /* Inset screenshot hairline (on top of the image, so slightly translucent). */
   --ou-shot-border: rgb(10 10 10 / 0.07);
 
@@ -93,6 +95,7 @@
 
   --ou-border: #1f1f23;
   --ou-border-strong: #2e2e33;
+  --ou-control-border: #66666e;
   --ou-shot-border: rgb(255 255 255 / 0.07);
 
   --ou-inverse: #f2f2f3;
@@ -140,6 +143,7 @@
 
     --ou-border: #1f1f23;
     --ou-border-strong: #2e2e33;
+  --ou-control-border: #66666e;
     --ou-shot-border: rgb(255 255 255 / 0.07);
 
     --ou-inverse: #f2f2f3;
@@ -186,6 +190,7 @@
   --color-muted-strong: var(--ou-muted-strong);
   --color-border: var(--ou-border);
   --color-border-strong: var(--ou-border-strong);
+  --color-control-border: var(--ou-control-border);
   --color-shot-border: var(--ou-shot-border);
   --color-inverse: var(--ou-inverse);
   --color-inverse-fg: var(--ou-inverse-fg);
