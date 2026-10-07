@@ -42,7 +42,7 @@ type ImageKind = "img" | "thumb" | "logo";
 
 const EXTENSIONS = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" } as const;
 
-const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: number }> = {
+export const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: number }> = {
   img: { bytes: LIMITS.maxImageBytes, width: LIMITS.maxImageWidth, height: LIMITS.maxImageHeight },
   // Clients send 640px-wide thumbnails; allow up to 2x for HiDPI encoders.
   thumb: {
@@ -53,6 +53,59 @@ const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: num
   logo: { bytes: 512 * 1024, width: 1024, height: 1024 },
 };
 
+const tooLarge = (message: string) => new ServiceError("payload_too_large", message);
+
+// ---------------------------------------------------------------------------------------------
+// Image sources: sized cheaply up front, decoded lazily one at a time
+// ---------------------------------------------------------------------------------------------
+
+/** An image not yet decoded: base64 text (JSON transports) or a Blob (multipart). */
+export type ImageSource = { base64: string } | { blob: Blob };
+
+/** Upper bound of the decoded size, computed without allocating. */
+function estimatedBytes(source: ImageSource): number {
+  if ("blob" in source) return source.blob.size;
+  return Math.floor((source.base64.length * 3) / 4);
+}
+
+async function loadSource(source: ImageSource, label: string): Promise<Uint8Array> {
+  if ("blob" in source) return new Uint8Array(await source.blob.arrayBuffer());
+  let text = source.base64;
+  if (text.startsWith("data:")) text = text.slice(text.indexOf(",") + 1);
+  if (/\s/u.test(text)) text = text.replace(/\s+/gu, "");
+  try {
+    return base64ToBytes(text);
+  } catch {
+    throw badRequest(`${label} is not valid base64`);
+  }
+}
+
+interface SizedImage {
+  kind: ImageKind;
+  source: ImageSource;
+  label: string;
+}
+
+/**
+ * Enforce per-image and per-request byte limits before anything is decoded or read into memory.
+ * Base64 sizes are upper bounds (allowing 2 bytes of padding slack); exact sizes are re-checked
+ * after decoding.
+ */
+function checkBudget(images: SizedImage[]) {
+  let total = 0;
+  for (const { kind, source, label } of images) {
+    const size = estimatedBytes(source);
+    const limit = KIND_LIMITS[kind].bytes;
+    if (size > limit + 2) throw tooLarge(`${label} is ~${size} bytes; the limit is ${limit}`);
+    total += size;
+  }
+  if (total > LIMITS.maxBatchBytes + 2 * images.length) {
+    throw tooLarge(
+      `Upload is ~${total} bytes of images; the limit per request is ${LIMITS.maxBatchBytes}. Split it into smaller batches.`,
+    );
+  }
+}
+
 export interface StoredImage {
   key: string;
   type: keyof typeof EXTENSIONS;
@@ -61,20 +114,11 @@ export interface StoredImage {
   bytes: number;
 }
 
-interface PendingImage {
-  kind: ImageKind;
-  data: Uint8Array;
-  header: { type: keyof typeof EXTENSIONS; width: number; height: number };
-}
-
 /** Validate type/size/dimensions from the file header (never trust declared values). */
-function checkImage(kind: ImageKind, data: Uint8Array, label: string): PendingImage {
+function checkImage(kind: ImageKind, data: Uint8Array, label: string) {
   const limits = KIND_LIMITS[kind];
   if (data.byteLength > limits.bytes) {
-    throw new ServiceError(
-      "payload_too_large",
-      `${label} is ${data.byteLength} bytes; the limit is ${limits.bytes}`,
-    );
+    throw tooLarge(`${label} is ${data.byteLength} bytes; the limit is ${limits.bytes}`);
   }
   const header = readImageHeader(data);
   if (!header) {
@@ -86,32 +130,28 @@ function checkImage(kind: ImageKind, data: Uint8Array, label: string): PendingIm
       `${label} is ${header.width}x${header.height}; the limit is ${limits.width}x${limits.height}`,
     );
   }
-  return { kind, data, header };
+  return header;
 }
 
-/** Store under a content-addressed key (`img/<sha256>.png`); skips the upload when present. */
-async function storeImage(image: PendingImage): Promise<StoredImage> {
-  const hash = await sha256Hex(image.data);
-  const key = `${image.kind}/${hash}.${EXTENSIONS[image.header.type]}`;
+/**
+ * Decode, validate and store one image under a content-addressed key (`img/<sha256>.png`),
+ * skipping the upload when the object already exists. The decoded bytes are released on return.
+ */
+async function ingestImage({ kind, source, label }: SizedImage): Promise<StoredImage> {
+  const data = await loadSource(source, label);
+  const header = checkImage(kind, data, label);
+  const key = `${kind}/${await sha256Hex(data)}.${EXTENSIONS[header.type]}`;
   const media = getMedia();
   if (!(await media.head(key))) {
-    await media.put(key, image.data, { httpMetadata: { contentType: image.header.type } });
+    await media.put(key, data, { httpMetadata: { contentType: header.type } });
   }
   return {
     key,
-    type: image.header.type,
-    width: image.header.width,
-    height: image.header.height,
-    bytes: image.data.byteLength,
+    type: header.type,
+    width: header.width,
+    height: header.height,
+    bytes: data.byteLength,
   };
-}
-
-function decodeBase64(base64: string, label: string): Uint8Array {
-  try {
-    return base64ToBytes(base64.replace(/^data:[^,]*,/u, "").replace(/\s+/gu, ""));
-  } catch {
-    throw badRequest(`${label} is not valid base64`);
-  }
 }
 
 function parseDate(value: string | undefined): Date {
@@ -121,6 +161,12 @@ function parseDate(value: string | undefined): Date {
 }
 
 const statusFor = (principal: Principal): Status => (isAdmin(principal) ? "published" : "pending");
+
+/** Flows publish only when an admin creates them and every step's screen is published. */
+const flowStatusFor = (principal: Principal, screenStatuses: Status[]): Status =>
+  isAdmin(principal) && screenStatuses.every((status) => status === "published")
+    ? "published"
+    : "pending";
 
 // ---------------------------------------------------------------------------------------------
 // App upsert
@@ -139,37 +185,53 @@ async function uniqueSlug(platform: string, base: string): Promise<string> {
   }
 }
 
-/**
- * Find the app a contribution belongs to (explicit slug → website host → name slug) or prepare a
- * new one. Returns the row plus the write to include in the batch.
- */
-async function resolveApp(
-  principal: Principal,
-  input: AppInput,
-  logoKey: string | null,
-  now: Date,
-): Promise<{ row: AppRow; write: BatchItem<"sqlite">; created: boolean }> {
+/** The app a contribution belongs to: explicit slug → website host → name slug. */
+async function findApp(input: AppInput): Promise<AppRow | undefined> {
   const db = getDb();
-  const platform = input.platform;
   const host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
   const find = async (condition: ReturnType<typeof eq>) =>
     (
       await db
         .select()
         .from(app)
-        .where(and(eq(app.platform, platform), condition))
+        .where(and(eq(app.platform, input.platform), condition))
         .limit(1)
     )[0];
-
-  let existing: AppRow | undefined;
-  if (input.slug) existing = await find(eq(app.slug, input.slug));
-  if (!existing && host) existing = await find(eq(app.host, host));
-  if (!existing && !input.slug) {
-    const bySlug = await find(eq(app.slug, slugify(input.name) || "app"));
-    if (bySlug && (!host || !bySlug.host || bySlug.host === host)) existing = bySlug;
+  if (input.slug) {
+    const bySlug = await find(eq(app.slug, input.slug));
+    if (bySlug) return bySlug;
   }
+  if (host) {
+    const byHost = await find(eq(app.host, host));
+    if (byHost) return byHost;
+  }
+  if (!input.slug) {
+    const bySlug = await find(eq(app.slug, slugify(input.name) || "app"));
+    if (bySlug && (!host || !bySlug.host || bySlug.host === host)) return bySlug;
+  }
+  return undefined;
+}
 
+/**
+ * App metadata is moderated: only admins, or the member whose own app is still pending, may
+ * change it. Everyone else's uploads attach screens without touching the app row.
+ */
+function canEditApp(principal: Principal, existing: AppRow | undefined): boolean {
+  if (!existing || isAdmin(principal)) return true;
+  return existing.status === "pending" && existing.contributorId === principal.user.id;
+}
+
+async function appWrite(
+  principal: Principal,
+  input: AppInput,
+  existing: AppRow | undefined,
+  logoKey: string | null,
+  now: Date,
+): Promise<{ row: AppRow; write: BatchItem<"sqlite"> | null }> {
+  const db = getDb();
+  const host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
   if (existing) {
+    if (!canEditApp(principal, existing)) return { row: existing, write: null };
     const patch: Partial<NewAppRow> = { updatedAt: now };
     if (!existing.tagline && input.tagline) patch.tagline = input.tagline;
     if (!existing.description && input.description) patch.description = input.description;
@@ -183,19 +245,18 @@ async function resolveApp(
     return {
       row: { ...existing, ...patch } as AppRow,
       write: db.update(app).set(patch).where(eq(app.id, existing.id)),
-      created: false,
     };
   }
 
   const values = {
     id: newId(),
-    slug: await uniqueSlug(platform, input.slug ?? (slugify(input.name) || "app")),
+    slug: await uniqueSlug(input.platform, input.slug ?? (slugify(input.name) || "app")),
     name: input.name,
     tagline: input.tagline ?? null,
     description: input.description ?? null,
     websiteUrl: input.websiteUrl ?? null,
     host,
-    platform,
+    platform: input.platform,
     category: input.category ?? null,
     logoKey,
     accentColor: null,
@@ -206,17 +267,17 @@ async function resolveApp(
     createdAt: now,
     updatedAt: now,
   } satisfies AppRow;
-  return { row: values, write: db.insert(app).values(values), created: true };
+  return { row: values, write: db.insert(app).values(values) };
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ingest pipeline shared by POST /captures, POST /screens and the MCP upload tool
+// Ingest pipeline shared by POST /captures, POST /screens, server functions and MCP upload
 // ---------------------------------------------------------------------------------------------
 
 interface IngestScreen {
-  image: Uint8Array;
+  image: ImageSource;
   /** Omitted only by the MCP upload tool; the full image doubles as the thumbnail. */
-  thumbnail?: Uint8Array;
+  thumbnail?: ImageSource;
   title?: string;
   sourceUrl?: string;
   patterns: string[];
@@ -231,7 +292,7 @@ interface IngestScreen {
 
 interface IngestInput {
   app: AppInput;
-  logo?: Uint8Array;
+  logo?: ImageSource;
   screens: IngestScreen[];
   flow?: { name: string; type?: string; description?: string };
   source: Source;
@@ -244,34 +305,52 @@ interface IngestResult {
 }
 
 async function ingest(principal: Principal, input: IngestInput): Promise<IngestResult> {
-  // 1. Validate every image before writing anything.
-  const checked = input.screens.map((item, index) => ({
-    item,
-    image: checkImage("img", item.image, `screens[${index}].image`),
-    thumbnail: item.thumbnail
-      ? checkImage("thumb", item.thumbnail, `screens[${index}].thumbnail`)
-      : undefined,
-  }));
-  const logo = input.logo ? checkImage("logo", input.logo, "logo") : undefined;
+  // 1. Byte budget, before decoding or reading anything.
+  checkBudget([
+    ...(input.logo ? [{ kind: "logo" as const, source: input.logo, label: "logo" }] : []),
+    ...input.screens.flatMap((item, index) => [
+      { kind: "img" as const, source: item.image, label: `screens[${index}].image` },
+      ...(item.thumbnail
+        ? [{ kind: "thumb" as const, source: item.thumbnail, label: `screens[${index}].thumbnail` }]
+        : []),
+    ]),
+  ]);
 
-  // 2. Store media (content addressed, so retries are idempotent).
-  const stored = await Promise.all(
-    checked.map(async ({ item, image, thumbnail }) => {
-      const full = await storeImage(image);
-      return { item, full, thumb: thumbnail ? await storeImage(thumbnail) : full };
-    }),
-  );
-  const logoKey = logo ? (await storeImage(logo)).key : null;
+  // 2. App lookup decides whether this contribution may set app metadata (incl. the logo).
+  const existing = await findApp(input.app);
+  const logoKey =
+    input.logo && canEditApp(principal, existing)
+      ? (await ingestImage({ kind: "logo", source: input.logo, label: "logo" })).key
+      : null;
 
-  // 3. Rows.
+  // 3. Decode → validate → store one image at a time (content addressed: retries are idempotent;
+  //    objects stored before a later validation failure stay unreferenced and are never served).
+  const stored: { item: IngestScreen; full: StoredImage; thumb: StoredImage }[] = [];
+  for (const [index, item] of input.screens.entries()) {
+    const full = await ingestImage({
+      kind: "img",
+      source: item.image,
+      label: `screens[${index}].image`,
+    });
+    const thumb = item.thumbnail
+      ? await ingestImage({
+          kind: "thumb",
+          source: item.thumbnail,
+          label: `screens[${index}].thumbnail`,
+        })
+      : full;
+    stored.push({ item, full, thumb });
+  }
+
+  // 4. Rows, written in one batch.
   const db = getDb();
   const now = new Date();
   const status = statusFor(principal);
-  const resolved = await resolveApp(principal, input.app, logoKey, now);
+  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
   const appRow = resolved.row;
 
   const existingByKey = new Map<string, { id: string; status: Status }>();
-  if (!resolved.created) {
+  if (existing) {
     const rows = await db
       .select({ id: screen.id, imageKey: screen.imageKey, status: screen.status })
       .from(screen)
@@ -289,7 +368,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
     for (const row of rows) existingByKey.set(row.imageKey, { id: row.id, status: row.status });
   }
 
-  const writes: BatchItem<"sqlite">[] = [resolved.write];
+  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
   const screens: { id: string; status: Status }[] = [];
   for (const { item, full, thumb } of stored) {
     const duplicate = existingByKey.get(full.key);
@@ -332,6 +411,10 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
   if (input.flow) {
     if (screens.length < 2) throw badRequest("A flow needs at least two distinct screens");
     const flowId = newId();
+    const flowStatus = flowStatusFor(
+      principal,
+      screens.map((item) => item.status),
+    );
     writes.push(
       db.insert(flow).values({
         id: flowId,
@@ -339,7 +422,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
         name: input.flow.name,
         type: input.flow.type ?? null,
         description: input.flow.description ?? null,
-        status,
+        status: flowStatus,
         contributorId: principal.user.id,
         stepCount: screens.length,
         createdAt: now,
@@ -356,10 +439,10 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
         }),
       );
     });
-    flowResult = { id: flowId, status };
+    flowResult = { id: flowId, status: flowStatus };
   }
 
-  await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  if (writes.length > 0) await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   return { app: appRow, screens, flow: flowResult };
 }
 
@@ -367,7 +450,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
 // Public entry points
 // ---------------------------------------------------------------------------------------------
 
-/** POST /api/v1/captures — JSON batch with base64 images. */
+/** POST /api/v1/captures (and the `submitCaptures` server function) — JSON batch, base64. */
 export async function captures(
   principal: Principal,
   input: unknown,
@@ -376,13 +459,13 @@ export async function captures(
   const batch = parseInput(captureBatchInputSchema, input);
   const result = await ingest(principal, {
     app: batch.app,
-    logo: batch.logo ? decodeBase64(batch.logo.base64, "logo") : undefined,
+    logo: batch.logo ? { base64: batch.logo.base64 } : undefined,
     flow: batch.flow,
     source: batch.source,
-    screens: batch.screens.map(({ image, thumbnail, ...meta }, index) => ({
+    screens: batch.screens.map(({ image, thumbnail, ...meta }) => ({
       ...meta,
-      image: decodeBase64(image.base64, `screens[${index}].image`),
-      thumbnail: decodeBase64(thumbnail.base64, `screens[${index}].thumbnail`),
+      image: { base64: image.base64 },
+      thumbnail: { base64: thumbnail.base64 },
     })),
   });
   return {
@@ -399,10 +482,9 @@ export async function captures(
   };
 }
 
-async function blobBytes(value: unknown, label: string): Promise<Uint8Array> {
-  if (value instanceof Uint8Array) return value;
-  if (value && typeof value === "object" && "arrayBuffer" in value) {
-    return new Uint8Array(await (value as Blob).arrayBuffer());
+function blobSource(value: unknown, label: string): ImageSource {
+  if (value && typeof value === "object" && "arrayBuffer" in value && "size" in value) {
+    return { blob: value as Blob };
   }
   throw badRequest(`${label} file is required`);
 }
@@ -428,8 +510,8 @@ export async function createScreen(
     screens: [
       {
         ...screenMeta,
-        image: await blobBytes(input.image, "image"),
-        thumbnail: await blobBytes(input.thumbnail, "thumbnail"),
+        image: blobSource(input.image, "image"),
+        thumbnail: blobSource(input.thumbnail, "thumbnail"),
       },
     ],
   });
@@ -449,7 +531,7 @@ export async function uploadScreenFromTool(
     source: "mcp",
     screens: [
       {
-        image: decodeBase64(input.image.base64, "image"),
+        image: { base64: input.image.base64 },
         title: input.title,
         sourceUrl: input.sourceUrl,
         patterns: input.patterns,
@@ -481,17 +563,18 @@ export async function createFlow(
 
   const ids = parsed.steps.map((step) => step.screenId);
   const found = await db
-    .select({ id: screen.id })
+    .select({ id: screen.id, status: screen.status })
     .from(screen)
     .where(
       and(
         inJsonArray(screen.id, ids),
         eq(screen.appId, appRow.id),
         visibleSql(screen, principal, "detail"),
+        sql`${screen.status} != 'rejected'`,
       ),
     );
-  const foundIds = new Set(found.map((row) => row.id));
-  const missing = ids.filter((id) => !foundIds.has(id));
+  const statusById = new Map(found.map((row) => [row.id, row.status]));
+  const missing = ids.filter((id) => !statusById.has(id));
   if (missing.length > 0) {
     throw badRequest(`Screens not found in this app: ${[...new Set(missing)].join(", ")}`);
   }
@@ -505,7 +588,10 @@ export async function createFlow(
       name: parsed.name,
       type: parsed.type ?? null,
       description: parsed.description ?? null,
-      status: statusFor(principal),
+      status: flowStatusFor(
+        principal,
+        ids.map((id) => statusById.get(id)!),
+      ),
       contributorId: principal.user.id,
       stepCount: parsed.steps.length,
       createdAt: now,

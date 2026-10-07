@@ -54,18 +54,36 @@ type FtsTable = "screen_fts" | "app_fts" | "flow_fts";
 // Full-text helpers
 // ---------------------------------------------------------------------------------------------
 
+interface FtsModes {
+  /** Every term prefix-matched and AND-ed. */
+  strict: string;
+  /** Same terms OR-ed (null for single-term queries). */
+  loose: string | null;
+}
+
+function ftsModes(text: string | undefined): FtsModes | null {
+  const strict = text ? ftsQuery(text) : null;
+  if (!strict) return null;
+  return { strict, loose: strict.includes(" ") ? strict.split(" ").join(" OR ") : null };
+}
+
 /**
- * FTS5 MATCH expression for free text: every term prefix-matched and AND-ed; when that finds
- * nothing at all, fall back to OR so long, descriptive queries still return something.
+ * Run a query with the strict (AND) expression; if the viewer gets nothing under the very same
+ * filters and visibility, rerun with the loose (OR) expression so long, descriptive queries still
+ * return something. For later pages (`paged`), `probe` re-checks strict hits without the cursor
+ * so every page keeps the mode chosen for page one.
  */
-async function ftsMatch(table: FtsTable, text: string | undefined): Promise<string | null> {
-  if (!text) return null;
-  const strict = ftsQuery(text);
-  if (!strict || !strict.includes(" ")) return strict;
-  const hits = await getDb().all<{ hit: number }>(
-    sql`SELECT 1 AS hit FROM ${sql.raw(table)} WHERE ${sql.raw(table)} MATCH ${strict} LIMIT 1`,
-  );
-  return hits.length > 0 ? strict : strict.split(" ").join(" OR ");
+async function withFtsFallback<R>(
+  modes: FtsModes | null,
+  run: (match: string | null) => Promise<R[]>,
+  probe: (match: string) => Promise<boolean>,
+  paged: boolean,
+): Promise<R[]> {
+  if (!modes) return run(null);
+  const rows = await run(modes.strict);
+  if (rows.length > 0 || !modes.loose) return rows;
+  if (paged && (await probe(modes.strict))) return rows;
+  return run(modes.loose);
 }
 
 function ftsFilter(idColumn: SQL | AnySQLiteColumn, table: FtsTable, match: string): SQL {
@@ -146,17 +164,27 @@ export async function listApps(viewer: Viewer, input: unknown = {}): Promise<Pag
     visibleSql(app, viewer, "list"),
     query.platform ? eq(app.platform, query.platform) : undefined,
     query.category ? eq(app.category, query.category) : undefined,
-    afterCursor(keyset, query.cursor),
   ];
-  const match = await ftsMatch("app_fts", query.q);
-  if (match) conditions.push(ftsFilter(app.id, "app_fts", match));
-
-  const rows = await getDb()
-    .select({ row: app, score: appScore })
-    .from(app)
-    .where(and(...conditions))
-    .orderBy(...orderByKeyset(keyset))
-    .limit(query.limit + 1);
+  const cursor = afterCursor(keyset, query.cursor);
+  const select = async (match: string | null, paged: boolean, limit: number) =>
+    getDb()
+      .select({ row: app, score: appScore })
+      .from(app)
+      .where(
+        and(
+          ...conditions,
+          paged ? cursor : undefined,
+          match ? ftsFilter(app.id, "app_fts", match) : undefined,
+        ),
+      )
+      .orderBy(...orderByKeyset(keyset))
+      .limit(limit);
+  const rows = await withFtsFallback(
+    ftsModes(query.q),
+    (match) => select(match, true, query.limit + 1),
+    async (match) => (await select(match, false, 1)).length > 0,
+    Boolean(query.cursor),
+  );
   const page = toPage(rows, query.limit, ({ row, score }) =>
     encodeCursor(keyset.sort, keyset.sort === "popular" ? score : row.updatedAt.getTime(), row.id),
   );
@@ -239,17 +267,27 @@ export async function listScreens(viewer: Viewer, input: unknown = {}): Promise<
     query.pattern ? jsonArrayContains(screen.patterns, query.pattern) : undefined,
     query.element ? jsonArrayContains(screen.elements, query.element) : undefined,
     query.version ? eq(screen.version, query.version) : undefined,
-    afterCursor(keyset, query.cursor),
   ];
-  const match = await ftsMatch("screen_fts", query.q);
-  if (match) conditions.push(ftsFilter(screen.id, "screen_fts", match));
-
-  const rows = await getDb()
-    .select({ row: screen, score: screenScore })
-    .from(screen)
-    .where(and(...conditions))
-    .orderBy(...orderByKeyset(keyset))
-    .limit(query.limit + 1);
+  const cursor = afterCursor(keyset, query.cursor);
+  const select = async (match: string | null, paged: boolean, limit: number) =>
+    getDb()
+      .select({ row: screen, score: screenScore })
+      .from(screen)
+      .where(
+        and(
+          ...conditions,
+          paged ? cursor : undefined,
+          match ? ftsFilter(screen.id, "screen_fts", match) : undefined,
+        ),
+      )
+      .orderBy(...orderByKeyset(keyset))
+      .limit(limit);
+  const rows = await withFtsFallback(
+    ftsModes(query.q),
+    (match) => select(match, true, query.limit + 1),
+    async (match) => (await select(match, false, 1)).length > 0,
+    Boolean(query.cursor),
+  );
   const page = toPage(rows, query.limit, ({ row, score }) =>
     encodeCursor(keyset.sort, keyset.sort === "popular" ? score : row.createdAt.getTime(), row.id),
   );
@@ -340,17 +378,27 @@ export async function listFlows(viewer: Viewer, input: unknown = {}): Promise<Pa
     visibleSql(flow, viewer, "list"),
     ...appFilter(flow.appId, query.app, query.platform),
     query.type ? eq(flow.type, query.type) : undefined,
-    afterCursor(keyset, query.cursor),
   ];
-  const match = await ftsMatch("flow_fts", query.q);
-  if (match) conditions.push(ftsFilter(flow.id, "flow_fts", match));
-
-  const rows = await getDb()
-    .select()
-    .from(flow)
-    .where(and(...conditions))
-    .orderBy(...orderByKeyset(keyset))
-    .limit(query.limit + 1);
+  const cursor = afterCursor(keyset, query.cursor);
+  const select = async (match: string | null, paged: boolean, limit: number) =>
+    getDb()
+      .select()
+      .from(flow)
+      .where(
+        and(
+          ...conditions,
+          paged ? cursor : undefined,
+          match ? ftsFilter(flow.id, "flow_fts", match) : undefined,
+        ),
+      )
+      .orderBy(...orderByKeyset(keyset))
+      .limit(limit);
+  const rows = await withFtsFallback(
+    ftsModes(query.q),
+    (match) => select(match, true, query.limit + 1),
+    async (match) => (await select(match, false, 1)).length > 0,
+    Boolean(query.cursor),
+  );
   const page = toPage(rows, query.limit, (row) =>
     encodeCursor("latest", row.createdAt.getTime(), row.id),
   );
@@ -375,7 +423,7 @@ export async function getFlow(
       .select({ position: flowStep.position, label: flowStep.label, screen })
       .from(flowStep)
       .innerJoin(screen, eq(screen.id, flowStep.screenId))
-      .where(eq(flowStep.flowId, row.id))
+      .where(and(eq(flowStep.flowId, row.id), visibleSql(screen, viewer, "detail")))
       .orderBy(asc(flowStep.position)),
   ]);
   if (options.countView !== false) {
@@ -407,11 +455,7 @@ export async function search(viewer: Viewer, input: unknown): Promise<SearchResu
   const { q, platform, limit } = parseInput(searchQuerySchema, input);
   const db = getDb();
   const terms = matchTerms(q);
-  const [appMatch, screenMatch, flowMatch] = await Promise.all([
-    ftsMatch("app_fts", q),
-    ftsMatch("screen_fts", q),
-    ftsMatch("flow_fts", q),
-  ]);
+  const modes = ftsModes(q);
 
   const a = alias(app, "a");
   const s = alias(screen, "s");
@@ -419,24 +463,28 @@ export async function search(viewer: Viewer, input: unknown): Promise<SearchResu
   const onPlatform = (column: SQL) =>
     platform ? sql`AND ${column} IN (SELECT id FROM app WHERE platform = ${platform})` : sql``;
 
-  const rankedIds = async (statement: SQL | null) =>
-    statement ? (await db.all<{ id: string }>(statement)).map((row) => row.id) : [];
+  // Each group falls back to OR on its own, judged by what this viewer can actually see.
+  const rankedIds = (statement: (match: string) => SQL) =>
+    withFtsFallback(
+      modes,
+      async (match) =>
+        match ? (await db.all<{ id: string }>(statement(match))).map((row) => row.id) : [],
+      async () => false,
+      false,
+    );
 
   const [appIds, screenIdsRanked, flowIdsRanked] = await Promise.all([
     rankedIds(
-      appMatch
-        ? sql`SELECT a.id AS id FROM app_fts JOIN app a ON a.id = app_fts.app_id WHERE app_fts MATCH ${appMatch} AND ${visibleSql(a, viewer, "list")} ${platform ? sql`AND a.platform = ${platform}` : sql``} ORDER BY app_fts.rank LIMIT ${limit}`
-        : null,
+      (match) =>
+        sql`SELECT a.id AS id FROM app_fts JOIN app a ON a.id = app_fts.app_id WHERE app_fts MATCH ${match} AND ${visibleSql(a, viewer, "list")} ${platform ? sql`AND a.platform = ${platform}` : sql``} ORDER BY app_fts.rank LIMIT ${limit}`,
     ),
     rankedIds(
-      screenMatch
-        ? sql`SELECT s.id AS id FROM screen_fts JOIN screen s ON s.id = screen_fts.screen_id WHERE screen_fts MATCH ${screenMatch} AND ${visibleSql(s, viewer, "list")} ${onPlatform(sql`s.app_id`)} ORDER BY screen_fts.rank LIMIT ${limit}`
-        : null,
+      (match) =>
+        sql`SELECT s.id AS id FROM screen_fts JOIN screen s ON s.id = screen_fts.screen_id WHERE screen_fts MATCH ${match} AND ${visibleSql(s, viewer, "list")} ${onPlatform(sql`s.app_id`)} ORDER BY screen_fts.rank LIMIT ${limit}`,
     ),
     rankedIds(
-      flowMatch
-        ? sql`SELECT f.id AS id FROM flow_fts JOIN flow f ON f.id = flow_fts.flow_id WHERE flow_fts MATCH ${flowMatch} AND ${visibleSql(f, viewer, "list")} ${onPlatform(sql`f.app_id`)} ORDER BY flow_fts.rank LIMIT ${limit}`
-        : null,
+      (match) =>
+        sql`SELECT f.id AS id FROM flow_fts JOIN flow f ON f.id = flow_fts.flow_id WHERE flow_fts MATCH ${match} AND ${visibleSql(f, viewer, "list")} ${onPlatform(sql`f.app_id`)} ORDER BY flow_fts.rank LIMIT ${limit}`,
     ),
   ]);
 

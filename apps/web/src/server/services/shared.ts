@@ -20,7 +20,7 @@ import {
   type FlowRow,
   type ScreenRow,
 } from "@open-ui/db";
-import { and, asc, count, desc, eq, lt, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, lte, sql, type SQL } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { getDb } from "../env";
@@ -251,21 +251,32 @@ export async function appSummaries(viewer: Viewer, rows: AppRow[]): Promise<AppS
 export async function flowSummaries(viewer: Viewer, rows: FlowRow[]): Promise<FlowSummary[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
+  // Only steps whose screen the viewer may see (same rule as getScreen / getFlow); stepCount and
+  // previews are computed from those, so hidden screens never leak through a flow.
+  const visibleSteps = getDb()
+    .select({
+      flowId: flowStep.flowId,
+      id: screen.id,
+      thumbKey: screen.thumbKey,
+      width: screen.thumbWidth,
+      height: screen.thumbHeight,
+      rank: sql<number>`row_number() OVER (PARTITION BY ${flowStep.flowId} ORDER BY ${flowStep.position})`.as(
+        "rank",
+      ),
+      total: sql<number>`count(*) OVER (PARTITION BY ${flowStep.flowId})`.as("total"),
+    })
+    .from(flowStep)
+    .innerJoin(screen, eq(screen.id, flowStep.screenId))
+    .where(and(inJsonArray(flowStep.flowId, ids), visibleSql(screen, viewer, "detail")))
+    .as("visible_steps");
   const [apps, saved, previews] = await Promise.all([
     appsById(rows.map((row) => row.appId)),
     savedSet(viewer, "flow", ids),
     getDb()
-      .select({
-        flowId: flowStep.flowId,
-        id: screen.id,
-        thumbKey: screen.thumbKey,
-        width: screen.thumbWidth,
-        height: screen.thumbHeight,
-      })
-      .from(flowStep)
-      .innerJoin(screen, eq(screen.id, flowStep.screenId))
-      .where(and(inJsonArray(flowStep.flowId, ids), lt(flowStep.position, 3)))
-      .orderBy(asc(flowStep.position)),
+      .select()
+      .from(visibleSteps)
+      .where(lte(visibleSteps.rank, 3))
+      .orderBy(asc(visibleSteps.rank)),
   ]);
   return rows.flatMap((row) => {
     const appRow = apps.get(row.appId);
@@ -277,7 +288,7 @@ export async function flowSummaries(viewer: Viewer, rows: FlowRow[]): Promise<Fl
         name: row.name,
         type: row.type as FlowSummary["type"],
         description: row.description,
-        stepCount: row.stepCount,
+        stepCount: Number(previews.find((preview) => preview.flowId === row.id)?.total ?? 0),
         previews: previews
           .filter((preview) => preview.flowId === row.id)
           .map((preview) => ({

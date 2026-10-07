@@ -40,8 +40,11 @@ export async function reviewQueue(principal: Principal): Promise<ReviewQueue> {
 }
 
 /**
- * Approve or reject a pending screen or flow. Approving also publishes the parent app (and, for
- * flows, the flow's still-pending screens) so approved content is reachable.
+ * Approve or reject a screen or flow.
+ * - Approving publishes the parent app (and bumps its `updatedAt`, since member uploads never
+ *   touch a published app themselves); approving a flow also publishes its pending screens.
+ * - Rejecting a screen removes it from every flow that contains it (remaining steps are
+ *   renumbered); a published flow left with fewer than 2 steps goes back to `pending`.
  */
 export async function review(
   principal: Principal,
@@ -72,8 +75,8 @@ export async function review(
     writes.push(
       db
         .update(app)
-        .set({ status: "published" })
-        .where(and(eq(app.id, row.appId), sql`${app.status} != 'published'`)),
+        .set({ status: "published", updatedAt: new Date() })
+        .where(eq(app.id, row.appId)),
     );
     if (kind === "flow") {
       writes.push(
@@ -89,5 +92,43 @@ export async function review(
       );
     }
   }
+  if (decision === "reject" && kind === "screen") writes.push(...(await dropScreenFromFlows(id)));
   await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+}
+
+/** Batch writes removing a screen from all flows (renumbering positions, fixing step counts). */
+async function dropScreenFromFlows(screenId: string): Promise<BatchItem<"sqlite">[]> {
+  const db = getDb();
+  const steps = await db
+    .select({ step: flowStep, status: flow.status })
+    .from(flowStep)
+    .innerJoin(flow, eq(flow.id, flowStep.flowId))
+    .where(
+      sql`${flowStep.flowId} IN (SELECT ${flowStep.flowId} FROM ${flowStep} WHERE ${flowStep.screenId} = ${screenId})`,
+    )
+    .orderBy(asc(flowStep.flowId), asc(flowStep.position));
+  const byFlow = new Map<string, { status: string; steps: (typeof steps)[number]["step"][] }>();
+  for (const { step, status } of steps) {
+    const entry = byFlow.get(step.flowId) ?? { status, steps: [] };
+    entry.steps.push(step);
+    byFlow.set(step.flowId, entry);
+  }
+  const writes: BatchItem<"sqlite">[] = [];
+  for (const [flowId, entry] of byFlow) {
+    const remaining = entry.steps.filter((step) => step.screenId !== screenId);
+    writes.push(db.delete(flowStep).where(eq(flowStep.flowId, flowId)));
+    remaining.forEach((step, position) =>
+      writes.push(db.insert(flowStep).values({ ...step, position })),
+    );
+    writes.push(
+      db
+        .update(flow)
+        .set({
+          stepCount: remaining.length,
+          ...(remaining.length < 2 && entry.status === "published" ? { status: "pending" } : {}),
+        })
+        .where(eq(flow.id, flowId)),
+    );
+  }
+  return writes;
 }
