@@ -56,3 +56,12 @@ coverage
 .cache
 tmp
 temp
+
+# Cloudflare / WXT / Playwright
+.wrangler
+.dev.vars
+.output
+.wxt
+test-results
+playwright-report
+.seed-cache

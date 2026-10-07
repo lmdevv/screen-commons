@@ -1,46 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "ui": "tui",
+  "ui": "stream",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", ".output/**"]
     },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "db:generate": {
-      "cache": false,
-      "interactive": true
-    },
-    "deploy": {
-      "cache": false,
-      "interactive": true
-    },
-    "destroy": {
-      "cache": false,
-      "interactive": true
-    }
-  },
-  "globalEnv": [
-    "CI",
-    "CLERK_SECRET_KEY",
-    "CORS_ORIGIN",
-    "NODE_ENV",
-    "VERCEL",
-    "VERCEL_ENV",
-    "VERCEL_PROJECT_PRODUCTION_URL",
-    "VERCEL_URL",
-    "VITE_CLERK_PUBLISHABLE_KEY",
-    "_VARLOCK_ENV_KEY"
-  ],
-  "globalDependencies": [".env*", "apps/*/.env*", "packages/*/.env*"]
+    "check-types": { "dependsOn": ["^check-types"] },
+    "test": { "dependsOn": ["^build"], "outputs": [] },
+    "dev": { "cache": false, "persistent": true }
+  }
 }

@@ -4,35 +4,17 @@ packages:
 allowBuilds:
   esbuild: true
   sharp: true
-  msgpackr-extract: true
   workerd: true
+  puppeteer: false
+  spawn-sync: true
 catalog:
   zod: ^4.5.4
   typescript: ^6.0.3
-  varlock: 1.18.0
-  lucide-react: ^1.41.0
-  next-themes: ^0.4.6
+  vitest: ^4.1.0
   react: ^19.2.8
   react-dom: ^19.2.8
-  sonner: ^2.0.8
-  tailwindcss: ^4.3.3
-  "@libsql/client": 0.18.0
-  libsql: 0.5.29
   "@types/react": ^19.2.18
   "@types/react-dom": ^19.2.7
-minimumReleaseAgeExclude:
-  - "@alchemy.run/cloudflare-runtime@2.0.0-beta.78"
-  - "@alchemy.run/floci@2.0.0-beta.78"
-  - "@alchemy.run/node-utils@2.0.0-beta.78"
-  - "@distilled.cloud/aws@1.0.0-rc.12"
-  - "@distilled.cloud/axiom@1.0.0-rc.12"
-  - "@distilled.cloud/cloudflare@1.0.0-rc.12"
-  - "@distilled.cloud/core@1.0.0-rc.12"
-  - "@distilled.cloud/fly-io@1.0.0-rc.12"
-  - "@distilled.cloud/hetzner@1.0.0-rc.12"
-  - "@distilled.cloud/neon@1.0.0-rc.12"
-  - "@distilled.cloud/planetscale@1.0.0-rc.12"
-  - "@distilled.cloud/prisma@1.0.0-rc.12"
-  - "@distilled.cloud/railway@1.0.0-rc.12"
-  - "@distilled.cloud/stripe@1.0.0-rc.12"
-  - alchemy@2.0.0-beta.78
+  "@types/node": ^26.4.1
+  tailwindcss: ^4.3.3
+  lucide-react: ^1.41.0
