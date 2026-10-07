@@ -1,19 +1,10 @@
 import type { User } from "@open-ui/core/schemas";
-import { LogOut, Search } from "lucide-react";
-import type * as React from "react";
+import { Search } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "../lib/cn";
 import { useScrolled } from "../lib/hooks";
 import { Avatar } from "./avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuHeader,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuThemeRow,
-  DropdownMenuTrigger,
-} from "./dropdown-menu";
 import { SearchPill } from "./search-pill";
 
 export interface TopBarProps extends React.HTMLAttributes<HTMLElement> {
@@ -118,50 +109,48 @@ export interface AccountMenuProps {
   user: Pick<User, "name" | "email" | "image"> & Partial<Pick<User, "role">>;
   /** Menu items between the header and the theme row (DropdownMenuItem / DropdownMenuLinkItem). */
   children?: React.ReactNode;
-  /** Items after the theme row (Docs, GitHub…). */
+  /** Items after the theme row (Docs, source code…). */
   footer?: React.ReactNode;
   onSignOut?: () => void;
   /** Extra content inside the header block (e.g. a "View profile" button). */
   headerAction?: React.ReactNode;
 }
 
-/** Avatar button + account dropdown with the theme switcher row and sign out. */
-export function AccountMenu({ user, children, footer, onSignOut, headerAction }: AccountMenuProps) {
+const AccountMenuPopup = React.lazy(() => import("./account-menu-popup"));
+const loadPopup = () => import("./account-menu-popup");
+
+/**
+ * Avatar button + account dropdown (header, your items, theme switcher row, sign out).
+ *
+ * Renders a plain avatar button first and loads the menu (Base UI Menu + positioning) on first
+ * hover/focus/press, keeping it out of the initial route bundle. Works the same either way.
+ */
+export function AccountMenu(props: AccountMenuProps) {
+  const [armed, setArmed] = React.useState<false | { open: boolean; focus: boolean }>(false);
+  const placeholder = (
+    <button
+      type="button"
+      aria-label={`Account menu for ${props.user.name}`}
+      aria-haspopup="menu"
+      aria-expanded={false}
+      onPointerEnter={() => void loadPopup()}
+      onFocus={(event) => {
+        void loadPopup();
+        if (event.currentTarget.matches?.(":focus-visible")) setArmed({ open: false, focus: true });
+      }}
+      onClick={(event) =>
+        setArmed({ open: true, focus: event.currentTarget === document.activeElement })
+      }
+      onPointerDown={() => setArmed({ open: true, focus: false })}
+      className="ou-focus-ring flex rounded-full transition-opacity hover:opacity-85"
+    >
+      <Avatar name={props.user.name} src={props.user.image} size="md" />
+    </button>
+  );
+  if (!armed) return placeholder;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Account menu for ${user.name}`}
-        className="ou-focus-ring flex rounded-full transition-opacity hover:opacity-85"
-      >
-        <Avatar name={user.name} src={user.image} size="md" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuHeader title={user.name} description={user.email}>
-          {headerAction}
-        </DropdownMenuHeader>
-        {children ? (
-          <>
-            <DropdownMenuSeparator />
-            {children}
-          </>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuThemeRow />
-        {footer ? (
-          <>
-            <DropdownMenuSeparator />
-            {footer}
-          </>
-        ) : null}
-        {onSignOut ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem icon={<LogOut />} onClick={onSignOut}>
-              Sign out
-            </DropdownMenuItem>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <React.Suspense fallback={placeholder}>
+      <AccountMenuPopup {...props} defaultOpen={armed.open} focusTrigger={armed.focus} />
+    </React.Suspense>
   );
 }

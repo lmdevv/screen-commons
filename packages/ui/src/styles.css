@@ -30,8 +30,8 @@
   --ou-fg: #0a0a0a;
   /* Secondary text: 5.3:1 on white, 4.9:1 on tile. */
   --ou-fg-muted: #66666c;
-  /* Tertiary text/icons for non-essential info (placeholders, meta separators). 4.5:1 on white. */
-  --ou-fg-subtle: #75757b;
+  /* Tertiary text: placeholders, meta. ≥4.5:1 on white and on filled inputs. */
+  --ou-fg-subtle: #6c6c72;
   /* Disabled text/icons only — not for content. */
   --ou-fg-faint: #b4b4b9;
 
@@ -66,7 +66,7 @@
 
   --ou-danger: #c92a1e;
   --ou-danger-soft: rgb(201 42 30 / 0.08);
-  --ou-success: #0f8a4c;
+  --ou-success: #0a7a42;
   --ou-success-soft: rgb(15 138 76 / 0.09);
   --ou-warning: #a35c00;
   --ou-warning-soft: rgb(222 140 0 / 0.12);

@@ -12,7 +12,7 @@ import {
   ScreenGrid,
   ScreenTile,
   SegmentedControl,
-  Select,
+  NativeSelect,
   SelectionBar,
   SelectionBarButton,
   TabNav,
@@ -128,7 +128,7 @@ export function DiscoverPage({
       />
 
       <Toolbar className="mt-8 mb-6">
-        <Select
+        <NativeSelect
           variant="ghost"
           aria-label="Sort"
           value={sort}

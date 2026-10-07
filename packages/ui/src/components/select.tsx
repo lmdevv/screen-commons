@@ -130,3 +130,68 @@ export function Select<T extends string = string>({
     </BaseSelect.Root>
   );
 }
+
+export interface NativeSelectProps<T extends string = string>
+  extends Omit<React.ComponentProps<"select">, "value" | "defaultValue" | "onChange" | "size"> {
+  options: readonly SelectOption<T>[];
+  value?: T;
+  defaultValue?: T;
+  onValueChange?: (value: T) => void;
+  variant?: "filled" | "pill" | "ghost";
+  size?: "sm" | "md";
+}
+
+/**
+ * Styled native `<select>`: same looks as `Select`, zero JS, native pickers on mobile. Prefer it
+ * for toolbar sort/version controls on bundle-sensitive routes (Discover), and anywhere the list
+ * is short and plain text. Option labels must be strings.
+ */
+export function NativeSelect<T extends string = string>({
+  options,
+  value,
+  defaultValue,
+  onValueChange,
+  variant = "filled",
+  size = "md",
+  className,
+  ...props
+}: NativeSelectProps<T>) {
+  return (
+    <span
+      className={cn(
+        "relative inline-flex shrink-0 items-center text-fg",
+        variant === "filled" && "w-full",
+        variant === "ghost" && "-mx-2",
+        className,
+      )}
+    >
+      <select
+        value={value}
+        defaultValue={defaultValue}
+        onChange={(event) => onValueChange?.(event.target.value as T)}
+        className={cn(
+          "ou-focus-ring w-full cursor-pointer appearance-none bg-transparent font-medium text-fg",
+          "transition-colors duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-50",
+          size === "md" ? "h-9 text-base" : "h-8 text-sm",
+          variant === "filled" && "h-10 rounded-control bg-muted pr-9 pl-3 hover:bg-muted-strong/70",
+          variant === "pill" && "rounded-pill border border-border-strong bg-bg pr-9 pl-4 hover:bg-muted",
+          variant === "ghost" && "rounded-pill pr-8 pl-2 hover:bg-muted",
+        )}
+        {...props}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {typeof option.label === "string" ? option.label : option.value}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute size-4 text-fg-muted",
+          variant === "ghost" ? "right-2" : "right-3",
+        )}
+      />
+    </span>
+  );
+}
