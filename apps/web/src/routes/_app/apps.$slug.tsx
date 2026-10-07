@@ -33,7 +33,7 @@ import { ScreenResults } from "../../components/library/screen-results";
 import { useSaveToggle } from "../../components/library/saving";
 import { queries } from "../../lib/queries";
 import { usePagePlatform } from "../../lib/use-current-platform";
-import { appSearchSchema, type AppSearch, type AppTab } from "../../lib/search-params";
+import { validateAppSearch, type AppSearch, type AppTab } from "../../lib/search-params";
 import { errorMessage, notify } from "../../lib/toast";
 
 const screensQuery = (app: AppDetail, search: AppSearch, tab: AppTab) =>
@@ -59,7 +59,7 @@ async function prefetchTab(queryClient: QueryClient, app: AppDetail, search: App
 }
 
 export const Route = createFileRoute("/_app/apps/$slug")({
-  validateSearch: appSearchSchema,
+  validateSearch: validateAppSearch,
   loaderDeps: ({ search: { tab, version, pattern, element, sort } }) => ({
     tab,
     version,

@@ -24,7 +24,7 @@ import { PlatformSwitch } from "../../components/shell/platform-switch";
 import { isPlatform, platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
 import {
-  browseSearchSchema,
+  validateBrowseSearch,
   type BrowseSearch,
   type BrowseTab,
 } from "../../lib/search-params";
@@ -59,7 +59,7 @@ function prefetchTab(queryClient: QueryClient, platform: Platform, search: Brows
 }
 
 export const Route = createFileRoute("/_app/browse/$platform")({
-  validateSearch: browseSearchSchema,
+  validateSearch: validateBrowseSearch,
   loaderDeps: ({ search: { tab, category, pattern, element, flowType, sort } }) => ({
     tab,
     category,

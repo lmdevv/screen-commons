@@ -25,12 +25,12 @@ import { useCommandPalette } from "../../components/shell";
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
 import { addRecentSearch } from "../../lib/recent-searches";
-import { searchPageSchema } from "../../lib/search-params";
+import { validateSearchPage } from "../../lib/search-params";
 
 const LIMIT = 30;
 
 export const Route = createFileRoute("/_app/search")({
-  validateSearch: searchPageSchema,
+  validateSearch: validateSearchPage,
   loaderDeps: ({ search: { q, platform } }) => ({ q: q?.trim() ?? "", platform: platform ?? "web" }),
   loader: async ({ context: { queryClient }, deps }) => {
     if (!deps.q) return;

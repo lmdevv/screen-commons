@@ -15,7 +15,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import type { Platform } from "../../lib/platform";
 import { errorMessage, notify } from "../../lib/toast";
-import { copyImageToClipboard, copyText, downloadScreensZip } from "./image-actions";
 import { InfiniteSentinel } from "./infinite-sentinel";
 import { screenLink } from "./overlay-link";
 import { useRegisterResultList } from "./result-list";
@@ -207,6 +206,7 @@ function ScreenSelectionBar({
     if (items.length === 0) return;
     setZipping(true);
     try {
+      const { downloadScreensZip } = await import("./image-actions");
       await downloadScreensZip(items, downloadName);
     } catch (error) {
       notify.error(errorMessage(error));
@@ -218,6 +218,7 @@ function ScreenSelectionBar({
   async function copy() {
     const items = chosen();
     try {
+      const { copyImageToClipboard, copyText } = await import("./image-actions");
       if (items.length === 1) {
         await copyImageToClipboard(items[0]!.imageUrl);
         notify.message("Image copied to clipboard");
