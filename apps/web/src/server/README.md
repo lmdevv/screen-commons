@@ -76,11 +76,18 @@ src/server/
   sent; anything else gets a WebP derivative from the Images binding (`IMAGES`) under
   `img/<sha>.v<policy>.webp`, with the source kept as `orig/<sha>.<ext>` (never served), unless
   WebP isn't smaller. Client WebP thumbnails are stored as sent; otherwise the server derives
-  `thumb/<sha>.v<policy>-desktop|mobile.webp` (≤640px, top crop to 16:10 or 9:19.5). Binding
-  failures: the full image is displayed as uploaded with `display_version` null (the backfill
-  retries); a thumbnail falls back to a client PNG/JPEG one, else `503 unavailable` — never the
-  full image. `POST /api/v1/admin/media/backfill` (`pnpm media:backfill`) re-resolves screens
-  below the current policy version.
+  `thumb/<sha>.v<policy>-desktop|mobile.webp` (≤640px and no wider than the display image, top
+  crop to 16:10 or 9:19.5). PNG/JPEG sources outside the binding's input limits
+  (`IMAGES_BINDING_LIMITS`: 12,000px a side, 100 MP, 20 MB) are never sent to it. Without a
+  derivative the full image is displayed as uploaded: with `display_version` null when the
+  binding call failed (the backfill retries), or at the current version with a
+  `display_exception` (`binding_limits`, `no_binding`, `unconvertible`) when retrying can't help.
+  A thumbnail falls back to a client PNG/JPEG one, else `503 unavailable` + `Retry-After`
+  (retryable) or `422 unprocessable` (send a thumbnail), never the full image. Duplicates are
+  found before any derivative is made. `POST /api/v1/admin/media/backfill`
+  (`pnpm media:backfill`) re-resolves screens below the current policy version; a converted
+  screen keeps its derivative when a rerun makes none. Test servers honour an
+  `x-test-images: fail | missing` header (`SCREEN_COMMONS_TEST_FAULTS=1`, see `env.ts`).
 - **App slugs are globally unique** (routes are `/apps/$slug`). A new app whose slug is taken on
   any platform gets a platform suffix (`linear-ios`, then `linear-ios-2`). Upserts always match the
   requested platform, by `slug` or `slug-<platform>`, then website host, then name.
