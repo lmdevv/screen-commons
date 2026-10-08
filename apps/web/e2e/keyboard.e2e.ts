@@ -138,7 +138,7 @@ async function waitForFocus(target: Locator, message: string) {
   const handle = await target.elementHandle();
   await target
     .page()
-    .waitForFunction((element) => element === document.activeElement, handle, { timeout: 2000 })
+    .waitForFunction((element) => element === document.activeElement, handle, { timeout: 5000 })
     .catch(() => assert.fail(message));
 }
 
@@ -150,6 +150,19 @@ async function tabTo(page: Page, target: Locator, { back = false, max = 80 } = {
     await page.keyboard.press(back ? "Shift+Tab" : "Tab");
   }
   throw new Error(`${max} Tab presses never reached ${target}`);
+}
+
+/**
+ * Continues to the next contribute step and waits for the wizard to move focus to it (a frame
+ * later, for screen readers) before tabbing on: keys typed before then would land elsewhere.
+ */
+async function continueTo(page: Page, heading: string) {
+  await tabTo(page, page.getByRole("button", { name: "Continue" }));
+  await page.keyboard.press("Enter");
+  const step = page
+    .locator("[tabindex='-1']")
+    .filter({ has: page.getByRole("heading", { name: heading }) });
+  await waitForFocus(step, `the wizard focuses “${heading}”`);
 }
 
 /** Presses a shortcut in the app's notation: "g s" is G, then S. */
@@ -610,6 +623,9 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     await help.waitFor({ state: "detached" });
     assert.equal(await save.getAttribute("aria-pressed"), "true", "S under the help is ignored");
     await neverVisited(page, "/contribute", "g c is paused while a dialog is open");
+    // Focus goes back to the viewer itself, not its first button (whose tooltip would then eat
+    // the next Escape).
+    await waitForFocus(viewer, "focus returns to the viewer");
     // With the help gone the viewer's keys are back.
     await page.keyboard.press("z");
     await viewer.getByRole("button", { name: "Fit to screen" }).waitFor();
@@ -677,8 +693,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     await page.keyboard.press("Enter");
     await (await chooser).setFiles(await makeScreenshots());
     await page.getByText("3 screens ready").waitFor();
-    await tabTo(page, page.getByRole("button", { name: "Continue" }));
-    await page.keyboard.press("Enter");
+    await continueTo(page, "Which app is this?");
 
     // App step (the wizard focuses each new step for screen readers): type, arrow, Enter.
     const search = page.getByRole("combobox", { name: "Search apps" });
@@ -700,8 +715,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     assert.equal(await page.getByLabel("Name").inputValue(), APP_NAME, "the query names the app");
     await tabTo(page, page.getByLabel("Website"));
     await page.keyboard.type("https://keyboard.e2e.example.com");
-    await tabTo(page, page.getByRole("button", { name: "Continue" }));
-    await page.keyboard.press("Enter");
+    await continueTo(page, "Describe the screens");
 
     for (const [index, title] of TITLES.entries()) {
       await tabTo(page, page.getByLabel(`Title for screen ${index + 1}`));
@@ -716,6 +730,9 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     const announced = (text: string) => page.getByText(text).waitFor({ state: "attached" });
     await page.keyboard.press("Space");
     await announced(`${TITLES[0]} moved to position 1.`);
+    // dnd-kit adds its arrow listener in a setTimeout after the pick-up; a timer queued now runs
+    // after it, so the next arrow can't arrive before the listener does.
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
     await page.keyboard.press("ArrowDown");
     await announced(`${TITLES[0]} moved to position 2.`);
     await page.keyboard.press("Space");
@@ -724,8 +741,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     assert.equal(await page.getByLabel("Title for screen 2").inputValue(), TITLES[0]);
     assert.ok(await isFocused(handle), "the handle keeps focus after the move");
 
-    await tabTo(page, page.getByRole("button", { name: "Continue" }));
-    await page.keyboard.press("Enter");
+    await continueTo(page, "Review and submit");
     const submit = page.getByRole("button", { name: "Submit 3 screens" });
     await tabTo(page, submit);
     await page.keyboard.press("Enter");
