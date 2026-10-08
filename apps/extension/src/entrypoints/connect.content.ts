@@ -4,17 +4,17 @@ import { browser } from "wxt/browser";
  * Runs on Screen Commons origins (manifest: default dev server; custom servers are registered at
  * runtime). Bridges `/extension/connect` to the background:
  *
- *   page → window.postMessage({ type: "open-ui:connect", token, baseUrl }, location.origin)
- *   extension → window.postMessage({ type: "open-ui:connect:result", ok, userName?, error? })
+ *   page → window.postMessage({ type: "screen-commons:connect", token, baseUrl }, location.origin)
+ *   extension → window.postMessage({ type: "screen-commons:connect:result", ok, userName?, error? })
  *
- * On load it announces itself with `{ type: "open-ui:extension-ready", version }` so the page
+ * On load it announces itself with `{ type: "screen-commons:extension-ready", version }` so the page
  * can (re)send the token if it posted before this script was ready.
  */
 export default defineContentScript({
   matches: ["http://localhost:5173/*"],
   runAt: "document_start",
   main() {
-    const flag = "__openUiConnectInstalled";
+    const flag = "__screenCommonsConnectInstalled";
     const scope = globalThis as unknown as Record<string, boolean>;
     if (scope[flag]) return;
     scope[flag] = true;
@@ -23,7 +23,7 @@ export default defineContentScript({
     window.addEventListener("message", (event: MessageEvent) => {
       if (event.source !== window || event.origin !== location.origin) return;
       const data = event.data as { type?: unknown; token?: unknown; baseUrl?: unknown } | null;
-      if (!data || data.type !== "open-ui:connect" || busy) return;
+      if (!data || data.type !== "screen-commons:connect" || busy) return;
       if (typeof data.token !== "string" || typeof data.baseUrl !== "string") return;
       busy = true;
       void (
@@ -38,7 +38,7 @@ export default defineContentScript({
         .then((response) => {
           if (response?.ok) {
             window.postMessage(
-              { type: "open-ui:connect:result", ok: true, userName: response.data.userName },
+              { type: "screen-commons:connect:result", ok: true, userName: response.data.userName },
               location.origin,
             );
             toast(
@@ -50,7 +50,7 @@ export default defineContentScript({
             const error =
               response && !response.ok ? response.error : "The extension did not respond";
             window.postMessage(
-              { type: "open-ui:connect:result", ok: false, error },
+              { type: "screen-commons:connect:result", ok: false, error },
               location.origin,
             );
             toast(`Could not connect: ${error}`);
@@ -61,7 +61,7 @@ export default defineContentScript({
 
     const announce = () =>
       window.postMessage(
-        { type: "open-ui:extension-ready", version: browser.runtime.getManifest().version },
+        { type: "screen-commons:extension-ready", version: browser.runtime.getManifest().version },
         location.origin,
       );
     announce();

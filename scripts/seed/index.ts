@@ -3,7 +3,7 @@
  * Screen Commons instance through the real `/api/v1/captures` pipeline.
  *
  *   pnpm seed capture [--only linear,vercel] [--force] [--concurrency 3] [--timeout 90]
- *   pnpm seed upload --url http://localhost:5173 --key oui_… [--only …] [--force]
+ *   pnpm seed upload --url http://localhost:5173 --key sc_… [--only …] [--force]
  *   pnpm seed verify [--only …]       # check which candidate paths exist
  *   pnpm seed list
  *
@@ -307,17 +307,11 @@ async function commandCapture(flags: Record<string, string | boolean>) {
 
 async function commandUpload(flags: Record<string, string | boolean>) {
   const baseUrl = String(
-    flags.url ??
-      process.env.SCREEN_COMMONS_URL ??
-      process.env.OPEN_UI_URL ??
-      "http://localhost:5173",
+    flags.url ?? process.env.SCREEN_COMMONS_URL ?? "http://localhost:5173",
   ).replace(/\/+$/u, "");
-  const apiKey =
-    typeof flags.key === "string"
-      ? flags.key
-      : (process.env.SCREEN_COMMONS_API_KEY ?? process.env.OPEN_UI_API_KEY);
+  const apiKey = typeof flags.key === "string" ? flags.key : process.env.SCREEN_COMMONS_API_KEY;
   if (!apiKey)
-    throw new Error("Missing --key oui_… (an admin API key so seed content publishes immediately)");
+    throw new Error("Missing --key sc_… (an admin API key so seed content publishes immediately)");
   const client = createScreenCommonsClient({
     baseUrl,
     apiKey,
@@ -482,7 +476,7 @@ async function main() {
       return commandList();
     default:
       log(
-        "Usage: pnpm seed <capture|upload|verify|list> [--only a,b] [--force] [--url …] [--key oui_…]",
+        "Usage: pnpm seed <capture|upload|verify|list> [--only a,b] [--force] [--url …] [--key sc_…]",
       );
   }
 }

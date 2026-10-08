@@ -218,7 +218,7 @@ export function Options() {
             label="API key"
             value={form.apiKey}
             onChange={(apiKey) => set({ apiKey })}
-            placeholder="oui_…"
+            placeholder="sc_…"
             hint="Create one under Settings → API keys on your instance, or use one-click connect."
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -266,7 +266,7 @@ export function Options() {
             Run <code className="font-mono text-[11.5px] text-muted">npx screen-commons-mcp</code>;
             the token is printed on start and saved to{" "}
             <code className="font-mono text-[11.5px] text-muted">
-              ~/.config/open-ui/bridge-token
+              ~/.config/screen-commons/bridge-token
             </code>
             .
           </p>

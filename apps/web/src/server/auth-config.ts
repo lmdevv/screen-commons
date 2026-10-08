@@ -1,5 +1,5 @@
 /** Public, well-known secret: only ever acceptable for a local development instance. */
-export const DEV_AUTH_SECRET = "open-ui-insecure-development-secret-change-me";
+export const DEV_AUTH_SECRET = "screen-commons-insecure-development-secret-change-me";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 

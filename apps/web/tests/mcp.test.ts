@@ -60,7 +60,7 @@ describe("remote MCP (/mcp)", () => {
     const response = await rpc("tools/list", {}, "");
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toContain("Bearer");
-    expect((await rpc("tools/list", {}, "oui_bogus")).status).toBe(401);
+    expect((await rpc("tools/list", {}, "sc_bogus")).status).toBe(401);
   });
 
   it("initializes", async () => {

@@ -744,9 +744,9 @@ export function ComponentsPage() {
             </TableHead>
             <TableBody>
               {[
-                ["Browser extension", "oui_7f3a", "2 minutes ago"],
-                ["Laptop MCP", "oui_c19d", "Yesterday"],
-                ["CI seed", "oui_44be", "Never"],
+                ["Browser extension", "sc_7f3a", "2 minutes ago"],
+                ["Laptop MCP", "sc_c19d", "Yesterday"],
+                ["CI seed", "sc_44be", "Never"],
               ].map(([name, prefix, used]) => (
                 <TableRow key={prefix}>
                   <TableCell className="font-medium">{name}</TableCell>

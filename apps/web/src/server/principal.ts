@@ -66,7 +66,7 @@ export async function getSessionPrincipal(headers: Headers): Promise<Principal |
 }
 
 /**
- * Unified auth: `Authorization: Bearer oui_…` (any origin) or the Better Auth session cookie
+ * Unified auth: `Authorization: Bearer sc_…` (any origin) or the Better Auth session cookie
  * (same-origin only — cross-origin requests never authenticate with cookies).
  */
 export async function getPrincipal(

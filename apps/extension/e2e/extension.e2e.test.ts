@@ -23,7 +23,7 @@ const extensionPath = join(root, ".output/chrome-mv3");
 const shotsDir = join(root, "test-results/screenshots");
 const executablePath = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const BRIDGE_TOKEN = "pairing-token-for-tests";
-const API_KEY = "oui_test_key_1234567890";
+const API_KEY = "sc_test_key_1234567890";
 
 let context: BrowserContext;
 let worker: Worker;
@@ -305,7 +305,7 @@ describe("tray and upload", () => {
     await expect.poll(async () => (await meta())[0]).toContain("element");
     const order = await worker.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve) => {
-        const request = indexedDB.open("open-ui-capture");
+        const request = indexedDB.open("screen-commons-capture");
         request.onsuccess = () => resolve(request.result);
       });
       const all = await new Promise<{ mode: string; order: number }[]>((resolve) => {
@@ -372,7 +372,7 @@ describe("tray and upload", () => {
 
 describe("connect handoff", () => {
   it("receives the key from /extension/connect on the configured origin", async () => {
-    api.addKey("oui_connected_key_123456");
+    api.addKey("sc_connected_key_123456");
     // The custom-origin content script is registered dynamically from settings.
     await expect
       .poll(
@@ -391,7 +391,7 @@ describe("connect handoff", () => {
     const settings = await worker.evaluate(
       async () => (await chrome.storage.local.get("settings")).settings,
     );
-    expect(settings).toMatchObject({ apiKey: "oui_connected_key_123456", serverUrl: api.origin });
+    expect(settings).toMatchObject({ apiKey: "sc_connected_key_123456", serverUrl: api.origin });
     await page.close();
   });
 });

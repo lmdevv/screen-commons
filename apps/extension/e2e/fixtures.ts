@@ -247,8 +247,8 @@ export async function startMockApi(keys: string[]) {
       res.end(`<!doctype html><title>Connect</title><p id="status">waiting</p><script>
         window.addEventListener("message", (e) => {
           if (e.source !== window) return;
-          if (e.data?.type === "open-ui:extension-ready") window.postMessage({ type: "open-ui:connect", token: "oui_connected_key_123456", baseUrl: location.origin }, location.origin);
-          if (e.data?.type === "open-ui:connect:result") document.getElementById("status").textContent = e.data.ok ? "connected:" + e.data.userName : "error:" + e.data.error;
+          if (e.data?.type === "screen-commons:extension-ready") window.postMessage({ type: "screen-commons:connect", token: "sc_connected_key_123456", baseUrl: location.origin }, location.origin);
+          if (e.data?.type === "screen-commons:connect:result") document.getElementById("status").textContent = e.data.ok ? "connected:" + e.data.userName : "error:" + e.data.error;
         });
       </script>`);
       return;

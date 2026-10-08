@@ -42,7 +42,7 @@ export function SiteHeader({ nav, actions, className }: SiteHeaderProps) {
               Library
             </Link>
             <a
-              href="https://github.com/lmdevv/open-ui"
+              href="https://github.com/lmdevv/screen-commons"
               target="_blank"
               rel="noreferrer noopener"
               className={navLinkClassName}

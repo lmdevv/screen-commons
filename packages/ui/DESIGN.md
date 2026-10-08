@@ -211,7 +211,7 @@ entities; components never fetch.
 | `Table` `TableHead` `TableBody` `TableRow` `TableHeaderCell` `TableCell`                                                                                                                                                                                                                                                   | Hairline rows; API keys, review list view.                                                                                                                                                                                                 |
 | `Steps`                                                                                                                                                                                                                                                                                                                    | Wizard progress.                                                                                                                                                                                                                           |
 | `Logo`, `LogoMark`                                                                                                                                                                                                                                                                                                         | `variant` full·mark, `size` sm·md·lg.                                                                                                                                                                                                      |
-| `ThemeProvider`, `useTheme`, `ThemeToggle`, `themeScript`, `createThemeScript`                                                                                                                                                                                                                                             | Class strategy, `localStorage["open-ui-theme"]`.                                                                                                                                                                                           |
+| `ThemeProvider`, `useTheme`, `ThemeToggle`, `themeScript`, `createThemeScript`                                                                                                                                                                                                                                             | Class strategy, `localStorage["screen-commons-theme"]`.                                                                                                                                                                                    |
 
 ### Library (domain) components
 
@@ -423,7 +423,7 @@ MCP) with `TabsList bordered`.
   Appearance row: `ThemeToggle size="md"`.
 - API keys: `SectionHeader` + "Create key" button → `Dialog size="sm"` (name `Input`) → on success
   the dialog switches to a `Callout tone="warning"` + `CodeBlock code={token}` ("shown once").
-  List in `Table` (name, `oui_xxxx••••`, last used, `Button variant="ghost" size="sm"` Revoke →
+  List in `Table` (name, `sc_xxxx••••`, last used, `Button variant="ghost" size="sm"` Revoke →
   confirm `Dialog` with `variant="danger"`).
 - Extension & MCP: `Card`s with `CodeBlock`s (local `npx screen-commons-mcp` config JSON; remote URL +
   bearer header), and an install button for the extension.

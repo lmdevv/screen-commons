@@ -20,7 +20,7 @@ Screen Commons is an open-source, self-hostable UI reference library in the spir
 Requires Node.js 24 and pnpm 11.
 
 ```bash
-git clone https://github.com/lmdevv/open-ui.git screen-commons
+git clone https://github.com/lmdevv/screen-commons.git
 cd screen-commons
 pnpm install
 cp apps/web/.dev.vars.example apps/web/.dev.vars   # then set BETTER_AUTH_SECRET
@@ -29,7 +29,7 @@ pnpm dev
 
 Open <http://localhost:5173/sign-up> and create an account. The first account on an instance becomes the admin.
 
-To fill the library with demo content, create an API key in **Settings** and run `pnpm seed capture`, then `pnpm seed upload --url http://localhost:5173 --key oui_…`. See the [Quickstart](apps/web/content/docs/quickstart.md) for details.
+To fill the library with demo content, create an API key in **Settings** and run `pnpm seed capture`, then `pnpm seed upload --url http://localhost:5173 --key sc_…`. See the [Quickstart](apps/web/content/docs/quickstart.md) for details.
 
 ## Monorepo
 

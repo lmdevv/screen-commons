@@ -195,7 +195,7 @@ export function parseHtmlLinks(html: string, pageUrl: string): Omit<VisitResult,
 }
 
 const CRAWLER_UA =
-  "Mozilla/5.0 (compatible; OpenUI-Capture/0.1; +https://github.com/screen-commons) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (compatible; ScreenCommons-Capture/0.1; +https://github.com/lmdevv/screen-commons) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
 /** Lightweight visitor using `fetch` + HTML parsing. Good for server-rendered marketing sites. */
 export function createFetchVisitor(

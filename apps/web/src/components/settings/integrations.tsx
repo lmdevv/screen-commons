@@ -77,7 +77,7 @@ export function IntegrationsSection({ origin }: { origin: string }) {
   const [client, setClient] = useState<Client>("claude");
   const [token, setToken] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const snippet = mcpSnippet(client, origin, token ?? "oui_…");
+  const snippet = mcpSnippet(client, origin, token ?? "sc_…");
 
   return (
     <div className="flex flex-col gap-6">

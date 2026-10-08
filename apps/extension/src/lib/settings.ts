@@ -7,7 +7,7 @@ export type FullPageMethod = "auto" | "stitch";
 export interface Settings {
   /** Screen Commons instance origin, no trailing slash. */
   serverUrl: string;
-  /** `oui_…` API key (manual paste or handed over by `/extension/connect`). */
+  /** `sc_…` API key (manual paste or handed over by `/extension/connect`). */
   apiKey: string;
   bridgeEnabled: boolean;
   bridgePort: number;

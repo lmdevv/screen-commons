@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { DocMeta, RenderedDoc, TocEntry } from "./markdown";
 
-const GITHUB_EDIT = "https://github.com/lmdevv/open-ui/edit/main/apps/web/content/docs";
+const GITHUB_EDIT = "https://github.com/lmdevv/screen-commons/edit/main/apps/web/content/docs";
 
 const CHECK_ICON =
   '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';

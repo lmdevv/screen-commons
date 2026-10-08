@@ -15,14 +15,14 @@ Locally, that's `http://localhost:5173/api/v1`. Request and response bodies are 
 
 ## Authentication
 
-| Method         | How                           | Works from                                                 |
-| -------------- | ----------------------------- | ---------------------------------------------------------- |
-| API key        | `Authorization: Bearer oui_…` | Anywhere: scripts, servers, extensions, other websites.    |
-| Session cookie | Signed in on the website      | Same-origin requests from the Screen Commons website only. |
+| Method         | How                          | Works from                                                 |
+| -------------- | ---------------------------- | ---------------------------------------------------------- |
+| API key        | `Authorization: Bearer sc_…` | Anywhere: scripts, servers, extensions, other websites.    |
+| Session cookie | Signed in on the website     | Same-origin requests from the Screen Commons website only. |
 
 ```bash
 curl http://localhost:5173/api/v1/me \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 ```json
@@ -147,7 +147,7 @@ GET /api/v1/apps
 
 ```bash
 curl "http://localhost:5173/api/v1/apps?platform=web&limit=2" \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 ```json
@@ -240,7 +240,7 @@ GET /api/v1/screens
 
 ```bash
 curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 ```json
@@ -336,7 +336,7 @@ Content-Type: multipart/form-data
 
 ```bash
 curl http://localhost:5173/api/v1/screens \
-  -H "Authorization: Bearer oui_…" \
+  -H "Authorization: Bearer sc_…" \
   -F image=@dashboard.png \
   -F thumbnail=@dashboard-thumb.webp \
   -F 'meta={"app":{"name":"Acme","websiteUrl":"https://acme.example"},"title":"Dashboard","sourceUrl":"https://acme.example/app","patterns":["dashboard"],"elements":["table","side-navigation"],"width":1440,"height":900}'
@@ -531,7 +531,7 @@ Order existing screens of one app into a flow.
 
 ```bash
 curl http://localhost:5173/api/v1/flows \
-  -H "Authorization: Bearer oui_…" \
+  -H "Authorization: Bearer sc_…" \
   -H "Content-Type: application/json" \
   -d '{
     "appId": "01m4a893k000004qxv975nt1xs",
@@ -570,7 +570,7 @@ Returns apps, screens and flows ranked by relevance, plus taxonomy terms whose l
 
 ```bash
 curl "http://localhost:5173/api/v1/search?q=pricing" \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 ```json
@@ -632,13 +632,13 @@ Names are 1–60 characters.
 ```bash
 # Save a screen to your default collection
 curl -X POST http://localhost:5173/api/v1/saves \
-  -H "Authorization: Bearer oui_…" \
+  -H "Authorization: Bearer sc_…" \
   -H "Content-Type: application/json" \
   -d '{"kind":"screen","id":"01m4a893kc0000j5p41fk1kn1d"}'
 
 # Remove it from every collection
 curl -X DELETE "http://localhost:5173/api/v1/saves?kind=screen&id=01m4a893kc0000j5p41fk1kn1d" \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 | Request                                 | Parameters                                                      | Response |
@@ -654,22 +654,22 @@ Saving is idempotent. Without `collectionId`, saves go to the default collection
 
 Session only: these endpoints reject API keys with `403`, so a leaked key can't mint more keys. See [API keys](/docs/api-keys).
 
-| Request                    | Body                      | Response                                    |
-| -------------------------- | ------------------------- | ------------------------------------------- |
-| `GET /api/v1/keys`         | —                         | `{ "items": ApiKey[] }`, active keys only   |
-| `POST /api/v1/keys`        | `{ "name": "My script" }` | `201` `{ "key": ApiKey, "token": "oui_…" }` |
-| `DELETE /api/v1/keys/{id}` | —                         | `204`                                       |
+| Request                    | Body                      | Response                                   |
+| -------------------------- | ------------------------- | ------------------------------------------ |
+| `GET /api/v1/keys`         | —                         | `{ "items": ApiKey[] }`, active keys only  |
+| `POST /api/v1/keys`        | `{ "name": "My script" }` | `201` `{ "key": ApiKey, "token": "sc_…" }` |
+| `DELETE /api/v1/keys/{id}` | —                         | `204`                                      |
 
 ```json
 {
   "key": {
     "id": "01m4a84pg400008dgkvzs0w1be",
     "name": "My script",
-    "prefix": "oui_qy9o",
+    "prefix": "sc_qy9o",
     "lastUsedAt": null,
     "createdAt": "2026-10-07T03:57:29.476Z"
   },
-  "token": "oui_qy9o2hBoJ_6aRZUVHwtX-P0hJb-WuAr7nfzTf68TZBg"
+  "token": "sc_qy9o2hBoJ_6aRZUVHwtX-P0hJb-WuAr7nfzTf68TZBg"
 }
 ```
 
@@ -701,7 +701,7 @@ POST /api/v1/review/{kind}/{id}
 
 ```bash
 curl -X POST http://localhost:5173/api/v1/review/screen/01m4a8ae3z0000yfr7j15phk4b \
-  -H "Authorization: Bearer oui_…" \
+  -H "Authorization: Bearer sc_…" \
   -H "Content-Type: application/json" \
   -d '{"decision":"approve"}'
 ```
@@ -795,7 +795,5 @@ Omit `apiKey` to use the session cookie from same-origin browser code.
 | `save(kind, id, collectionId?)` / `unsave(kind, id, collectionId?)`              | `POST /saves`, `DELETE /saves`              |
 | `listKeys()` / `createKey(name)` / `revokeKey(id)`                               | `/keys` (session only)                      |
 | `reviewQueue()` / `review(kind, id, decision, reason?)`                          | `GET /review`, `POST /review/{kind}/{id}`   |
-
-The previous `createOpenUiClient`, `OpenUiApiError`, `OpenUiClient` and `OpenUiClientOptions` exports remain available as deprecated aliases.
 
 Request and response types (`Screen`, `FlowDetail`, `CaptureBatchInput`, …) are exported from the same package. Failed requests throw `ScreenCommonsApiError` with `status`, `code`, `message` and `details`.

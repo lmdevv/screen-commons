@@ -21,7 +21,7 @@ import {
 import type { Taxonomy } from "./taxonomy";
 
 export const API_PREFIX = "/api/v1";
-export const API_KEY_PREFIX = "oui_";
+export const API_KEY_PREFIX = "sc_";
 
 export interface Page<T> {
   items: T[];

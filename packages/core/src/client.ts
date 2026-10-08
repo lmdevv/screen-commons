@@ -27,7 +27,7 @@ export class ScreenCommonsApiError extends Error {
 export interface ScreenCommonsClientOptions {
   /** Instance origin, e.g. `http://localhost:5173` or `https://screencommons.example.com`. */
   baseUrl: string;
-  /** `oui_…` API key. Omit to rely on cookies (same-origin browser usage). */
+  /** `sc_…` API key. Omit to rely on cookies (same-origin browser usage). */
   apiKey?: string;
   fetch?: typeof fetch;
   /** Extra headers on every request (e.g. a client identifier). */
@@ -151,13 +151,3 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
 }
 
 export type ScreenCommonsClient = ReturnType<typeof createScreenCommonsClient>;
-
-// Keep existing SDK integrations working during the rename.
-/** @deprecated Use ScreenCommonsApiError. */
-export { ScreenCommonsApiError as OpenUiApiError };
-/** @deprecated Use createScreenCommonsClient. */
-export const createOpenUiClient = createScreenCommonsClient;
-/** @deprecated Use ScreenCommonsClientOptions. */
-export type OpenUiClientOptions = ScreenCommonsClientOptions;
-/** @deprecated Use ScreenCommonsClient. */
-export type OpenUiClient = ScreenCommonsClient;

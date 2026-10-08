@@ -16,7 +16,7 @@ Screen Commons runs locally inside `workerd`, the Cloudflare Workers runtime, wi
 ## 1. Install
 
 ```bash
-git clone https://github.com/lmdevv/open-ui.git screen-commons
+git clone https://github.com/lmdevv/screen-commons.git
 cd screen-commons
 pnpm install
 ```
@@ -72,7 +72,7 @@ Pick one:
 
      ```bash
      pnpm seed capture
-     pnpm seed upload --url http://localhost:5173 --key oui_…
+     pnpm seed upload --url http://localhost:5173 --key sc_…
      ```
 
   Captures are cached locally and never committed. Seeding needs Chrome or Chromium installed; set `CHROME_PATH` if it isn't found automatically.

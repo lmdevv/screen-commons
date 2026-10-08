@@ -12,7 +12,7 @@ export function platformLabel(platform: Platform): string {
   return PLATFORMS.find((item) => item.slug === platform)?.label ?? "Web";
 }
 
-const STORAGE_KEY = "open-ui-platform";
+const STORAGE_KEY = "screen-commons-platform";
 
 /** Last platform the user browsed (client only), so non-browse pages keep the switch in sync. */
 export function rememberPlatform(platform: Platform): void {

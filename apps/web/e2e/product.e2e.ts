@@ -257,7 +257,7 @@ describe("settings", () => {
     await page.getByLabel("Name").fill(name);
     await page.getByRole("dialog").getByRole("button", { name: "Create key" }).click();
     const token = (await page.getByTestId("new-token").locator("code").textContent())?.trim() ?? "";
-    assert.match(token, /^oui_[A-Za-z0-9_-]+$/u);
+    assert.match(token, /^sc_[A-Za-z0-9_-]+$/u);
     await page.getByRole("button", { name: "Done" }).click();
     await page.getByRole("row", { name: new RegExp(name, "u") }).waitFor();
 

@@ -36,9 +36,9 @@ function mintOnce(): Promise<string> {
 /**
  * The `/extension/connect` handshake with the extension's content script:
  *
- *   extension → { type: "open-ui:extension-ready" }        (on load; we re-send the token)
- *   page      → { type: "open-ui:connect", token, baseUrl } (after minting, and on ready)
- *   extension → { type: "open-ui:connect:result", ok, userName?, error? }
+ *   extension → { type: "screen-commons:extension-ready" }        (on load; we re-send the token)
+ *   page      → { type: "screen-commons:connect", token, baseUrl } (after minting, and on ready)
+ *   extension → { type: "screen-commons:connect:result", ok, userName?, error? }
  */
 export function ExtensionConnect() {
   const [state, setState] = useState<State>({ kind: "minting" });
@@ -48,7 +48,7 @@ export function ExtensionConnect() {
 
   const send = useCallback((value: string) => {
     window.postMessage(
-      { type: "open-ui:connect", token: value, baseUrl: location.origin },
+      { type: "screen-commons:connect", token: value, baseUrl: location.origin },
       location.origin,
     );
   }, []);
@@ -67,9 +67,9 @@ export function ExtensionConnect() {
         error?: unknown;
       } | null;
       if (!data || typeof data.type !== "string") return;
-      if (data.type === "open-ui:extension-ready") {
+      if (data.type === "screen-commons:extension-ready") {
         if (current && !settled.current) send(current);
-      } else if (data.type === "open-ui:connect:result") {
+      } else if (data.type === "screen-commons:connect:result") {
         settled.current = true;
         clearTimeout(timer);
         if (data.ok === true) {

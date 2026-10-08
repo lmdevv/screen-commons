@@ -42,7 +42,7 @@ describe("config", () => {
     expect(first.headless).toBe(true);
     expect(first.bridge.tokenSource).toBe("generated");
     expect(first.bridge.token).toMatch(/^[0-9a-f]{64}$/u);
-    expect(first.bridge.tokenPath).toBe(join(home, "cfg", "open-ui", "bridge-token"));
+    expect(first.bridge.tokenPath).toBe(join(home, "cfg", "screen-commons", "bridge-token"));
     expect((await readFile(first.bridge.tokenPath, "utf8")).trim()).toBe(first.bridge.token);
     expect((await stat(first.bridge.tokenPath)).mode & 0o777).toBe(0o600);
 
@@ -54,18 +54,18 @@ describe("config", () => {
       env: {
         ...env,
         SCREEN_COMMONS_URL: "https://ui.example.com/",
-        SCREEN_COMMONS_API_KEY: "oui_abc",
+        SCREEN_COMMONS_API_KEY: "sc_abc",
         SCREEN_COMMONS_BRIDGE_PORT: "8123",
         SCREEN_COMMONS_BRIDGE_TOKEN: "from-env-token-123",
         SCREEN_COMMONS_HEADLESS: "false",
         CHROME_PATH: "/opt/chrome",
       },
-      argv: ["--api-key", "oui_arg"],
+      argv: ["--api-key", "sc_arg"],
       home,
     });
     expect(custom).toMatchObject({
       url: "https://ui.example.com",
-      apiKey: "oui_arg",
+      apiKey: "sc_arg",
       headless: false,
       chromePath: "/opt/chrome",
       bridge: { port: 8123, token: "from-env-token-123", tokenSource: "env" },
@@ -73,52 +73,34 @@ describe("config", () => {
   });
 });
 
-describe("rename compatibility", () => {
-  it("accepts legacy configuration and prefers the new variables", async () => {
-    const legacy = {
-      XDG_CONFIG_HOME: join(home, "legacy"),
-      OPEN_UI_URL: "https://legacy.example.com/",
-      OPEN_UI_API_KEY: "oui_legacy",
-      OPEN_UI_BRIDGE_PORT: "8123",
-      OPEN_UI_BRIDGE_TOKEN: "legacy-pairing-token",
-      OPEN_UI_HEADLESS: "false",
-      OPEN_UI_OUTPUT_DIR: join(home, "legacy-output"),
-      OPEN_UI_BRIDGE: "false",
-    };
-    const old = await loadConfig({ env: legacy, argv: [], home });
-    expect(old).toMatchObject({
-      url: "https://legacy.example.com",
-      apiKey: "oui_legacy",
-      headless: false,
-      outputDir: join(home, "legacy-output"),
-      bridge: { enabled: false, port: 8123, token: "legacy-pairing-token" },
-    });
+describe("environment configuration", () => {
+  it("reads SCREEN_COMMONS_* variables and lets CLI flags override them", async () => {
     const env = {
-      ...legacy,
+      XDG_CONFIG_HOME: join(home, "env"),
       SCREEN_COMMONS_URL: "https://new.example.com/",
-      SCREEN_COMMONS_API_KEY: "oui_new",
+      SCREEN_COMMONS_API_KEY: "sc_new",
       SCREEN_COMMONS_BRIDGE_PORT: "9000",
       SCREEN_COMMONS_BRIDGE_TOKEN: "new-pairing-token",
-      SCREEN_COMMONS_HEADLESS: "true",
+      SCREEN_COMMONS_HEADLESS: "false",
       SCREEN_COMMONS_OUTPUT_DIR: join(home, "new-output"),
       SCREEN_COMMONS_BRIDGE: "true",
     };
-    const renamed = await loadConfig({ env, argv: [], home });
-    expect(renamed).toMatchObject({
+    const fromEnv = await loadConfig({ env, argv: [], home });
+    expect(fromEnv).toMatchObject({
       url: "https://new.example.com",
-      apiKey: "oui_new",
-      headless: true,
+      apiKey: "sc_new",
+      headless: false,
       outputDir: join(home, "new-output"),
       bridge: { enabled: true, port: 9000, token: "new-pairing-token" },
     });
     const cli = await loadConfig({
       env,
-      argv: ["--url", "https://cli.example.com", "--api-key", "oui_cli", "--no-bridge"],
+      argv: ["--url", "https://cli.example.com", "--api-key", "sc_cli", "--no-bridge"],
       home,
     });
     expect(cli).toMatchObject({
       url: "https://cli.example.com",
-      apiKey: "oui_cli",
+      apiKey: "sc_cli",
       bridge: { enabled: false },
     });
   });

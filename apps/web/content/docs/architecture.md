@@ -98,7 +98,7 @@ Search uses SQLite FTS5 in D1. Triggers on `app`, `screen` and `flow` keep the i
 ## Auth
 
 - **Better Auth** handles email and password accounts, plus GitHub OAuth when credentials are set. Sessions are cookies bound to `APP_URL`.
-- **API keys** are `oui_` plus 32 random bytes, stored as SHA-256 hashes in Screen Commons's own `api_key` table. `last_used_at` updates at most once a minute per key.
+- **API keys** are `sc_` plus 32 random bytes, stored as SHA-256 hashes in Screen Commons's own `api_key` table. `last_used_at` updates at most once a minute per key.
 - **Principal resolution.** A bearer key works from any origin. Session cookies only count for same-origin requests, so a third-party page can't act as a signed-in user.
 - **Key management** requires a session; keys can't mint or revoke keys.
 - **First admin.** A database trigger promotes the first user atomically by claiming the `instance_bootstrap` row, so two simultaneous sign-ups can't both become admin.
@@ -122,7 +122,7 @@ Each upload carries the full image and a 640 px WebP thumbnail (top-anchored cro
         │ stdio (MCP)
         ▼
  screen-commons-mcp  (packages/mcp, on your machine)
-   ├── catalog tools ───── HTTPS + Bearer oui_… ─────▶ Screen Commons Worker  /api/v1/*
+   ├── catalog tools ───── HTTPS + Bearer sc_… ─────▶ Screen Commons Worker  /api/v1/*
    │                                                    (capture_pages uploads via
    │                                                     POST /api/v1/captures)
    └── browser tools

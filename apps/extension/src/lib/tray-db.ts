@@ -5,7 +5,7 @@ import { sortShots } from "./tray";
  * IndexedDB store for tray shots (blobs can be several MB each). Shared by the background and
  * extension pages, which all live on the same extension origin.
  */
-const DB_NAME = "open-ui-capture";
+const DB_NAME = "screen-commons-capture";
 const DB_VERSION = 1;
 const STORE = "shots";
 

@@ -87,8 +87,3 @@ export function createScreenCommonsMcpServer(options: CreateServerOptions): Scre
     },
   };
 }
-
-/** @deprecated Use createScreenCommonsMcpServer. */
-export const createOpenUiMcpServer = createScreenCommonsMcpServer;
-/** @deprecated Use ScreenCommonsMcp. */
-export type OpenUiMcp = ScreenCommonsMcp;

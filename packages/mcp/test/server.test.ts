@@ -168,7 +168,7 @@ describe("catalog tools", () => {
     // taxonomy still works from the bundled contract
     expect(textOf(await call(missing.client, "get_taxonomy"))).toContain("built-in");
 
-    const wrong = await connect({ apiKey: "oui_wrong" });
+    const wrong = await connect({ apiKey: "sc_wrong" });
     const rejected = await call(wrong.client, "get_app", { slug: "linear" });
     expect(rejected.isError).toBe(true);
     expect(textOf(rejected)).toContain("rejected the API key (401)");

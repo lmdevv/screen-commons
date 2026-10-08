@@ -44,7 +44,7 @@ export default defineConfig({
             browser_specific_settings: {
               gecko: {
                 // Keep the installed extension identity stable across the rename.
-                id: "open-ui@openui.dev",
+                id: "screen-commons@lmdev.me",
                 strict_min_version: "140.0",
                 data_collection_permissions: { required: ["websiteContent"], optional: [] },
               },

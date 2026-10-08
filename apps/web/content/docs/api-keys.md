@@ -5,7 +5,7 @@ order: 8
 section: Integrations
 ---
 
-API keys let scripts, the browser extension and MCP servers act as you. Every key starts with `oui_`.
+API keys let scripts, the browser extension and MCP servers act as you. Every key starts with `sc_`.
 
 ## Create a key
 
@@ -20,7 +20,7 @@ Use the key as a bearer token:
 
 ```bash
 curl http://localhost:5173/api/v1/me \
-  -H "Authorization: Bearer oui_…"
+  -H "Authorization: Bearer sc_…"
 ```
 
 ## What a key can do
@@ -38,7 +38,7 @@ Keys can't manage keys. Creating, listing and revoking keys requires a signed-in
 
 In **Settings → API keys**, click **Revoke** next to the key. It stops working immediately; requests with it get `401 unauthorized`.
 
-The list shows each key's name, its first eight characters (such as `oui_qy9o…`), when it was created and when it was last used. Use the prefix and last-used time to find keys you no longer need.
+The list shows each key's name, its first eight characters (such as `sc_qy9o…`), when it was created and when it was last used. Use the prefix and last-used time to find keys you no longer need.
 
 ## Keep keys safe
 

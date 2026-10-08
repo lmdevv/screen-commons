@@ -26,16 +26,14 @@ const HELP = `screen-commons-mcp — Screen Commons MCP server (stdio)
 
 Options (env var in brackets):
   --url <origin>          Screen Commons instance [SCREEN_COMMONS_URL] (default http://localhost:5173)
-  --api-key <oui_…>       API key for catalog + upload tools [SCREEN_COMMONS_API_KEY]
+  --api-key <sc_…>       API key for catalog + upload tools [SCREEN_COMMONS_API_KEY]
   --bridge-port <port>    Extension bridge port on 127.0.0.1 [SCREEN_COMMONS_BRIDGE_PORT] (default 7457)
-  --bridge-token <token>  Pairing token [SCREEN_COMMONS_BRIDGE_TOKEN] (default: ~/.config/open-ui/bridge-token)
+  --bridge-token <token>  Pairing token [SCREEN_COMMONS_BRIDGE_TOKEN] (default: ~/.config/screen-commons/bridge-token)
   --no-bridge             Do not start the extension bridge (headless only)
   --chrome-path <path>    Chromium/Chrome executable [CHROME_PATH] (auto-detected)
   --headful               Show the headless browser window [SCREEN_COMMONS_HEADLESS=false]
   --output-dir <dir>      Where screenshots are saved [SCREEN_COMMONS_OUTPUT_DIR] (default: $TMPDIR/screen-commons-mcp)
   --help                  Show this help
-
-Legacy OPEN_UI_* environment variables are also accepted; SCREEN_COMMONS_* takes precedence.
 `;
 
 export function helpText(): string {
@@ -72,7 +70,7 @@ const truthy = (value: string | undefined) =>
 
 export function defaultTokenPath(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
   const base = env.XDG_CONFIG_HOME?.trim() || join(home, ".config");
-  return join(base, "open-ui", "bridge-token");
+  return join(base, "screen-commons", "bridge-token");
 }
 
 /** Read the persisted pairing token, or generate (32 random bytes, hex) and save one (0600). */
@@ -100,8 +98,7 @@ export interface LoadConfigInput {
 
 export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig> {
   const env = input.env ?? process.env;
-  // Prefer the new name while keeping existing MCP client configurations working.
-  const setting = (name: string) => env[`SCREEN_COMMONS_${name}`] ?? env[`OPEN_UI_${name}`];
+  const setting = (name: string) => env[`SCREEN_COMMONS_${name}`];
   const args = parseArgs(input.argv ?? process.argv.slice(2));
   const str = (key: string) => (typeof args[key] === "string" ? (args[key] as string) : undefined);
 

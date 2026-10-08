@@ -75,7 +75,7 @@ describe("auth", () => {
 describe("api keys", () => {
   it("creates, lists, authenticates and revokes keys", async () => {
     const created = await admin.client().createKey("Test runner");
-    expect(created.token).toMatch(/^oui_[\w-]{43}$/u);
+    expect(created.token).toMatch(/^sc_[\w-]{43}$/u);
     expect(created.key.prefix).toBe(created.token.slice(0, 8));
     adminKey = created.token;
     adminApi = keyClient(adminKey);
@@ -105,7 +105,7 @@ describe("api keys", () => {
     ).not.toBeNull();
     await admin.client().revokeKey(throwaway.key.id);
     await expectApiError(throwawayApi.me(), 401, "unauthorized");
-    await expectApiError(keyClient("oui_not-a-real-key").me(), 401);
+    await expectApiError(keyClient("sc_not-a-real-key").me(), 401);
     expect((await admin.client().listKeys()).items.map((key) => key.id)).not.toContain(
       throwaway.key.id,
     );

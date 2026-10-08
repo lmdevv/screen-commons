@@ -7,7 +7,7 @@ dev via `@cloudflare/vite-plugin`).
 src/server/
   env.ts           cloudflare:workers env, getDb() (Drizzle over D1), getMedia() (R2), appOrigin()
   auth.ts          Better Auth (email+password, GitHub when env set; first user → admin via DB trigger)
-  keys.ts          API keys: oui_ + 32 random bytes, SHA-256 at rest, throttled last_used_at
+  keys.ts          API keys: sc_ + 32 random bytes, SHA-256 at rest, throttled last_used_at
   principal.ts     getPrincipal(request): bearer key OR session cookie (same-origin only)
   errors.ts        ServiceError(code, message) + zod → bad_request mapping
   ids.ts           time-ordered ids, sha256Hex, base64url
@@ -120,7 +120,7 @@ The root route puts `user` (`User | null`) in router context; the `_app` layout 
 ## REST API (`/api/v1`)
 
 Matches `packages/core/src/client.ts` exactly (use `createScreenCommonsClient`). Auth: session cookie
-(same-origin only) or `Authorization: Bearer oui_…` (any origin, `Access-Control-Allow-Origin: *`,
+(same-origin only) or `Authorization: Bearer sc_…` (any origin, `Access-Control-Allow-Origin: *`,
 never credentials). `/taxonomy` is public. Extra aliases from the spec:
 `POST/DELETE /collections/:id/items`, `GET /apps/:slug?platform=`. Errors are
 `{ error: { code, message } }` with HTTP status per code.

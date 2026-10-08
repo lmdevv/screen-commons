@@ -1,4 +1,4 @@
-const KEY = "open-ui-recent-searches";
+const KEY = "screen-commons-recent-searches";
 const MAX = 5;
 
 export function readRecentSearches(): string[] {

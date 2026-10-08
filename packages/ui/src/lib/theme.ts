@@ -6,7 +6,7 @@
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "open-ui-theme";
+export const THEME_STORAGE_KEY = "screen-commons-theme";
 export const THEMES: readonly Theme[] = ["light", "dark", "system"];
 
 export function isTheme(value: unknown): value is Theme {
@@ -22,5 +22,5 @@ export function createThemeScript(storageKey: string = THEME_STORAGE_KEY): strin
   return `(function(){try{var k=${JSON.stringify(storageKey)};var t=localStorage.getItem(k);if(t!=="light"&&t!=="dark")t="system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;r.classList.remove("light","dark");r.classList.add(d?"dark":"light");r.style.colorScheme=d?"dark":"light";}catch(e){}})();`;
 }
 
-/** The default no-flash script string (storage key `open-ui-theme`). */
+/** The default no-flash script string (storage key `screen-commons-theme`). */
 export const themeScript: string = createThemeScript();

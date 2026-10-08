@@ -1,7 +1,7 @@
 import { Footer, Logo, ThemeToggle, cn } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 
-export const GITHUB_URL = "https://github.com/lmdevv/open-ui";
+export const GITHUB_URL = "https://github.com/lmdevv/screen-commons";
 
 const FOOTER_COLUMNS = [
   {

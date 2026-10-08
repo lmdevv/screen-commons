@@ -11,14 +11,14 @@
         try {
           var forced = new URLSearchParams(location.search).get("theme");
           if (forced === "dark" || forced === "light")
-            localStorage.setItem("open-ui-theme", forced);
+            localStorage.setItem("screen-commons-theme", forced);
         } catch (e) {}
       })();
     </script>
     <script>
       (function () {
         try {
-          var k = "open-ui-theme";
+          var k = "screen-commons-theme";
           var t = localStorage.getItem(k);
           if (t !== "light" && t !== "dark") t = "system";
           var d =

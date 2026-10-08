@@ -168,7 +168,7 @@ export function CreateKeyDialog({
             <DialogHeader>
               <DialogTitle>Copy your new key</DialogTitle>
               <DialogDescription>
-                Use it as a bearer token: Authorization: Bearer oui_…
+                Use it as a bearer token: Authorization: Bearer sc_…
               </DialogDescription>
             </DialogHeader>
             <DialogBody className="flex flex-col gap-4">

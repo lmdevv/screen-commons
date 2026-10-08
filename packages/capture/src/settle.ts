@@ -105,7 +105,7 @@ export const CHAT_SELECTORS = [
  * Never clicks anything. Returns the number of heuristically hidden elements.
  */
 export function hideOverlaysInPage(selectors: string[]): number {
-  const STYLE_ID = "__open_ui_hide_overlays";
+  const STYLE_ID = "__screen_commons_hide_overlays";
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement("style");
     style.id = STYLE_ID;

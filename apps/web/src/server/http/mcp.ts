@@ -200,7 +200,7 @@ export async function handleMcp(request: Request): Promise<Response> {
   const principal = await getPrincipal(request, { allowCookies: false }).catch(() => null);
   if (!principal) {
     const response = errorResponse(
-      unauthorized("Provide an API key: Authorization: Bearer oui_…"),
+      unauthorized("Provide an API key: Authorization: Bearer sc_…"),
       cors,
     );
     response.headers.set("www-authenticate", 'Bearer realm="screen-commons"');

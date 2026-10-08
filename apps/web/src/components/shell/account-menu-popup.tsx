@@ -11,7 +11,7 @@ import { BookOpen, Bookmark, Code, Inbox, Keyboard, Plus, Settings } from "lucid
 import { authClient } from "../../lib/auth-client";
 import type { AccountMenuProps } from "./account-menu";
 
-export const REPOSITORY_URL = "https://github.com/lmdevv/open-ui";
+export const REPOSITORY_URL = "https://github.com/lmdevv/screen-commons";
 
 export default function AccountMenuPopup({
   user,

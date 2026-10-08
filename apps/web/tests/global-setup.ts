@@ -11,9 +11,7 @@ import type { TestProject } from "vitest/node";
 import { writeTestWranglerConfig } from "./wrangler-config";
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FIRST_PORT = Number(
-  process.env.SCREEN_COMMONS_TEST_PORT ?? process.env.OPEN_UI_TEST_PORT ?? 5179,
-);
+const FIRST_PORT = Number(process.env.SCREEN_COMMONS_TEST_PORT ?? 5179);
 
 /** First port from `start` that nothing is listening on (a dev server may hold 5173/5179). */
 async function freePort(start: number): Promise<number> {

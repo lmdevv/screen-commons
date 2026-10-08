@@ -319,7 +319,7 @@ function McpVisual({ origin, pricing }: { origin: string; pricing: Thumb[] }) {
       <CodeBlock
         title="Terminal"
         className="bg-bg"
-        code={`claude mcp add --transport http screen-commons ${origin}/mcp \\\n  --header "Authorization: Bearer oui_…"`}
+        code={`claude mcp add --transport http screen-commons ${origin}/mcp \\\n  --header "Authorization: Bearer sc_…"`}
       />
       <div aria-hidden className="rounded-card bg-bg p-4">
         <p className="font-mono text-[13px] leading-[21px] text-fg">

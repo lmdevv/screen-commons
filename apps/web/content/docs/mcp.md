@@ -24,7 +24,7 @@ The endpoint is `https://<your-instance>/mcp` (`http://localhost:5173/mcp` local
 
 ```bash
 claude mcp add --transport http screen-commons http://localhost:5173/mcp \
-  --header "Authorization: Bearer oui_…"
+  --header "Authorization: Bearer sc_…"
 ```
 
 ### Cursor
@@ -36,7 +36,7 @@ Add to `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project:
   "mcpServers": {
     "screen-commons": {
       "url": "http://localhost:5173/mcp",
-      "headers": { "Authorization": "Bearer oui_…" }
+      "headers": { "Authorization": "Bearer sc_…" }
     }
   }
 }
@@ -52,7 +52,7 @@ Most clients accept this shape, for example Claude Code's project-level `.mcp.js
     "screen-commons": {
       "type": "http",
       "url": "http://localhost:5173/mcp",
-      "headers": { "Authorization": "Bearer oui_…" }
+      "headers": { "Authorization": "Bearer sc_…" }
     }
   }
 }
@@ -72,7 +72,7 @@ Clients that only support stdio can reach the remote server through [`mcp-remote
         "--header",
         "Authorization:${SCREEN_COMMONS_AUTH}"
       ],
-      "env": { "SCREEN_COMMONS_AUTH": "Bearer oui_…" }
+      "env": { "SCREEN_COMMONS_AUTH": "Bearer sc_…" }
     }
   }
 }
@@ -82,7 +82,7 @@ Clients that only support stdio can reach the remote server through [`mcp-remote
 
 ```bash
 curl -s http://localhost:5173/mcp \
-  -H "Authorization: Bearer oui_…" \
+  -H "Authorization: Bearer sc_…" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
@@ -110,16 +110,14 @@ Then run it with `node packages/mcp/dist/index.js`. The workspace package is cur
 
 ### Configure
 
-| Variable                      | Default                 | Purpose                                                                                                            |
-| ----------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `SCREEN_COMMONS_URL`          | `http://localhost:5173` | Your Screen Commons instance.                                                                                      |
-| `SCREEN_COMMONS_API_KEY`      | none                    | `oui_…` key for the catalog tools and uploads.                                                                     |
-| `SCREEN_COMMONS_BRIDGE_PORT`  | `7457`                  | Port of the extension bridge on `127.0.0.1`.                                                                       |
-| `SCREEN_COMMONS_BRIDGE_TOKEN` | generated               | Pairing token for the extension. If unset, one is generated, saved to `~/.config/open-ui/bridge-token` and reused. |
-| `CHROME_PATH`                 | auto-detected           | Chrome or Chromium binary for the headless driver.                                                                 |
-| `SCREEN_COMMONS_HEADLESS`     | `true`                  | Set to `false` to watch the headless browser work.                                                                 |
-
-Legacy `OPEN_UI_*` variables remain supported; `SCREEN_COMMONS_*` takes precedence. The pairing token stays at `~/.config/open-ui/bridge-token` so an existing extension stays paired.
+| Variable                      | Default                 | Purpose                                                                                                                   |
+| ----------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `SCREEN_COMMONS_URL`          | `http://localhost:5173` | Your Screen Commons instance.                                                                                             |
+| `SCREEN_COMMONS_API_KEY`      | none                    | `sc_…` key for the catalog tools and uploads.                                                                             |
+| `SCREEN_COMMONS_BRIDGE_PORT`  | `7457`                  | Port of the extension bridge on `127.0.0.1`.                                                                              |
+| `SCREEN_COMMONS_BRIDGE_TOKEN` | generated               | Pairing token for the extension. If unset, one is generated, saved to `~/.config/screen-commons/bridge-token` and reused. |
+| `CHROME_PATH`                 | auto-detected           | Chrome or Chromium binary for the headless driver.                                                                        |
+| `SCREEN_COMMONS_HEADLESS`     | `true`                  | Set to `false` to watch the headless browser work.                                                                        |
 
 All logs, including the pairing token, go to stderr; stdout carries only MCP messages.
 
@@ -128,7 +126,7 @@ All logs, including the pairing token, go to stderr; stdout carries only MCP mes
 ```bash
 claude mcp add --transport stdio \
   --env SCREEN_COMMONS_URL=http://localhost:5173 \
-  --env SCREEN_COMMONS_API_KEY=oui_… \
+  --env SCREEN_COMMONS_API_KEY=sc_… \
   screen-commons -- node /absolute/path/to/screen-commons/packages/mcp/dist/index.js
 ```
 
@@ -142,7 +140,7 @@ claude mcp add --transport stdio \
       "args": ["/absolute/path/to/screen-commons/packages/mcp/dist/index.js"],
       "env": {
         "SCREEN_COMMONS_URL": "http://localhost:5173",
-        "SCREEN_COMMONS_API_KEY": "oui_…"
+        "SCREEN_COMMONS_API_KEY": "sc_…"
       }
     }
   }
@@ -155,10 +153,10 @@ Use the built local file above until an npm package is published.
 
 The bridge is a WebSocket server on `ws://127.0.0.1:7457` that only accepts the extension when it presents the pairing token.
 
-1. Start your agent so it launches `screen-commons-mcp`. The token is printed to stderr and saved to `~/.config/open-ui/bridge-token`:
+1. Start your agent so it launches `screen-commons-mcp`. The token is printed to stderr and saved to `~/.config/screen-commons/bridge-token`:
 
    ```bash
-   cat ~/.config/open-ui/bridge-token
+   cat ~/.config/screen-commons/bridge-token
    ```
 
 2. In the extension, open **Settings → MCP bridge**, paste the token into **Pairing token**, and click **Save**.

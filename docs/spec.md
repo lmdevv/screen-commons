@@ -41,7 +41,7 @@ or `CHROME_PATH`).
 - R2 bucket `MEDIA` holds images under immutable, content-addressed keys; served by `/media/$key`
   with `Cache-Control: public, max-age=31536000, immutable`.
 - Better Auth (email + password; GitHub OAuth when env present), Drizzle adapter on D1.
-- API keys (`oui_` prefix, SHA-256 hashed at rest) authenticate the extension, MCP and scripts.
+- API keys (`sc_` prefix, SHA-256 hashed at rest) authenticate the extension, MCP and scripts.
 - **Roles**: `admin` | `member`. The first account created on an instance becomes `admin`.
   Members' contributions land as `pending`; admins' contributions publish immediately. Admins
   approve/reject from `/review`.
@@ -83,7 +83,7 @@ Public: `/` landing, `/docs/*`, `/sign-in`, `/sign-up`. Everything in the librar
 | `/contribute`        | Upload: drop images → pick/create app → tag patterns → optionally order into a flow (drag to reorder, step labels) → submit.                                                                                                                               |
 | `/review`            | Admin queue for pending screens/flows.                                                                                                                                                                                                                     |
 | `/settings`          | Profile, API keys (create/revoke, copy once), extension + MCP setup snippets.                                                                                                                                                                              |
-| `/extension/connect` | Signed-in page that mints a key named "Browser extension" and hands it to the extension (`window.postMessage({ type: "open-ui:connect", token, baseUrl })`, picked up by the extension content script).                                                    |
+| `/extension/connect` | Signed-in page that mints a key named "Browser extension" and hands it to the extension (`window.postMessage({ type: "screen-commons:connect", token, baseUrl })`, picked up by the extension content script).                                             |
 | `/docs/*`            | Introduction, Quickstart, Browsing, Contributing, Browser extension, MCP (local + remote), REST API, Self-hosting, Architecture. Markdown files in `apps/web/content/docs`.                                                                                |
 
 ## Design direction
@@ -104,7 +104,7 @@ Minimal, quiet, fast — the content is the screenshots. Mobbin-like structure, 
 
 ## REST API (`/api/v1`)
 
-Auth: session cookie **or** `Authorization: Bearer oui_…`. JSON errors:
+Auth: session cookie **or** `Authorization: Bearer sc_…`. JSON errors:
 `{ "error": { "code": string, "message": string } }`. Lists are cursor paginated:
 `{ items: T[], nextCursor: string | null }`. Exact request/response shapes live in
 `packages/core/src/api.ts`.
@@ -159,7 +159,7 @@ viewport?: "desktop" | "mobile", fullPage?, upload: boolean }` → captures each
 Bridge protocol: JSON messages over WebSocket, `{ id, type: "request", method, params }` →
 `{ id, type: "response", result | error }`; the extension authenticates with a pairing token
 shown by the MCP server (`SCREEN_COMMONS_BRIDGE_TOKEN`, default printed on start and saved to
-`~/.config/open-ui/bridge-token`). Methods: `hello`, `navigate`, `screenshot`, `extract`,
+`~/.config/screen-commons/bridge-token`). Methods: `hello`, `navigate`, `screenshot`, `extract`,
 `listTabs`. Defined in `packages/core/src/bridge.ts`.
 
 ## Browser extension (apps/extension, WXT + React)

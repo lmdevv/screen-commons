@@ -12,7 +12,7 @@ import {
 } from "@screen-commons/core";
 import sharp from "sharp";
 
-export const API_KEY = "oui_test_key";
+export const API_KEY = "sc_test_key";
 
 export interface MockApi {
   url: string;
