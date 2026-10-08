@@ -21,7 +21,10 @@ import type { AccountMenuProps } from "./top-bar";
 export interface AccountMenuPopupProps extends AccountMenuProps {
   /** Open immediately (the user clicked before the chunk arrived). */
   defaultOpen?: boolean;
-  /** Move focus to the trigger after mounting (the placeholder had keyboard focus). */
+  /**
+   * Move focus to the trigger after mounting (the placeholder had keyboard focus) — only if
+   * swapping out the placeholder dropped focus, never if the user has tabbed on meanwhile.
+   */
   focusTrigger?: boolean;
 }
 
@@ -36,7 +39,8 @@ export default function AccountMenuPopup({
 }: AccountMenuPopupProps) {
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   React.useEffect(() => {
-    if (focusTrigger) triggerRef.current?.focus();
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (focusTrigger && lost) triggerRef.current?.focus();
   }, [focusTrigger]);
 
   return (
