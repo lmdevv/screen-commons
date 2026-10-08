@@ -136,9 +136,28 @@ describe("useReturnFocus", () => {
     const { api, viewer, button } = setup();
     viewer.focus();
     api.remember();
-    button.focus(); // the overlay's own focus handling lands elsewhere
+    button.focus(); // inside the overlay…
+    button.blur(); // …which then unmounts
     expect(api.finalFocus()).toBe(false); // handled here, not by the dialog
+    vi.advanceTimersToNextFrame();
+    expect(document.activeElement).toBe(viewer);
+    vi.useRealTimers();
+  });
+
+  it("doesn't pull focus out of an overlay reopened before the hand-back", () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+    const { api, viewer, button } = setup();
+    viewer.focus();
+    api.remember();
+    (document.activeElement as HTMLElement).blur(); // the palette unmounted
+    expect(api.finalFocus()).toBe(false);
+    api.remember(); // ⌘K again, within the same frame
+    button.focus(); // the new palette's field
+    vi.advanceTimersToNextFrame();
     expect(document.activeElement).toBe(button);
+    // Closing the new one still returns to the viewer.
+    button.blur();
+    expect(api.finalFocus()).toBe(false);
     vi.advanceTimersToNextFrame();
     expect(document.activeElement).toBe(viewer);
     vi.useRealTimers();

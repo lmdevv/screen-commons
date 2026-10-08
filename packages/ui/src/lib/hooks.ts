@@ -208,9 +208,17 @@ export function useReturnFocus(): {
   finalFocus: () => boolean;
 } {
   const element = React.useRef<HTMLElement | null>(null);
+  const pending = React.useRef<number | undefined>(undefined);
   return React.useMemo(
     () => ({
       remember: () => {
+        // Reopened before the last close handed focus back: that element is still the one to
+        // return to, and the stale hand-back must not pull focus out of the new overlay.
+        if (pending.current !== undefined) {
+          cancelAnimationFrame(pending.current);
+          pending.current = undefined;
+          return;
+        }
         const active = document.activeElement;
         element.current = active instanceof HTMLElement && active !== document.body ? active : null;
       },
@@ -218,8 +226,13 @@ export function useReturnFocus(): {
         const target = element.current;
         // `true`: Base UI's default when there is nothing (left) to return to.
         if (!target?.isConnected) return true;
-        // Next frame: the closing overlay has unmounted and the page is no longer inert.
-        requestAnimationFrame(() => target.focus({ preventScroll: true }));
+        // Next frame: the closing overlay has unmounted and the page is no longer inert. Only if
+        // nothing else took focus meanwhile.
+        pending.current = requestAnimationFrame(() => {
+          pending.current = undefined;
+          const active = document.activeElement;
+          if (!active || active === document.body) target.focus({ preventScroll: true });
+        });
         return false;
       },
     }),
