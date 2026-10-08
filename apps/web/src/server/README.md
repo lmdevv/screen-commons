@@ -135,7 +135,9 @@ to all of them, and handlers read `context.principal`. Every route also sets `ca
 and an `ANY: noSuchEndpoint` handler. Unsupported methods, unknown paths (`$.ts`) and
 trailing-slash or wrong-case variants therefore all get the same JSON `404 not_found` ("No such
 endpoint"). `OPTIONS` on any `/api/v1` path is a `204` preflight. `HEAD` runs the `GET` handler
-without a body. `tests/routes.test.ts` enumerates the route table. When adding an endpoint, add a
+without a body. Params arrive `decodeURIComponent`-ed (`%2F` included) and encoded static segments
+still match, as with the old Hono router; Start answers malformed escapes (`%E0`) with an empty
+`400` before routing. `tests/routes.test.ts` enumerates the route table. When adding an endpoint, add a
 route file and a row there.
 
 ## MCP (`/mcp`)
