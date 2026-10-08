@@ -459,7 +459,8 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     const search = page.getByRole("combobox", { name: "Search apps" });
     await tabTo(page, search);
     await page.keyboard.type(APP_NAME);
-    await page.waitForTimeout(400); // debounced search
+    await page.waitForTimeout(400); // debounced search…
+    await page.waitForLoadState("networkidle"); // …and its results, before reading the rows
     const existing = page.getByRole("option", { name: new RegExp(`^${APP_NAME}`, "u") });
     const create = page.getByRole("option", { name: /Create/u });
     await create.waitFor();
