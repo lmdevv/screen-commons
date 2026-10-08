@@ -41,4 +41,5 @@ overrides:
   sharp@<0.35.5: ^0.35.5
   source-map-js@<1.2.2: ^1.2.2
   tinypool@<2.1.2: ^2.1.2
+  esbuild@<0.25.0: ^0.25.0
   esbuild@>=0.27.3 <0.28.1: ^0.28.1
