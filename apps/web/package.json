@@ -27,7 +27,6 @@
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "fflate": "^0.8.2",
-    "hono": "catalog:",
     "lucide-react": "catalog:",
     "marked": "^18.1.0",
     "react": "catalog:",

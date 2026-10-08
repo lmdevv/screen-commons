@@ -45,9 +45,6 @@ catalogs:
     drizzle-orm:
       specifier: 0.45.3
       version: 0.45.3
-    hono:
-      specifier: ^4.13.13
-      version: 4.13.13
     lucide-react:
       specifier: ^1.41.0
       version: 1.52.0
@@ -204,9 +201,6 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
-      hono:
-        specifier: 'catalog:'
-        version: 4.13.13
       lucide-react:
         specifier: 'catalog:'
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
