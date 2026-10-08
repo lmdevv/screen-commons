@@ -8,12 +8,14 @@ import {
   SelectionBarButton,
   frameKind,
   pluralize,
+  useHotkey,
 } from "@screen-commons/ui";
 import { useSearch } from "@tanstack/react-router";
 import { Copy, Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { Platform } from "../../lib/platform";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { InfiniteSentinel } from "./infinite-sentinel";
 import { screenLink } from "./overlay-link";
@@ -140,16 +142,8 @@ function useSelection(screens: readonly Screen[]) {
   }, []);
 
   const overlayOpen = !!openScreen || !!openFlow;
-  useEffect(() => {
-    if (selected.size === 0 || overlayOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (document.querySelector("[role=dialog]")) return;
-      clear();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected.size, overlayOpen, clear]);
+  // Page scope: Esc in a dialog or menu closes that instead.
+  useHotkey(SHORTCUTS.clearSelection.keys, clear, { enabled: selected.size > 0 && !overlayOpen });
 
   const change = useCallback(
     (index: number, value: boolean) => {

@@ -10,17 +10,19 @@ import {
   DetailRow,
   EmptyState,
   FlowStrip,
-  Kbd,
   PageHeader,
   ScreenImage,
+  Shortcut,
   Skeleton,
   TabNav,
   TabNavItem,
   Textarea,
+  ariaKeyShortcuts,
   cn,
   formatBytes,
   formatDimensions,
   pluralize,
+  useHotkey,
 } from "@screen-commons/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -28,6 +30,7 @@ import { Check, CheckCheck, ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { queries } from "../../lib/queries";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { reviewItem } from "../../server/functions";
 import { patternLabel } from "../contribute/model";
@@ -118,28 +121,16 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
   const reject = (reason?: string) =>
     selected && decide.mutate({ entry: selected, decision: "reject", reason });
 
-  // J/K move, A approve, R reject. Ignored while typing.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
-      const key = event.key.toLowerCase();
-      if (key === "j" || key === "k") {
-        event.preventDefault();
-        const next = items[key === "j" ? index + 1 : index - 1];
-        if (next) setSelectedId(next.item.id);
-      } else if (key === "a" && selected) {
-        event.preventDefault();
-        approve();
-      } else if (key === "r" && selected) {
-        event.preventDefault();
-        setRejecting(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
+  // J/K move (hold to keep moving), A approves, R rejects. Page scope: paused while typing (the
+  // reject reason) or with a dialog open; never on auto-repeat for A/R.
+  const move = (step: 1 | -1) => {
+    const next = items[index + step];
+    if (next) setSelectedId(next.item.id);
+  };
+  useHotkey(SHORTCUTS.reviewNext.keys, () => move(1), { allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewPrevious.keys, () => move(-1), { allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewApprove.keys, approve, { enabled: !!selected });
+  useHotkey(SHORTCUTS.reviewReject.keys, () => setRejecting(true), { enabled: !!selected });
 
   const counts = { screens: data?.screens.length ?? 0, flows: data?.flows.length ?? 0 };
 
@@ -151,14 +142,14 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
         actions={
           <p className="hidden items-center gap-3 text-sm text-fg-muted lg:flex">
             <span className="flex items-center gap-1.5">
-              <Kbd>J</Kbd>
-              <Kbd>K</Kbd> move
+              <Shortcut keys={SHORTCUTS.reviewNext.keys} also={[SHORTCUTS.reviewPrevious.keys]} />{" "}
+              move
             </span>
             <span className="flex items-center gap-1.5">
-              <Kbd>A</Kbd> approve
+              <Shortcut keys={SHORTCUTS.reviewApprove.keys} /> approve
             </span>
             <span className="flex items-center gap-1.5">
-              <Kbd>R</Kbd> reject
+              <Shortcut keys={SHORTCUTS.reviewReject.keys} /> reject
             </span>
           </p>
         }
@@ -355,11 +346,18 @@ function ItemDetail({
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button variant="outline" onClick={() => onRejectingChange(true)} aria-keyshortcuts="R">
+          <Button
+            variant="outline"
+            onClick={() => onRejectingChange(true)}
+            aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.reviewReject.keys)}
+          >
             <X />
             Reject
           </Button>
-          <Button onClick={onApprove} aria-keyshortcuts="A">
+          <Button
+            onClick={onApprove}
+            aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.reviewApprove.keys)}
+          >
             <Check />
             Approve
           </Button>

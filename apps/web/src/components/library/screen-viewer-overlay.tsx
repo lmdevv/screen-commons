@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { withDisplayTitle } from "../../lib/display-title";
 import { queries } from "../../lib/queries";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { copyImageToClipboard, copyText, downloadScreen } from "./image-actions";
 import { findListedScreen, useResultListFor } from "./result-list";
@@ -145,27 +146,16 @@ export default function ScreenViewerOverlay({
     }
   }, []);
 
-  useHotkey("s", () => screen && save(screen, !screen.saved), {
-    mod: false,
-    enabled: open && !!screen,
-  });
-  useHotkey("z", () => changeZoom(zoom === "fit" ? "fill" : "fit"), { mod: false, enabled: open });
+  // Viewer keys apply only while the viewer is the topmost layer (not under a collection picker).
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const scope = { scope: viewerRef, enabled: open && !!screen };
+  useHotkey(SHORTCUTS.viewerSave.keys, () => screen && save(screen, !screen.saved), scope);
+  useHotkey(SHORTCUTS.viewerZoom.keys, () => changeZoom(zoom === "fit" ? "fill" : "fit"), scope);
   // ⌘C copies the image unless the user is copying selected text.
-  useEffect(() => {
-    if (!open || !screen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "c" || !(event.metaKey || event.ctrlKey) || event.shiftKey) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable=true]")) return;
-      if (window.getSelection()?.toString()) return;
-      event.preventDefault();
-      void copyImage(screen);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, screen, copyImage]);
+  useHotkey(SHORTCUTS.viewerCopy.keys, () => screen && void copyImage(screen), {
+    ...scope,
+    when: () => !window.getSelection()?.toString(),
+  });
 
   if (!screen) {
     return failed ? null : <ViewerSkeleton open={open} onClose={onClose} />;
@@ -174,6 +164,7 @@ export default function ScreenViewerOverlay({
   const platform = screen.app.platform;
   return (
     <ScreenViewer
+      ref={viewerRef}
       open={open}
       onOpenChange={(next) => !next && onClose()}
       screen={screen}
