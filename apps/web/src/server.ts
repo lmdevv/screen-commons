@@ -1,5 +1,6 @@
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
+import { ALLOW_ANY_ORIGIN, isCrossOrigin } from "./server/http/cors";
 import {
   bodyLimitFor,
   bodyTooLarge,
@@ -19,7 +20,11 @@ export default createServerEntry({
   fetch(request, options) {
     if (!request.body) return handler.fetch(request, options);
     const limit = bodyLimitFor(new URL(request.url).pathname);
-    if (declaredTooLarge(request, limit)) return errorResponse(bodyTooLarge(limit));
+    if (declaredTooLarge(request, limit)) {
+      // Cross-origin API/MCP callers (the extension) need CORS to read the 413 envelope.
+      const cors = isCrossOrigin(request) ? ALLOW_ANY_ORIGIN : undefined;
+      return errorResponse(bodyTooLarge(limit), cors);
+    }
     return handler.fetch(limitRequestBody(request, limit + BACKSTOP_SLACK), options);
   },
 });

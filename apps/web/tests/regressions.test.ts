@@ -263,6 +263,20 @@ describe("4. upload limits are enforced before allocation, on every transport", 
     });
     expect(huge.status).toBe(413);
     expect((await huge.json()).error.code).toBe("payload_too_large");
+
+    // The extension calls cross-origin; it can only read the 413 with CORS.
+    const crossOrigin = await fetch(`${baseUrl()}/api/v1/flows`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${adminKey}`,
+        "content-type": "application/json",
+        origin: "chrome-extension://screen-commons-test",
+      },
+      body: JSON.stringify({ name: "x".repeat(2 * 1024 * 1024) }),
+    });
+    expect(crossOrigin.status).toBe(413);
+    expect(crossOrigin.headers.get("access-control-allow-origin")).toBe("*");
+    await crossOrigin.body?.cancel();
   });
 
   it("bounds each base64 image before decoding it", async () => {
