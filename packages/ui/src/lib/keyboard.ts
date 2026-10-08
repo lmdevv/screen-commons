@@ -335,10 +335,11 @@ function nameKeys(shortcut: string, apple: boolean, form: KeyForm): string[][] {
   return parseShortcut(shortcut).map((chord) => {
     const parts = chord.split(/\+(?!$)/u);
     const key = parts.pop()!;
-    return [
-      ...parts.map((mod) => modifierName(mod, apple)[form]),
-      KEY_NAMES[key]?.[form] ?? (key.length === 1 ? key.toUpperCase() : key),
-    ];
+    // A bare modifier ("shift" for "hold while clicking") is named like one.
+    const name = (MODIFIERS as readonly string[]).includes(key)
+      ? modifierName(key, apple)[form]
+      : (KEY_NAMES[key]?.[form] ?? (key.length === 1 ? key.toUpperCase() : key));
+    return [...parts.map((mod) => modifierName(mod, apple)[form]), name];
   });
 }
 

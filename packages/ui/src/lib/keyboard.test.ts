@@ -444,6 +444,8 @@ describe("formatting", () => {
     expect(formatShortcut("g s", false)).toEqual([["G"], ["S"]]);
     expect(formatShortcut("arrowleft", false)).toEqual([["←"]]);
     expect(formatShortcut("?", false)).toEqual([["?"]]);
+    expect(formatShortcut("shift", true)).toEqual([["⇧"]]);
+    expect(formatShortcut("mod", false)).toEqual([["Ctrl"]]);
   });
 
   it("spells shortcuts out for screen readers", () => {
