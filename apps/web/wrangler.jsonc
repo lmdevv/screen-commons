@@ -1,7 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // Existing resource names are retained so the rebrand preserves deployments and data.
-  "name": "open-ui",
+  "name": "screen-commons",
   "main": "src/server.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,16 +8,17 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "open-ui",
-      // Replace with your D1 database id (`wrangler d1 create open-ui`) before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_name": "screen-commons",
+      // Self-hosting: replace with your own id from `wrangler d1 create screen-commons`.
+      "database_id": "96207939-3a56-4fba-a2c4-841405a0782a",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "open-ui-media" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "screen-commons-media" }],
   // Server-side thumbnails when a client can't send one (e.g. remote MCP upload_screen).
   "images": { "binding": "IMAGES" },
   "vars": {
-    "APP_URL": "http://localhost:5173",
+    // Public origin. `.dev.vars` overrides it locally (see .dev.vars.example).
+    "APP_URL": "https://screen-commons.lmdev.workers.dev",
   },
 }

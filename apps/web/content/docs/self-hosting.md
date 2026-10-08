@@ -7,7 +7,7 @@ section: Self-hosting
 
 Screen Commons runs on Cloudflare: one Worker serves the website, the REST API, remote MCP and images, backed by a D1 database and an R2 bucket.
 
-The default Worker, D1 and R2 resource names still use `open-ui` to preserve existing deployments and stored data. You can choose other names for a new instance by updating `apps/web/wrangler.jsonc` and the commands below together.
+The default Worker, D1 and R2 resource names are `screen-commons`. You can choose other names by updating `apps/web/wrangler.jsonc` and the commands below together.
 
 ## Prerequisites
 
@@ -25,11 +25,13 @@ All commands below run in `apps/web`.
 ## 1. Create the database and bucket
 
 ```bash
-pnpm exec wrangler d1 create open-ui
-pnpm exec wrangler r2 bucket create open-ui-media
+pnpm exec wrangler d1 create screen-commons
+pnpm exec wrangler r2 bucket create screen-commons-media
 ```
 
 `d1 create` prints a `database_id`. Copy it.
+
+If `r2 bucket create` fails with "Please enable R2 through the Cloudflare Dashboard", open **R2 Object Storage** in the dashboard and enable it once for your account (the free tier needs a payment method on file), then run the command again.
 
 ## 2. Configure `wrangler.jsonc`
 
@@ -40,12 +42,12 @@ Open `apps/web/wrangler.jsonc`, paste the `database_id`, and set `APP_URL` to th
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "open-ui",
+      "database_name": "screen-commons",
       "database_id": "<your database id>",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "open-ui-media" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "screen-commons-media" }],
   "vars": {
     "APP_URL": "https://ui.example.com",
   },
@@ -111,11 +113,25 @@ This builds the app, applies database migrations to the remote D1 database, and 
 
 To apply migrations on their own, use `pnpm db:migrate:remote`.
 
+### Deploy from GitHub Actions
+
+The CI workflow deploys every push to `main` after checks, tests and the build pass, once the repository has:
+
+- a `CLOUDFLARE_ACCOUNT_ID` **variable** (your account id from `pnpm exec wrangler whoami`), and
+- a `CLOUDFLARE_API_TOKEN` **secret**: an API token created from the **Edit Cloudflare Workers** template with **D1: Edit** added.
+
+```bash
+gh variable set CLOUDFLARE_ACCOUNT_ID --body <account-id>
+gh secret set CLOUDFLARE_API_TOKEN
+```
+
+Until the variable is set, the deploy job is skipped.
+
 ## 5. Add your domain
 
-Wrangler deploys to `https://open-ui.<your-subdomain>.workers.dev`. To serve it from your own domain (the zone must be on Cloudflare), either:
+Wrangler deploys to `https://screen-commons.<your-subdomain>.workers.dev`. To serve it from your own domain (the zone must be on Cloudflare), either:
 
-- In the Cloudflare dashboard, open **Workers & Pages → open-ui → Settings → Domains & Routes → Add → Custom domain**, or
+- In the Cloudflare dashboard, open **Workers & Pages → screen-commons → Settings → Domains & Routes → Add → Custom domain**, or
 - Add a route to `wrangler.jsonc` and deploy again:
 
   ```jsonc
@@ -131,7 +147,7 @@ Open `https://ui.example.com/sign-up` and create your account **before you share
 There's no UI for changing roles yet. To promote another user, run SQL against the database:
 
 ```bash
-pnpm exec wrangler d1 execute open-ui --remote \
+pnpm exec wrangler d1 execute screen-commons --remote \
   --command "UPDATE user SET role = 'admin' WHERE email = 'grace@example.com'"
 ```
 
@@ -141,7 +157,7 @@ Then [seed the catalog](/docs/quickstart#5-add-content) with your instance's URL
 
 Images live in R2 and everything else in D1.
 
-- **D1 Time Travel** keeps point-in-time history automatically. Restore with `pnpm exec wrangler d1 time-travel restore open-ui --timestamp <unix-time-or-rfc3339>`. Check your plan's retention window.
+- **D1 Time Travel** keeps point-in-time history automatically. Restore with `pnpm exec wrangler d1 time-travel restore screen-commons --timestamp <unix-time-or-rfc3339>`. Check your plan's retention window.
 - **`wrangler d1 export` doesn't support virtual tables**, and search uses FTS5 virtual tables (`screen_fts`, `app_fts`, `flow_fts`), so a plain export of the database fails. Rely on Time Travel for recovery. The search index is derived from the base tables by triggers, so the base tables are the data that matters.
 - **R2** has no built-in snapshots. Copy the bucket with any S3-compatible tool if you need an off-site copy. Image keys are content hashes, so incremental copies are cheap.
 
