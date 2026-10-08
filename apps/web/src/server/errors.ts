@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@open-ui/core";
+import type { ErrorCode } from "@screen-commons/core";
 import { ZodError } from "zod";
 
 const STATUS: Record<ErrorCode, number> = {

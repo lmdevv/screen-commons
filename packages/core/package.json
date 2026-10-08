@@ -1,5 +1,5 @@
 {
-  "name": "@open-ui/core",
+  "name": "@screen-commons/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@open-ui/config": "workspace:*",
+    "@screen-commons/config": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

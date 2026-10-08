@@ -19,8 +19,14 @@ import {
   TabNavItem,
   Toolbar,
   toast,
-} from "@open-ui/ui";
-import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, type Platform } from "@open-ui/core/taxonomy";
+} from "@screen-commons/ui";
+import {
+  CATEGORIES,
+  ELEMENTS,
+  FLOW_TYPES,
+  PATTERNS,
+  type Platform,
+} from "@screen-commons/core/taxonomy";
 import { Copy, Download, SearchX, SlidersHorizontal } from "lucide-react";
 import * as React from "react";
 

@@ -1,4 +1,4 @@
-import type { Screen } from "@open-ui/core";
+import type { Screen } from "@screen-commons/core";
 import {
   ScreenGrid,
   ScreenGridItem,
@@ -8,7 +8,7 @@ import {
   SelectionBarButton,
   frameKind,
   pluralize,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useSearch } from "@tanstack/react-router";
 import { Copy, Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -56,7 +56,7 @@ export function ScreenResults({
   isFetchingMore = false,
   loadMore,
   selectable = true,
-  downloadName = "Open UI screens",
+  downloadName = "Screen Commons screens",
   renderCaption,
   priority = true,
   onSaveToggle,

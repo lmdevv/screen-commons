@@ -14,14 +14,14 @@ import {
   type ExtractedMetadata,
   type Page,
   type Visitor,
-} from "@open-ui/capture";
+} from "@screen-commons/capture";
 import {
   VIEWPORTS,
   base64ToBytes,
   type PageMetadata,
   type TabInfo,
   type Viewport,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 
 import type { BridgeServer } from "./bridge";
 

@@ -2,7 +2,7 @@ import {
   BRIDGE_CLOSE_REPLACED,
   BRIDGE_CLOSE_UNAUTHORIZED,
   type BridgeMessage,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 
@@ -126,7 +126,7 @@ describe("BridgeServer", () => {
     expect(welcome).toMatchObject({
       type: "welcome",
       protocol: 1,
-      server: { name: "open-ui-mcp" },
+      server: { name: "screen-commons-mcp" },
     });
     await connected;
     expect(server.connected).toBe(true);

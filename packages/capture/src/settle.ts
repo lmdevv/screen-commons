@@ -117,14 +117,14 @@ export function hideOverlaysInPage(selectors: string[]): number {
   const launcherText = /\b(chat|help|support|question|assistant|ask|message|talk to|agent)\b/iu;
   const isHidden = (element: Element): boolean => {
     for (let node: Element | null = element; node;) {
-      if (node.hasAttribute("data-open-ui-hidden")) return true;
+      if (node.hasAttribute("data-screen-commons-hidden")) return true;
       node = node.parentElement ?? ((node.getRootNode() as ShadowRoot).host || null);
     }
     return false;
   };
   const hide = (element: HTMLElement) => {
     element.style.setProperty("display", "none", "important");
-    element.setAttribute("data-open-ui-hidden", "");
+    element.setAttribute("data-screen-commons-hidden", "");
   };
   const textOf = (element: HTMLElement) =>
     (element.innerText || element.textContent || "").replace(/\s+/gu, " ").trim();

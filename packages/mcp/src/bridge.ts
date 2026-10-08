@@ -9,7 +9,7 @@ import {
   type BridgeMessage,
   type BridgeMethod,
   type BridgeMethods,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import { WebSocket, WebSocketServer } from "ws";
 
 export const EXTENSION_ORIGIN = /^(chrome-extension|moz-extension|safari-web-extension):\/\//u;
@@ -82,7 +82,7 @@ export class BridgeServer extends EventEmitter {
       helloTimeoutMs: 10_000,
       idleTimeoutMs: 75_000,
       maxPayload: 64 * 1024 * 1024,
-      serverInfo: { name: "open-ui-mcp", version: "0.1.0" },
+      serverInfo: { name: "screen-commons-mcp", version: "0.1.0" },
       log: () => undefined,
       ...options,
     };
@@ -272,7 +272,7 @@ export class BridgeServer extends EventEmitter {
     const client = this.client;
     if (!client || client.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(
-        new BridgeError("The Open UI extension is not connected", "not_connected"),
+        new BridgeError("The Screen Commons extension is not connected", "not_connected"),
       );
     }
     const id = randomUUID();

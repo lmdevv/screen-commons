@@ -1,11 +1,13 @@
 ---
 title: Self-hosting
-description: Deploy Open UI to Cloudflare Workers with D1 and R2, configure auth and your domain, and keep backups.
+description: Deploy Screen Commons to Cloudflare Workers with D1 and R2, configure auth and your domain, and keep backups.
 order: 9
 section: Self-hosting
 ---
 
-Open UI runs on Cloudflare: one Worker serves the website, the REST API, remote MCP and images, backed by a D1 database and an R2 bucket.
+Screen Commons runs on Cloudflare: one Worker serves the website, the REST API, remote MCP and images, backed by a D1 database and an R2 bucket.
+
+The default Worker, D1 and R2 resource names still use `open-ui` to preserve existing deployments and stored data. You can choose other names for a new instance by updating `apps/web/wrangler.jsonc` and the commands below together.
 
 ## Prerequisites
 
@@ -100,7 +102,7 @@ Email and password sign-in is always on.
 pnpm cf:deploy
 ```
 
-From the repository root, the equivalent is `pnpm --filter @open-ui/web cf:deploy`.
+From the repository root, the equivalent is `pnpm --filter @screen-commons/web cf:deploy`.
 
 This builds the app, applies database migrations to the remote D1 database, and deploys the Worker. Run it again for every update; migrations that already ran are skipped.
 

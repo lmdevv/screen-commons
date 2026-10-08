@@ -1,4 +1,4 @@
-import { appNameFromUrl, hostnameOf, suggestPatterns } from "@open-ui/core/utils";
+import { appNameFromUrl, hostnameOf, suggestPatterns } from "@screen-commons/core/utils";
 
 import { kindForViewport } from "../lib/geometry";
 import { getItem, getSettings, notifyTrayChanged, setItem } from "../lib/storage";

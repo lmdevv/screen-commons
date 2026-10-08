@@ -2,7 +2,7 @@
  * "Save to collection" dialog (lazy chunk). One item: rows toggle membership (check marks from
  * `getSavedIn`). Several items (bulk selection): a row adds them all. Inline "New collection".
  */
-import type { Collection } from "@open-ui/core";
+import type { Collection } from "@screen-commons/core";
 import {
   Button,
   Dialog,
@@ -15,7 +15,7 @@ import {
   Spinner,
   cn,
   pluralize,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Check, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";

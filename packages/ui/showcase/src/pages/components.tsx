@@ -103,8 +103,8 @@ import {
   UploadDropzone,
   UploadItem,
   toast,
-} from "@open-ui/ui";
-import { CATEGORIES } from "@open-ui/core/taxonomy";
+} from "@screen-commons/ui";
+import { CATEGORIES } from "@screen-commons/core/taxonomy";
 import {
   Bookmark,
   Copy,
@@ -226,8 +226,8 @@ export function ComponentsPage() {
   return (
     <Container className="pt-10 pb-24 sm:pt-12">
       <PageHeader
-        title="Open UI design system"
-        description="Quiet, content-first components for the Open UI library. Every token, primitive and library component, rendered with synthetic data."
+        title="Screen Commons design system"
+        description="Quiet, content-first components for the Screen Commons library. Every token, primitive and library component, rendered with synthetic data."
         actions={<ThemeToggle size="md" />}
       />
       <nav aria-label="Sections" className="mt-8 mb-4 flex flex-wrap gap-2">
@@ -259,7 +259,7 @@ export function ComponentsPage() {
           <Logo size="lg" />
           <Logo />
           <Logo size="sm" />
-          <LogoMark size={32} title="Open UI" />
+          <LogoMark size={32} title="Screen Commons" />
           <span className="flex size-12 items-center justify-center rounded-[12px] bg-inverse text-inverse-fg">
             <LogoMark size={24} />
           </span>
@@ -696,7 +696,7 @@ export function ComponentsPage() {
             <CardContent>
               <CodeBlock
                 title="MCP config"
-                code={`{\n  "mcpServers": {\n    "open-ui": { "command": "npx", "args": ["open-ui-mcp"] }\n  }\n}`}
+                code={`{\n  "mcpServers": {\n    "screen-commons": { "command": "node", "args": ["/path/to/screen-commons/packages/mcp/dist/index.js"] }\n  }\n}`}
               />
             </CardContent>
             <CardFooter>
@@ -769,7 +769,7 @@ export function ComponentsPage() {
       <Section
         id="library"
         title="Library components"
-        description="Typed against @open-ui/core entities. Presentational only — no data fetching."
+        description="Typed against @screen-commons/core entities. Presentational only — no data fetching."
       >
         <Demo label="App logos">
           {(["xs", "sm", "md", "lg", "xl"] as const).map((size) => (

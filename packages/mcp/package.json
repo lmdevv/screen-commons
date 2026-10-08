@@ -1,11 +1,11 @@
 {
-  "name": "@open-ui/mcp",
+  "name": "@screen-commons/mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "open-ui-mcp: stdio MCP server for Open UI (catalog tools + browser capture via the extension bridge or headless Chromium).",
+  "description": "screen-commons-mcp: stdio MCP server for Screen Commons (catalog tools + browser capture via the extension bridge or headless Chromium).",
   "license": "Apache-2.0",
   "bin": {
-    "open-ui-mcp": "./dist/index.js"
+    "screen-commons-mcp": "./dist/index.js"
   },
   "files": [
     "dist"
@@ -29,9 +29,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@open-ui/capture": "workspace:*",
-    "@open-ui/config": "workspace:*",
-    "@open-ui/core": "workspace:*",
+    "@screen-commons/capture": "workspace:*",
+    "@screen-commons/config": "workspace:*",
+    "@screen-commons/core": "workspace:*",
     "@types/node": "catalog:",
     "@types/ws": "^8.18.2",
     "tsup": "^8.5.1",

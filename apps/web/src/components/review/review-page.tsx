@@ -1,5 +1,5 @@
-import type { FlowSummary, Screen } from "@open-ui/core";
-import { labelFor } from "@open-ui/core/taxonomy";
+import type { FlowSummary, Screen } from "@screen-commons/core";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import {
   AppLogo,
   Badge,
@@ -21,7 +21,7 @@ import {
   formatBytes,
   formatDimensions,
   pluralize,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Check, CheckCheck, ExternalLink, X } from "lucide-react";

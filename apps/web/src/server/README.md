@@ -1,6 +1,6 @@
 # apps/web server layer
 
-Everything server-side for the Open UI web app. Runs inside the Cloudflare Worker (workerd in
+Everything server-side for the Screen Commons web app. Runs inside the Cloudflare Worker (workerd in
 dev via `@cloudflare/vite-plugin`).
 
 ```
@@ -11,7 +11,7 @@ src/server/
   principal.ts     getPrincipal(request): bearer key OR session cookie (same-origin only)
   errors.ts        ServiceError(code, message) + zod → bad_request mapping
   ids.ts           time-ordered ids, sha256Hex, base64url
-  services/        plain async functions returning exact @open-ui/core API shapes
+  services/        plain async functions returning exact @screen-commons/core API shapes
     catalog.ts     listApps, getApp, listScreens, getScreen, listFlows, getFlow, search, getTaxonomy
     ingest.ts      captures, createScreen, createFlow, uploadScreenFromTool (MCP)
     collections.ts listCollections, getCollection, create/rename/deleteCollection, save, unsave
@@ -82,7 +82,7 @@ src/server/
 Call them as `fn({ data })` (or `fn()` when there's no input). All require a signed-in session
 except `getCurrentUser` / `getAuthOptions`. Errors: not signed in → throws a router `redirect` to
 `/sign-in`; missing or hidden item → throws `notFound()`; anything else → `Error(message)`.
-Types come from `@open-ui/core`. Query option factories for all reads live in
+Types come from `@screen-commons/core`. Query option factories for all reads live in
 `src/lib/queries.ts` (`queries.apps(...)`, `queries.screensInfinite(...)`, …).
 
 | Function           | Method | Input (`data`)                                                                                                          | Output                                                                        |
@@ -119,7 +119,7 @@ The root route puts `user` (`User | null`) in router context; the `_app` layout 
 
 ## REST API (`/api/v1`)
 
-Matches `packages/core/src/client.ts` exactly (use `createOpenUiClient`). Auth: session cookie
+Matches `packages/core/src/client.ts` exactly (use `createScreenCommonsClient`). Auth: session cookie
 (same-origin only) or `Authorization: Bearer oui_…` (any origin, `Access-Control-Allow-Origin: *`,
 never credentials). `/taxonomy` is public. Extra aliases from the spec:
 `POST/DELETE /collections/:id/items`, `GET /apps/:slug?platform=`. Errors are

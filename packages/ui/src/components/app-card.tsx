@@ -1,6 +1,6 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
-import type { AppSummary } from "@open-ui/core/schemas";
+import type { AppSummary } from "@screen-commons/core/schemas";
 import { Bookmark } from "lucide-react";
 import type * as React from "react";
 

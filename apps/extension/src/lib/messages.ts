@@ -1,4 +1,4 @@
-import type { CaptureBatchResult } from "@open-ui/core/schemas";
+import type { CaptureBatchResult } from "@screen-commons/core/schemas";
 import { browser, type Browser } from "wxt/browser";
 
 import type { BridgeStatus } from "./storage";

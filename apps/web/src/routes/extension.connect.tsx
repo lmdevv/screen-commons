@@ -8,7 +8,7 @@ export const Route = createFileRoute("/extension/connect")({
   beforeLoad: ({ context, location }) => {
     if (!context.user) throw redirect({ to: "/sign-in", search: { redirect: location.href } });
   },
-  head: () => ({ meta: [{ title: "Connect the extension · Open UI" }] }),
+  head: () => ({ meta: [{ title: "Connect the extension · Screen Commons" }] }),
   component: () => (
     <AuthLayout size="md">
       <ExtensionConnect />

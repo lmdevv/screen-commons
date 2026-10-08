@@ -21,7 +21,7 @@ import {
   pluralize,
   textLinkClassName,
   toast,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { ArrowLeft, Bookmark, Ellipsis, ExternalLink, Flag, Link } from "lucide-react";
 import * as React from "react";
 

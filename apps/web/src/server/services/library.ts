@@ -3,8 +3,8 @@
  * "which of my collections hold this item" for the collection picker, and screenshot-text
  * snippets for search results. Same visibility rules as the catalog (`list` mode).
  */
-import { platformSchema } from "@open-ui/core";
-import { collection, collectionItem, ftsQuery, inJsonArray, screen } from "@open-ui/db";
+import { platformSchema } from "@screen-commons/core";
+import { collection, collectionItem, ftsQuery, inJsonArray, screen } from "@screen-commons/db";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/sign-in")({
       // Decorative collage: a failure must never block the form.
       context.queryClient.ensureQueryData(landingQuery()).catch(() => null),
     ]),
-  head: () => ({ meta: [{ title: "Sign in · Open UI" }] }),
+  head: () => ({ meta: [{ title: "Sign in · Screen Commons" }] }),
   component: Page,
 });
 

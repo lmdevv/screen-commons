@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_app/review")({
     if (context.user.role !== "admin") throw notFound();
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(reviewQueueQuery()),
-  head: () => ({ meta: [{ title: "Review · Open UI" }] }),
+  head: () => ({ meta: [{ title: "Review · Screen Commons" }] }),
   component: Review,
 });
 

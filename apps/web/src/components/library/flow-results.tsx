@@ -1,5 +1,5 @@
-import type { FlowSummary } from "@open-ui/core";
-import { FlowCard, ScreenGrid, ScreenGridItem, ScreenGridSkeleton } from "@open-ui/ui";
+import type { FlowSummary } from "@screen-commons/core";
+import { FlowCard, ScreenGrid, ScreenGridItem, ScreenGridSkeleton } from "@screen-commons/ui";
 
 import { InfiniteSentinel } from "./infinite-sentinel";
 import { flowLink } from "./overlay-link";

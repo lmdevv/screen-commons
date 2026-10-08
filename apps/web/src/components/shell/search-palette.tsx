@@ -3,8 +3,20 @@
  * categories, UI elements, flow types) scoped by the left rail; typing → live grouped results from
  * the `search` server function (debounced). Enter on the first row opens /search?q=….
  */
-import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, labelFor } from "@open-ui/core/taxonomy";
-import { AppLogo, CommandGroup, CommandItem, CommandPalette, CommandRailItem } from "@open-ui/ui";
+import {
+  CATEGORIES,
+  ELEMENTS,
+  FLOW_TYPES,
+  PATTERNS,
+  labelFor,
+} from "@screen-commons/core/taxonomy";
+import {
+  AppLogo,
+  CommandGroup,
+  CommandItem,
+  CommandPalette,
+  CommandRailItem,
+} from "@screen-commons/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {

@@ -3,7 +3,7 @@
  * instantly, then its detail (flows, neighbours). ←/→ walk the current result list (loading the
  * next page at its end), falling back to the app's capture order for deep links.
  */
-import type { Screen, ScreenDetail } from "@open-ui/core";
+import type { Screen, ScreenDetail } from "@screen-commons/core";
 import {
   Button,
   Lightbox,
@@ -12,8 +12,8 @@ import {
   Skeleton,
   Tooltip,
   useHotkey,
-} from "@open-ui/ui";
-import { ScreenViewer } from "@open-ui/ui/components/screen-viewer";
+} from "@screen-commons/ui";
+import { ScreenViewer } from "@screen-commons/ui/components/screen-viewer";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink, Link2 } from "lucide-react";
@@ -28,7 +28,7 @@ import { useSaveToggle } from "./saving";
 
 type ViewerData = Screen & Partial<Pick<ScreenDetail, "flows" | "previousId" | "nextId">>;
 
-const ZOOM_KEY = "open-ui-viewer-zoom";
+const ZOOM_KEY = "screen-commons-viewer-zoom";
 
 export default function ScreenViewerOverlay({
   id,

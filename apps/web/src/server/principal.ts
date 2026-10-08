@@ -1,4 +1,4 @@
-import type { Role, User } from "@open-ui/core";
+import type { Role, User } from "@screen-commons/core";
 
 import { getAuth } from "./auth";
 import { verifyToken } from "./keys";

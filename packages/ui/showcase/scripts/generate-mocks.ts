@@ -2,7 +2,7 @@
  * Renders the synthetic mock pages (see mock-pages.ts) with playwright-core + system Chromium and
  * writes small WebP "screenshots" + SVG app icons to showcase/public/mock/.
  *
- *   pnpm --filter @open-ui/ui showcase:mocks
+ *   pnpm --filter @screen-commons/ui showcase:mocks
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

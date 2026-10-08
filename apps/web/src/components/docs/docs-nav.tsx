@@ -1,4 +1,4 @@
-import { cn } from "@open-ui/ui";
+import { cn } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 
 import type { DocsSection } from "./content";

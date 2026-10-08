@@ -1,5 +1,5 @@
-import { LIMITS } from "@open-ui/core/schemas";
-import { base64ToBytes, bytesToBase64 } from "@open-ui/core/utils";
+import { LIMITS } from "@screen-commons/core/schemas";
+import { base64ToBytes, bytesToBase64 } from "@screen-commons/core/utils";
 
 import { dominantColor } from "../lib/color";
 import { planThumbnail, type Rect, type ShotKind } from "../lib/geometry";

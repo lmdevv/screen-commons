@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 
 /**
- * tailwind-merge configured for Open UI's custom type scale, so `text-sm` (font size) and
+ * tailwind-merge configured for Screen Commons's custom type scale, so `text-sm` (font size) and
  * `text-fg-muted` (colour) are not treated as conflicting classes.
  */
 const twMerge = extendTailwindMerge({

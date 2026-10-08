@@ -1,4 +1,4 @@
-import { VIEWPORTS, type BridgeMethods, type TabInfo } from "@open-ui/core/bridge";
+import { VIEWPORTS, type BridgeMethods, type TabInfo } from "@screen-commons/core/bridge";
 import { browser, type Browser } from "wxt/browser";
 
 import type { BridgeRequest } from "../lib/bridge-protocol";

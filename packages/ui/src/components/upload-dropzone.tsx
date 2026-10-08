@@ -8,7 +8,7 @@ import { Progress } from "./progress";
 import { Spinner } from "./spinner";
 
 /**
- * Mirrors `ACCEPTED_IMAGE_TYPES` / `LIMITS.maxImageBytes` in @open-ui/core — kept local so this
+ * Mirrors `ACCEPTED_IMAGE_TYPES` / `LIMITS.maxImageBytes` in @screen-commons/core — kept local so this
  * component doesn't pull zod into the client bundle.
  */
 const DEFAULT_ACCEPT = ["image/png", "image/jpeg", "image/webp"] as const;

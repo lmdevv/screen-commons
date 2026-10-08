@@ -1,5 +1,5 @@
-import type { AppSummary } from "@open-ui/core";
-import { AppCard, ScreenGrid, ScreenGridItem, ScreenGridSkeleton } from "@open-ui/ui";
+import type { AppSummary } from "@screen-commons/core";
+import { AppCard, ScreenGrid, ScreenGridItem, ScreenGridSkeleton } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 
 import type { Platform } from "../../lib/platform";

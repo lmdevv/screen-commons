@@ -1,4 +1,4 @@
-import { LIMITS } from "@open-ui/core/schemas";
+import { LIMITS } from "@screen-commons/core/schemas";
 
 /**
  * Largest bitmap we produce. Chromium's compositor reliably captures up to 16384px per side;

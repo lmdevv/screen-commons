@@ -18,7 +18,7 @@ export interface FooterProps extends React.HTMLAttributes<HTMLElement> {
   logo: React.ReactNode;
   tagline?: React.ReactNode;
   columns?: readonly FooterColumn[];
-  /** Bottom-left, e.g. "© 2026 Open UI · Apache-2.0". */
+  /** Bottom-left, e.g. "© 2026 Screen Commons · Apache-2.0". */
   legal?: React.ReactNode;
   /** Bottom-right: ThemeToggle, GitHub icon link… */
   aside?: React.ReactNode;

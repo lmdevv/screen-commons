@@ -17,7 +17,7 @@ import {
   type ScreenDetail,
   type SearchResult,
   type Taxonomy,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import {
   app,
   flow,
@@ -27,7 +27,7 @@ import {
   jsonArrayContains,
   screen,
   type ScreenRow,
-} from "@open-ui/db";
+} from "@screen-commons/db";
 import { and, asc, desc, eq, gt, lt, or, sql, type SQL } from "drizzle-orm";
 import { alias, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 

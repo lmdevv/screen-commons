@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(landingQuery()),
   head: () => ({
     meta: [
-      { title: "Open UI — Real product screens, open to everyone" },
+      { title: "Screen Commons — Real product screens, open to everyone" },
       {
         name: "description",
         content:

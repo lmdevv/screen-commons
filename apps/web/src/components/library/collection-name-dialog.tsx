@@ -1,5 +1,5 @@
 /* Create / rename a collection (lazy chunk). */
-import type { Collection } from "@open-ui/core";
+import type { Collection } from "@screen-commons/core";
 import {
   Button,
   Dialog,
@@ -12,7 +12,7 @@ import {
   Field,
   Input,
   Label,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";

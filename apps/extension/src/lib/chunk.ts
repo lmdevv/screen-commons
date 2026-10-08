@@ -1,4 +1,4 @@
-import { LIMITS } from "@open-ui/core/schemas";
+import { LIMITS } from "@screen-commons/core/schemas";
 
 /** Request body budget per batch (base64 inflates by 4/3); well under Workers' 100 MB limit. */
 export const MAX_BATCH_BYTES = 32 * 1024 * 1024;

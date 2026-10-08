@@ -1,4 +1,4 @@
-import type { AppSummary, Collection, FlowSummary, Screen } from "@open-ui/core";
+import type { AppSummary, Collection, FlowSummary, Screen } from "@screen-commons/core";
 import {
   app,
   collection,
@@ -9,7 +9,7 @@ import {
   screen,
   type CollectionItemKind,
   type CollectionRow,
-} from "@open-ui/db";
+} from "@screen-commons/db";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 

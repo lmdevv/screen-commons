@@ -15,10 +15,10 @@ Locally, that's `http://localhost:5173/api/v1`. Request and response bodies are 
 
 ## Authentication
 
-| Method         | How                           | Works from                                              |
-| -------------- | ----------------------------- | ------------------------------------------------------- |
-| API key        | `Authorization: Bearer oui_…` | Anywhere: scripts, servers, extensions, other websites. |
-| Session cookie | Signed in on the website      | Same-origin requests from the Open UI website only.     |
+| Method         | How                           | Works from                                                 |
+| -------------- | ----------------------------- | ---------------------------------------------------------- |
+| API key        | `Authorization: Bearer oui_…` | Anywhere: scripts, servers, extensions, other websites.    |
+| Session cookie | Signed in on the website      | Same-origin requests from the Screen Commons website only. |
 
 ```bash
 curl http://localhost:5173/api/v1/me \
@@ -751,14 +751,14 @@ Bodies are measured as they stream in; `Content-Length` isn't trusted.
 
 ## TypeScript client
 
-`@open-ui/core` ships a typed client for browsers, Workers, Node and extensions. It's a workspace package in this repository, not published to npm; depend on it with `"@open-ui/core": "workspace:*"` inside the monorepo.
+`@screen-commons/core` ships a typed client for browsers, Workers, Node and extensions. It's a workspace package in this repository, not published to npm; depend on it with `"@screen-commons/core": "workspace:*"` inside the monorepo.
 
 ```ts
-import { OpenUiApiError, createOpenUiClient } from "@open-ui/core";
+import { ScreenCommonsApiError, createScreenCommonsClient } from "@screen-commons/core";
 
-const client = createOpenUiClient({
+const client = createScreenCommonsClient({
   baseUrl: "http://localhost:5173",
-  apiKey: process.env.OPEN_UI_API_KEY,
+  apiKey: process.env.SCREEN_COMMONS_API_KEY,
 });
 
 const { items, nextCursor } = await client.listScreens({
@@ -771,7 +771,7 @@ for (const screen of items) console.log(screen.app.name, screen.title, screen.th
 try {
   await client.review("screen", "01m4a8ae3z0000yfr7j15phk4b", "approve");
 } catch (error) {
-  if (error instanceof OpenUiApiError && error.code === "forbidden") {
+  if (error instanceof ScreenCommonsApiError && error.code === "forbidden") {
     console.log("Only admins can review");
   }
 }
@@ -796,4 +796,6 @@ Omit `apiKey` to use the session cookie from same-origin browser code.
 | `listKeys()` / `createKey(name)` / `revokeKey(id)`                               | `/keys` (session only)                      |
 | `reviewQueue()` / `review(kind, id, decision, reason?)`                          | `GET /review`, `POST /review/{kind}/{id}`   |
 
-Request and response types (`Screen`, `FlowDetail`, `CaptureBatchInput`, …) are exported from the same package. Failed requests throw `OpenUiApiError` with `status`, `code`, `message` and `details`.
+The previous `createOpenUiClient`, `OpenUiApiError`, `OpenUiClient` and `OpenUiClientOptions` exports remain available as deprecated aliases.
+
+Request and response types (`Screen`, `FlowDetail`, `CaptureBatchInput`, …) are exported from the same package. Failed requests throw `ScreenCommonsApiError` with `status`, `code`, `message` and `details`.

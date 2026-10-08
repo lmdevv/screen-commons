@@ -1,9 +1,9 @@
 /*
- * Open UI design tokens + base styles.
+ * Screen Commons design tokens + base styles.
  *
  * Consumers import this file ONCE from their app stylesheet, instead of `@import "tailwindcss"`:
  *
- *   @import "@open-ui/ui/styles.css";
+ *   @import "@screen-commons/ui/styles.css";
  *
  * It brings Tailwind v4, the Inter Variable font (optical sizes, self-hosted, font-display: swap),
  * the semantic color tokens for light/dark, and `@source` hints so Tailwind generates the classes

@@ -2,8 +2,8 @@
  * Screenshots of the showcase for visual review: pages × light/dark × desktop/mobile.
  * Starts its own Vite dev server, so nothing needs to be running.
  *
- *   pnpm --filter @open-ui/ui showcase:shoot              # everything
- *   pnpm --filter @open-ui/ui showcase:shoot discover app # only shots whose name matches
+ *   pnpm --filter @screen-commons/ui showcase:shoot              # everything
+ *   pnpm --filter @screen-commons/ui showcase:shoot discover app # only shots whose name matches
  *
  * Output: showcase/.screenshots/<name>.png (gitignored). Exits non-zero on console errors.
  */

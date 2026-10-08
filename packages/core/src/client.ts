@@ -10,22 +10,22 @@ import {
 } from "./api";
 import type { CaptureBatchInput, CreateFlowInput, CreateScreenInput } from "./schemas";
 
-export class OpenUiApiError extends Error {
+export class ScreenCommonsApiError extends Error {
   readonly status: number;
   readonly code: ErrorCode;
   readonly details: unknown;
 
   constructor(status: number, code: ErrorCode, message: string, details?: unknown) {
     super(message);
-    this.name = "OpenUiApiError";
+    this.name = "ScreenCommonsApiError";
     this.status = status;
     this.code = code;
     this.details = details;
   }
 }
 
-export interface OpenUiClientOptions {
-  /** Instance origin, e.g. `http://localhost:5173` or `https://openui.example.com`. */
+export interface ScreenCommonsClientOptions {
+  /** Instance origin, e.g. `http://localhost:5173` or `https://screencommons.example.com`. */
   baseUrl: string;
   /** `oui_…` API key. Omit to rely on cookies (same-origin browser usage). */
   apiKey?: string;
@@ -47,8 +47,8 @@ function toQuery(params: object = {}): string {
   return text ? `?${text}` : "";
 }
 
-/** Typed client for the Open UI REST API. Works in browsers, Workers, Node and extensions. */
-export function createOpenUiClient(options: OpenUiClientOptions) {
+/** Typed client for the Screen Commons REST API. Works in browsers, Workers, Node and extensions. */
+export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/+$/u, "");
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
 
@@ -73,7 +73,7 @@ export function createOpenUiClient(options: OpenUiClientOptions) {
     const data: unknown = text ? JSON.parse(text) : undefined;
     if (!response.ok) {
       const error = (data as Partial<ApiErrorBody> | undefined)?.error;
-      throw new OpenUiApiError(
+      throw new ScreenCommonsApiError(
         response.status,
         error?.code ?? "internal",
         error?.message ?? `Request failed with ${response.status}`,
@@ -150,4 +150,14 @@ export function createOpenUiClient(options: OpenUiClientOptions) {
   };
 }
 
-export type OpenUiClient = ReturnType<typeof createOpenUiClient>;
+export type ScreenCommonsClient = ReturnType<typeof createScreenCommonsClient>;
+
+// Keep existing SDK integrations working during the rename.
+/** @deprecated Use ScreenCommonsApiError. */
+export { ScreenCommonsApiError as OpenUiApiError };
+/** @deprecated Use createScreenCommonsClient. */
+export const createOpenUiClient = createScreenCommonsClient;
+/** @deprecated Use ScreenCommonsClientOptions. */
+export type OpenUiClientOptions = ScreenCommonsClientOptions;
+/** @deprecated Use ScreenCommonsClient. */
+export type OpenUiClient = ScreenCommonsClient;

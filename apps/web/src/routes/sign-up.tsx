@@ -18,7 +18,7 @@ export const Route = createFileRoute("/sign-up")({
       // Decorative collage: a failure must never block the form.
       context.queryClient.ensureQueryData(landingQuery()).catch(() => null),
     ]),
-  head: () => ({ meta: [{ title: "Create an account · Open UI" }] }),
+  head: () => ({ meta: [{ title: "Create an account · Screen Commons" }] }),
   component: Page,
 });
 

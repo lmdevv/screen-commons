@@ -5,11 +5,11 @@ import {
   type CaptureBatchResult,
   type CaptureScreen,
   type ElementSlug,
-  type OpenUiClient,
+  type ScreenCommonsClient,
   type PageMetadata,
   type PatternSlug,
   type Viewport,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 
 import { MAX_SCREEN_TEXT, type IconCandidate } from "./extract";
 import { dominantColor, encodeWebp, makeThumbnail, toLogoPng, type EncodedImage } from "./image";
@@ -204,7 +204,7 @@ const absolute = (baseUrl: string, url: string) => {
  * Returned URLs are absolute.
  */
 export async function uploadCaptures(
-  client: OpenUiClient,
+  client: ScreenCommonsClient,
   batch: CaptureBatchInput,
   options: UploadOptions = {},
 ): Promise<CaptureBatchResult> {

@@ -1,4 +1,4 @@
-import type { AppRef } from "@open-ui/core/schemas";
+import type { AppRef } from "@screen-commons/core/schemas";
 import type * as React from "react";
 
 import { cn } from "../lib/cn";

@@ -1,6 +1,6 @@
-import type { AppInput, CaptureBatchInput, CaptureScreen } from "@open-ui/core/schemas";
-import { LIMITS } from "@open-ui/core/schemas";
-import { versionLabel } from "@open-ui/core/utils";
+import type { AppInput, CaptureBatchInput, CaptureScreen } from "@screen-commons/core/schemas";
+import { LIMITS } from "@screen-commons/core/schemas";
+import { versionLabel } from "@screen-commons/core/utils";
 
 import { chunkByBudget, estimateScreenBytes, MAX_BATCH_BYTES } from "./chunk";
 import type { ShotSummary, TrayDraft } from "./tray";

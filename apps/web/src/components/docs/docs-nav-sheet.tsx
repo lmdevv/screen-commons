@@ -1,4 +1,4 @@
-import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@open-ui/ui";
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@screen-commons/ui";
 
 import type { DocsSection } from "./content";
 import { DocsNav } from "./docs-nav";

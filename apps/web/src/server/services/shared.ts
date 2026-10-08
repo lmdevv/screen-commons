@@ -6,7 +6,7 @@ import {
   type FlowSummary,
   type PatternSlug,
   type Screen,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import {
   app,
   collection,
@@ -19,7 +19,7 @@ import {
   type CollectionItemKind,
   type FlowRow,
   type ScreenRow,
-} from "@open-ui/db";
+} from "@screen-commons/db";
 import { and, asc, count, desc, eq, lte, sql, type SQL } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 

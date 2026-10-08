@@ -8,7 +8,7 @@ import {
   type CatalogToolName,
   type FlowSummary,
   type Screen,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import type { z } from "zod";
 
 import { appOrigin } from "../env";
@@ -154,10 +154,10 @@ function createHandlers(principal: Principal, origin: string) {
 
 function createServer(principal: Principal, origin: string): McpServer {
   const server = new McpServer(
-    { name: "open-ui", version: "0.1.0" },
+    { name: "screen-commons", version: "0.1.0" },
     {
       instructions:
-        "Open UI is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs.",
+        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs.",
     },
   );
   const handlers = createHandlers(principal, origin);
@@ -203,7 +203,7 @@ export async function handleMcp(request: Request): Promise<Response> {
       unauthorized("Provide an API key: Authorization: Bearer oui_…"),
       cors,
     );
-    response.headers.set("www-authenticate", 'Bearer realm="open-ui"');
+    response.headers.set("www-authenticate", 'Bearer realm="screen-commons"');
     return response;
   }
   if (declaredTooLarge(request, LIMITS.maxRequestBytes)) {

@@ -1,4 +1,4 @@
-import { Logo, ScreenImage } from "@open-ui/ui";
+import { Logo, ScreenImage } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -23,7 +23,7 @@ export function AuthLayout({
     <div className={collage ? "grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" : ""}>
       <main className="flex min-h-dvh flex-col px-4 sm:px-6">
         <div className="flex h-topbar items-center lg:px-2">
-          <Link to="/" aria-label="Open UI home" className="ou-focus-ring rounded-sm">
+          <Link to="/" aria-label="Screen Commons home" className="ou-focus-ring rounded-sm">
             <Logo />
           </Link>
         </div>

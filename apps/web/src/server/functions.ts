@@ -16,7 +16,7 @@ import type {
   SaveKind,
   SearchQuery,
   User,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";

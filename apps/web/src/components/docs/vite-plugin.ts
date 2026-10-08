@@ -16,7 +16,7 @@ const QUERY = "?doc";
  */
 export function docsPlugin(): Plugin {
   return {
-    name: "open-ui:docs",
+    name: "screen-commons:docs",
     enforce: "pre",
     async load(id) {
       if (!id.endsWith(`.md${QUERY}`)) return null;

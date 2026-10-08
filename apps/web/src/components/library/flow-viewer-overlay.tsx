@@ -2,8 +2,8 @@
  * Flow viewer overlay (`?flow=<id>`, lazy chunk): the ordered strip of steps. Clicking a step
  * stacks the screen viewer on top (`?flow=…&screen=…`), whose ←/→ then walk the flow's steps.
  */
-import { Lightbox, LightboxHeader, LightboxTitle, Skeleton } from "@open-ui/ui";
-import { FlowViewer, type ViewerFlow } from "@open-ui/ui/components/flow-viewer";
+import { Lightbox, LightboxHeader, LightboxTitle, Skeleton } from "@screen-commons/ui";
+import { FlowViewer, type ViewerFlow } from "@screen-commons/ui/components/flow-viewer";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";

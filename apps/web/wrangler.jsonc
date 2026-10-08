@@ -1,5 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Existing resource names are retained so the rebrand preserves deployments and data.
   "name": "open-ui",
   "main": "src/server.ts",
   "compatibility_date": "2026-10-01",

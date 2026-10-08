@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Renders the extension icons (public/icon/{16,32,48,128}.png) from one SVG mark with the
-// system Chromium. Run with `pnpm --filter @open-ui/extension icons` after changing the mark.
+// system Chromium. Run with `pnpm --filter @screen-commons/extension icons` after changing the mark.
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,5 +1,5 @@
 {
-  "name": "@open-ui/db",
+  "name": "@screen-commons/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@open-ui/config": "workspace:*",
+    "@screen-commons/config": "workspace:*",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:"
   }

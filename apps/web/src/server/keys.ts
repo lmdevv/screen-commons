@@ -1,5 +1,5 @@
-import { API_KEY_PREFIX, createApiKeyInputSchema, type ApiKey } from "@open-ui/core";
-import { apiKey, user, type ApiKeyRow } from "@open-ui/db";
+import { API_KEY_PREFIX, createApiKeyInputSchema, type ApiKey } from "@screen-commons/core";
+import { apiKey, user, type ApiKeyRow } from "@screen-commons/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { getDb } from "./env";

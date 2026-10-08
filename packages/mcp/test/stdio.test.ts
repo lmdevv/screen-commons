@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { browserTools, catalogTools } from "@open-ui/core";
+import { browserTools, catalogTools } from "@screen-commons/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { loadConfig, parseArgs } from "../src/config";
@@ -16,7 +16,7 @@ const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 let home: string;
 
 beforeAll(async () => {
-  home = await mkdtemp(join(tmpdir(), "open-ui-mcp-home-"));
+  home = await mkdtemp(join(tmpdir(), "screen-commons-mcp-home-"));
 });
 afterAll(async () => {
   await rm(home, { recursive: true, force: true });
@@ -53,11 +53,11 @@ describe("config", () => {
     const custom = await loadConfig({
       env: {
         ...env,
-        OPEN_UI_URL: "https://ui.example.com/",
-        OPEN_UI_API_KEY: "oui_abc",
-        OPEN_UI_BRIDGE_PORT: "8123",
-        OPEN_UI_BRIDGE_TOKEN: "from-env-token-123",
-        OPEN_UI_HEADLESS: "false",
+        SCREEN_COMMONS_URL: "https://ui.example.com/",
+        SCREEN_COMMONS_API_KEY: "oui_abc",
+        SCREEN_COMMONS_BRIDGE_PORT: "8123",
+        SCREEN_COMMONS_BRIDGE_TOKEN: "from-env-token-123",
+        SCREEN_COMMONS_HEADLESS: "false",
         CHROME_PATH: "/opt/chrome",
       },
       argv: ["--api-key", "oui_arg"],
@@ -69,6 +69,57 @@ describe("config", () => {
       headless: false,
       chromePath: "/opt/chrome",
       bridge: { port: 8123, token: "from-env-token-123", tokenSource: "env" },
+    });
+  });
+});
+
+describe("rename compatibility", () => {
+  it("accepts legacy configuration and prefers the new variables", async () => {
+    const legacy = {
+      XDG_CONFIG_HOME: join(home, "legacy"),
+      OPEN_UI_URL: "https://legacy.example.com/",
+      OPEN_UI_API_KEY: "oui_legacy",
+      OPEN_UI_BRIDGE_PORT: "8123",
+      OPEN_UI_BRIDGE_TOKEN: "legacy-pairing-token",
+      OPEN_UI_HEADLESS: "false",
+      OPEN_UI_OUTPUT_DIR: join(home, "legacy-output"),
+      OPEN_UI_BRIDGE: "false",
+    };
+    const old = await loadConfig({ env: legacy, argv: [], home });
+    expect(old).toMatchObject({
+      url: "https://legacy.example.com",
+      apiKey: "oui_legacy",
+      headless: false,
+      outputDir: join(home, "legacy-output"),
+      bridge: { enabled: false, port: 8123, token: "legacy-pairing-token" },
+    });
+    const env = {
+      ...legacy,
+      SCREEN_COMMONS_URL: "https://new.example.com/",
+      SCREEN_COMMONS_API_KEY: "oui_new",
+      SCREEN_COMMONS_BRIDGE_PORT: "9000",
+      SCREEN_COMMONS_BRIDGE_TOKEN: "new-pairing-token",
+      SCREEN_COMMONS_HEADLESS: "true",
+      SCREEN_COMMONS_OUTPUT_DIR: join(home, "new-output"),
+      SCREEN_COMMONS_BRIDGE: "true",
+    };
+    const renamed = await loadConfig({ env, argv: [], home });
+    expect(renamed).toMatchObject({
+      url: "https://new.example.com",
+      apiKey: "oui_new",
+      headless: true,
+      outputDir: join(home, "new-output"),
+      bridge: { enabled: true, port: 9000, token: "new-pairing-token" },
+    });
+    const cli = await loadConfig({
+      env,
+      argv: ["--url", "https://cli.example.com", "--api-key", "oui_cli", "--no-bridge"],
+      home,
+    });
+    expect(cli).toMatchObject({
+      url: "https://cli.example.com",
+      apiKey: "oui_cli",
+      bridge: { enabled: false },
     });
   });
 });
@@ -92,7 +143,7 @@ describe("built stdio server", () => {
         PATH: process.env.PATH ?? "",
         HOME: home,
         XDG_CONFIG_HOME: join(home, "cfg-stdio"),
-        OPEN_UI_BRIDGE_PORT: "0",
+        SCREEN_COMMONS_BRIDGE_PORT: "0",
       },
       stderr: "pipe",
     });
@@ -100,7 +151,7 @@ describe("built stdio server", () => {
     const client = new Client({ name: "stdio-test", version: "1.0.0" });
     await client.connect(transport);
     try {
-      expect(client.getServerVersion()).toMatchObject({ name: "open-ui-mcp" });
+      expect(client.getServerVersion()).toMatchObject({ name: "screen-commons-mcp" });
       const { tools } = await client.listTools();
       expect(tools.length).toBe(
         Object.keys(catalogTools).length + Object.keys(browserTools).length,

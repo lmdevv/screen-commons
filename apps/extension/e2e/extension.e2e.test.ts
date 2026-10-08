@@ -1,8 +1,8 @@
 /**
  * End-to-end: loads the built Chromium extension (.output/chrome-mv3) into the system Chromium
- * with playwright-core, then drives it through a mock MCP bridge and a mock Open UI API.
+ * with playwright-core, then drives it through a mock MCP bridge and a mock Screen Commons API.
  *
- *   pnpm --filter @open-ui/extension test:e2e
+ *   pnpm --filter @screen-commons/extension test:e2e
  */
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
@@ -74,12 +74,12 @@ async function fixturePage(): Promise<Page> {
 
 beforeAll(async () => {
   if (!existsSync(join(extensionPath, "manifest.json")))
-    throw new Error("Build first: pnpm --filter @open-ui/extension build:chrome");
+    throw new Error("Build first: pnpm --filter @screen-commons/extension build:chrome");
   await mkdir(shotsDir, { recursive: true });
   site = await startFixtureSite();
   bridge = await startMockBridge(BRIDGE_TOKEN);
   api = await startMockApi([API_KEY]);
-  userDataDir = await mkdtemp(join(tmpdir(), "open-ui-ext-e2e-"));
+  userDataDir = await mkdtemp(join(tmpdir(), "screen-commons-ext-e2e-"));
   context = await chromium.launchPersistentContext(userDataDir, {
     executablePath,
     headless: true,
@@ -120,7 +120,7 @@ describe("bridge", () => {
       type: "hello",
       token: BRIDGE_TOKEN,
       protocol: 1,
-      client: { name: "open-ui-extension", browser: "chromium" },
+      client: { name: "screen-commons-extension", browser: "chromium" },
     });
     const status = await worker.evaluate(
       async () => (await chrome.storage.local.get("bridgeStatus")).bridgeStatus,
@@ -212,7 +212,7 @@ describe("bridge", () => {
       near(await pixel(shot.base64, 600, viewport + 10), [236, 254, 255]);
       near(await pixel(shot.base64, 10, size.height - 10), FIXTURE.lazyColor);
       const restored = await page.evaluate(
-        () => document.querySelectorAll("[data-open-ui-hidden]").length,
+        () => document.querySelectorAll("[data-screen-commons-hidden]").length,
       );
       expect(restored).toBe(0);
       await import("node:fs/promises").then((fs) =>
@@ -276,7 +276,7 @@ describe("tray and upload", () => {
       { tabId: fixtureTabId },
     );
     await page.bringToFront();
-    await page.waitForSelector("#__open-ui-picker", { state: "attached" });
+    await page.waitForSelector("#__screen-commons-picker", { state: "attached" });
     const box = (await page.locator("#card").boundingBox())!;
     await page.mouse.move(box.x + 40, box.y + 120);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -285,7 +285,7 @@ describe("tray and upload", () => {
       ok: true,
       data: { shot: { mode: "element", width: FIXTURE.card.width, height: FIXTURE.card.height } },
     });
-    expect(await page.locator("#__open-ui-picker").count()).toBe(0);
+    expect(await page.locator("#__screen-commons-picker").count()).toBe(0);
 
     await tray.bringToFront();
     await expect.poll(() => tray.locator("article").count(), { timeout: 10_000 }).toBe(3);

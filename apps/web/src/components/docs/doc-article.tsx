@@ -1,4 +1,4 @@
-import { Prose, cn } from "@open-ui/ui";
+import { Prose, cn } from "@screen-commons/ui";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

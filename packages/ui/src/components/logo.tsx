@@ -9,8 +9,8 @@ export interface LogoMarkProps extends React.SVGProps<SVGSVGElement> {
 }
 
 /**
- * The Open UI mark: a 2×2 grid of screen tiles where the first tile is an "O" — a library of
- * interfaces, opened. Monochrome, inherits `currentColor`; legible down to 16px.
+ * The Screen Commons mark: a 2×2 grid of screen tiles representing a shared library of
+ * interfaces. Monochrome, inherits `currentColor`; legible down to 16px.
  */
 export function LogoMark({ size = 22, title, className, ...props }: LogoMarkProps) {
   return (
@@ -46,7 +46,7 @@ const sizes = {
 } as const;
 
 /**
- * "Open UI" logo lockup. Wrap it in your home link: `<a href="/" aria-label="Open UI home"><Logo /></a>`.
+ * "Screen Commons" logo lockup. Wrap it in your home link: `<a href="/" aria-label="Screen Commons home"><Logo /></a>`.
  */
 export function Logo({ variant = "full", size = "md", className, ...props }: LogoProps) {
   const s = sizes[size];
@@ -55,9 +55,11 @@ export function Logo({ variant = "full", size = "md", className, ...props }: Log
       className={cn("inline-flex items-center text-fg select-none", s.gap, className)}
       {...props}
     >
-      <LogoMark size={s.mark} title={variant === "mark" ? "Open UI" : undefined} />
+      <LogoMark size={s.mark} title={variant === "mark" ? "Screen Commons" : undefined} />
       {variant === "full" ? (
-        <span className={cn("font-semibold leading-none tracking-[-0.03em]", s.text)}>Open UI</span>
+        <span className={cn("font-semibold leading-none tracking-[-0.03em]", s.text)}>
+          Screen Commons
+        </span>
       ) : null}
     </span>
   );

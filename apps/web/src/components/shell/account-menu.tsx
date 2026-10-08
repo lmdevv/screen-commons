@@ -1,5 +1,5 @@
-import type { User } from "@open-ui/core";
-import { Avatar } from "@open-ui/ui";
+import type { User } from "@screen-commons/core";
+import { Avatar } from "@screen-commons/ui";
 import { lazy, Suspense, useState } from "react";
 
 const loadPopup = () => import("./account-menu-popup");

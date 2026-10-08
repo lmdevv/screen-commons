@@ -1,11 +1,11 @@
 ---
 title: Quickstart
-description: Run Open UI on your machine in five minutes, with local D1 and R2 and no Cloudflare account.
+description: Run Screen Commons on your machine in five minutes, with local D1 and R2 and no Cloudflare account.
 order: 2
 section: Getting started
 ---
 
-Open UI runs locally inside `workerd`, the Cloudflare Workers runtime, with emulated D1 (database) and R2 (image storage). You don't need a Cloudflare account to develop.
+Screen Commons runs locally inside `workerd`, the Cloudflare Workers runtime, with emulated D1 (database) and R2 (image storage). You don't need a Cloudflare account to develop.
 
 ## Prerequisites
 
@@ -16,8 +16,8 @@ Open UI runs locally inside `workerd`, the Cloudflare Workers runtime, with emul
 ## 1. Install
 
 ```bash
-git clone https://github.com/lmdevv/open-ui.git
-cd open-ui
+git clone https://github.com/lmdevv/open-ui.git screen-commons
+cd screen-commons
 pnpm install
 ```
 
@@ -83,13 +83,13 @@ Go to [http://localhost:5173/browse/web](http://localhost:5173/browse/web). Pres
 
 ## Useful commands
 
-| Command                           | What it does                                                           |
-| --------------------------------- | ---------------------------------------------------------------------- |
-| `pnpm dev`                        | Migrate the local database and start the web app.                      |
-| `pnpm dev:extension`              | Build the extension and open a browser with it loaded.                 |
-| `pnpm --filter @open-ui/web test` | Run the API integration suite against a fresh dev server on port 5179. |
-| `pnpm check`                      | Lint, format check and type check the whole repo.                      |
-| `pnpm build`                      | Production build of every package.                                     |
+| Command                                  | What it does                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| `pnpm dev`                               | Migrate the local database and start the web app.                      |
+| `pnpm dev:extension`                     | Build the extension and open a browser with it loaded.                 |
+| `pnpm --filter @screen-commons/web test` | Run the API integration suite against a fresh dev server on port 5179. |
+| `pnpm check`                             | Lint, format check and type check the whole repo.                      |
+| `pnpm build`                             | Production build of every package.                                     |
 
 Local data lives in `apps/web/.wrangler/state`. Delete that directory to start over with an empty instance.
 

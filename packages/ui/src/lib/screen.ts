@@ -1,4 +1,4 @@
-import type { Platform } from "@open-ui/core/taxonomy";
+import type { Platform } from "@screen-commons/core/taxonomy";
 
 /**
  * Screenshot framing rules shared by tiles, cards, strips and the viewer.

@@ -1,4 +1,4 @@
-import { BRIDGE_DEFAULT_PORT } from "@open-ui/core/bridge";
+import { BRIDGE_DEFAULT_PORT } from "@screen-commons/core/bridge";
 import { ArrowUpRight, Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { browser } from "wxt/browser";
@@ -184,7 +184,9 @@ export function Options() {
       <header className="border-b border-line">
         <div className="mx-auto flex h-14 max-w-[640px] items-center gap-2.5 px-6">
           <Logo size={20} />
-          <span className="text-[14px] font-semibold tracking-[-0.01em]">Open UI Capture</span>
+          <span className="text-[14px] font-semibold tracking-[-0.01em]">
+            Screen Commons Capture
+          </span>
           <span className="text-subtle">/</span>
           <span className="text-[14px] font-medium">Settings</span>
         </div>
@@ -203,7 +205,7 @@ export function Options() {
 
         <Section
           title="Account"
-          description="Uploads go to this Open UI instance with your API key."
+          description="Uploads go to this Screen Commons instance with your API key."
         >
           <TextField
             label="Server URL"
@@ -221,7 +223,7 @@ export function Options() {
           />
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="primary" onClick={() => void connect()}>
-              Connect with Open UI
+              Connect with Screen Commons
               <ArrowUpRight className="size-3.5" strokeWidth={1.75} />
             </Button>
             <Button onClick={() => void testAccount()} disabled={account?.state === "loading"}>
@@ -234,7 +236,7 @@ export function Options() {
 
         <Section
           title="MCP bridge"
-          description="Lets a local agent running open-ui-mcp drive this browser: navigate, screenshot and read pages."
+          description="Lets a local agent running screen-commons-mcp drive this browser: navigate, screenshot and read pages."
           aside={
             <Switch
               label="Enable MCP bridge"
@@ -256,13 +258,13 @@ export function Options() {
               label="Pairing token"
               value={form.bridgeToken}
               onChange={(bridgeToken) => set({ bridgeToken })}
-              placeholder="Printed by open-ui-mcp on start"
+              placeholder="Printed by screen-commons-mcp on start"
               disabled={!form.bridgeEnabled}
             />
           </div>
           <p className="-mt-1 text-[12px] leading-4 text-subtle">
-            Run <code className="font-mono text-[11.5px] text-muted">npx open-ui-mcp</code>; the
-            token is printed on start and saved to{" "}
+            Run <code className="font-mono text-[11.5px] text-muted">npx screen-commons-mcp</code>;
+            the token is printed on start and saved to{" "}
             <code className="font-mono text-[11.5px] text-muted">
               ~/.config/open-ui/bridge-token
             </code>

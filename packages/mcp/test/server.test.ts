@@ -4,8 +4,13 @@ import { join } from "node:path";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { findChrome } from "@open-ui/capture";
-import { browserTools, catalogTools, readImageHeader, type BridgeMessage } from "@open-ui/core";
+import { findChrome } from "@screen-commons/capture";
+import {
+  browserTools,
+  catalogTools,
+  readImageHeader,
+  type BridgeMessage,
+} from "@screen-commons/core";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
@@ -14,7 +19,7 @@ import { startFixtureSite, type FixtureSite } from "../../capture/test/fixture-s
 import { BridgeServer } from "../src/bridge";
 import type { McpConfig } from "../src/config";
 import { HeadlessDriver } from "../src/drivers";
-import { createOpenUiMcpServer, type OpenUiMcp } from "../src/server";
+import { createScreenCommonsMcpServer, type ScreenCommonsMcp } from "../src/server";
 import { API_KEY, startMockApi, type MockApi } from "./mock-api";
 
 type ToolContent = { type: string; text?: string; data?: string; mimeType?: string };
@@ -24,7 +29,7 @@ const chrome = findChrome();
 let api: MockApi;
 let site: FixtureSite;
 let outputDir: string;
-const instances: { mcp: OpenUiMcp; client: Client; bridge: BridgeServer | null }[] = [];
+const instances: { mcp: ScreenCommonsMcp; client: Client; bridge: BridgeServer | null }[] = [];
 
 function config(overrides: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -51,7 +56,7 @@ async function connect(overrides: Partial<McpConfig> = {}, withBridge = false) {
     bridge = new BridgeServer({ token: cfg.bridge.token, port: 0 });
     await bridge.listen();
   }
-  const mcp = createOpenUiMcpServer({
+  const mcp = createScreenCommonsMcpServer({
     config: cfg,
     bridge,
     headless: new HeadlessDriver({ executablePath: cfg.chromePath, scale: { desktop: 1 } }),
@@ -76,7 +81,7 @@ const textOf = (result: ToolResponse) =>
 
 beforeAll(async () => {
   [api, site] = await Promise.all([startMockApi(), startFixtureSite()]);
-  outputDir = await mkdtemp(join(tmpdir(), "open-ui-mcp-test-"));
+  outputDir = await mkdtemp(join(tmpdir(), "screen-commons-mcp-test-"));
 });
 
 afterAll(async () => {
@@ -114,8 +119,8 @@ describe("tools, prompts and resources", () => {
     expect(JSON.stringify(prompt.messages)).toContain("site_crawl");
 
     const { resources } = await client.listResources();
-    expect(resources[0]?.uri).toBe("open-ui://taxonomy");
-    const taxonomy = await client.readResource({ uri: "open-ui://taxonomy" });
+    expect(resources[0]?.uri).toBe("screen-commons://taxonomy");
+    const taxonomy = await client.readResource({ uri: "screen-commons://taxonomy" });
     expect(
       JSON.parse((taxonomy.contents[0] as { text: string }).text).patterns.length,
     ).toBeGreaterThan(10);
@@ -159,7 +164,7 @@ describe("catalog tools", () => {
     const missing = await connect({ apiKey: undefined });
     const noKey = await call(missing.client, "search_screens", {});
     expect(noKey.isError).toBe(true);
-    expect(textOf(noKey)).toContain("OPEN_UI_API_KEY is not set");
+    expect(textOf(noKey)).toContain("SCREEN_COMMONS_API_KEY is not set");
     // taxonomy still works from the bundled contract
     expect(textOf(await call(missing.client, "get_taxonomy"))).toContain("built-in");
 
@@ -169,7 +174,9 @@ describe("catalog tools", () => {
     expect(textOf(rejected)).toContain("rejected the API key (401)");
 
     const offline = await connect({ url: "http://127.0.0.1:9" });
-    expect(textOf(await call(offline.client, "list_apps"))).toContain("Could not reach Open UI");
+    expect(textOf(await call(offline.client, "list_apps"))).toContain(
+      "Could not reach Screen Commons",
+    );
   });
 
   it("upload_screen posts a one-screen capture batch", async () => {
@@ -351,7 +358,7 @@ describe("browser tools (extension driver over the bridge)", () => {
         type: "hello",
         token: "t".repeat(32),
         protocol: 1,
-        client: { name: "Open UI", version: "0.1.0", browser: "chrome" },
+        client: { name: "Screen Commons", version: "0.1.0", browser: "chrome" },
       }),
     );
     await connected;

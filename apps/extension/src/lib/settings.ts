@@ -1,17 +1,17 @@
-import { BRIDGE_DEFAULT_PORT } from "@open-ui/core/bridge";
+import { BRIDGE_DEFAULT_PORT } from "@screen-commons/core/bridge";
 
 export const DEFAULT_SERVER_URL = "http://localhost:5173";
 
 export type FullPageMethod = "auto" | "stitch";
 
 export interface Settings {
-  /** Open UI instance origin, no trailing slash. */
+  /** Screen Commons instance origin, no trailing slash. */
   serverUrl: string;
   /** `oui_…` API key (manual paste or handed over by `/extension/connect`). */
   apiKey: string;
   bridgeEnabled: boolean;
   bridgePort: number;
-  /** Pairing token printed by `open-ui-mcp` (`OPEN_UI_BRIDGE_TOKEN`). */
+  /** Pairing token printed by `screen-commons-mcp` (`SCREEN_COMMONS_BRIDGE_TOKEN`). */
   bridgeToken: string;
   /** `auto`: CDP (Chromium) / captureTab (Firefox), stitching as fallback. */
   fullPageMethod: FullPageMethod;

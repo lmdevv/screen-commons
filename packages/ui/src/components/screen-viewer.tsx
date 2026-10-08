@@ -1,6 +1,6 @@
-import type { ElementSlug, PatternSlug } from "@open-ui/core/taxonomy";
-import { labelFor } from "@open-ui/core/taxonomy";
-import type { Screen, ScreenDetail } from "@open-ui/core/schemas";
+import type { ElementSlug, PatternSlug } from "@screen-commons/core/taxonomy";
+import { labelFor } from "@screen-commons/core/taxonomy";
+import type { Screen, ScreenDetail } from "@screen-commons/core/schemas";
 import {
   Bookmark,
   Copy,

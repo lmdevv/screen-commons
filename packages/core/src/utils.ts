@@ -86,7 +86,7 @@ export function suggestPatterns(url: string, title?: string | null): PatternSlug
   return [...found].slice(0, 3);
 }
 
-/** Path on an Open UI instance for a media key. */
+/** Path on an Screen Commons instance for a media key. */
 export function mediaPath(key: string): string {
   return `/media/${key}`;
 }

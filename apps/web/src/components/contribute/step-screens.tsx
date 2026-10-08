@@ -6,7 +6,7 @@ import {
   type ElementSlug,
   type FlowTypeSlug,
   type PatternSlug,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 import {
   Field,
   FieldError,
@@ -20,7 +20,7 @@ import {
   Switch,
   cn,
   type SortableHandleProps,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { ChevronDown, X } from "lucide-react";
 import { useState } from "react";
 

@@ -1,6 +1,13 @@
-import type { CreateScreenInput, Screen } from "@open-ui/core";
-import type { Platform } from "@open-ui/core/taxonomy";
-import { Button, Container, PageHeader, Steps, pluralize, type RejectedFile } from "@open-ui/ui";
+import type { CreateScreenInput, Screen } from "@screen-commons/core";
+import type { Platform } from "@screen-commons/core/taxonomy";
+import {
+  Button,
+  Container,
+  PageHeader,
+  Steps,
+  pluralize,
+  type RejectedFile,
+} from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";

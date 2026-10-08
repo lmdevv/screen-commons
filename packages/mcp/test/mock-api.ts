@@ -9,7 +9,7 @@ import {
   type FlowDetail,
   type Screen,
   type ScreenDetail,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import sharp from "sharp";
 
 export const API_KEY = "oui_test_key";

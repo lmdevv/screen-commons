@@ -4,7 +4,7 @@
  * that contains the open screen — the CURRENT result list, not the app's capture order — and asks
  * it to load the next page when the user reaches its end.
  */
-import type { Screen } from "@open-ui/core";
+import type { Screen } from "@screen-commons/core";
 import { useEffect, useSyncExternalStore } from "react";
 
 export interface ResultList {

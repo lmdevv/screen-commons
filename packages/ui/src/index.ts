@@ -1,8 +1,8 @@
 /**
- * @open-ui/ui — design tokens + React components for Open UI.
+ * @screen-commons/ui — design tokens + React components for Screen Commons.
  *
- * Styles: import "@open-ui/ui/styles.css" once from the app stylesheet.
- * Deep imports are available too: "@open-ui/ui/components/screen-tile", "@open-ui/ui/lib/cn".
+ * Styles: import "@screen-commons/ui/styles.css" once from the app stylesheet.
+ * Deep imports are available too: "@screen-commons/ui/components/screen-tile", "@screen-commons/ui/lib/cn".
  * See packages/ui/DESIGN.md for the design language and page recipes.
  */
 

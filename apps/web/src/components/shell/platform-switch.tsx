@@ -1,4 +1,4 @@
-import { SegmentedControl } from "@open-ui/ui";
+import { SegmentedControl } from "@screen-commons/ui";
 import { useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 
 import { PLATFORM_OPTIONS, rememberPlatform, type Platform } from "../../lib/platform";

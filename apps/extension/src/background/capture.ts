@@ -1,4 +1,4 @@
-import { base64ToBytes, readImageHeader } from "@open-ui/core/utils";
+import { base64ToBytes, readImageHeader } from "@screen-commons/core/utils";
 import { browser, type Browser } from "wxt/browser";
 
 import { planCapture, planStitchTiles, tilePlacement, type Rect } from "../lib/geometry";
@@ -89,7 +89,7 @@ async function resolveTab(tabId: number): Promise<Browser.tabs.Tab> {
 
 function checkDimensions(image: EncodedImage, expected: { width: number; height: number }) {
   if (Math.abs(image.width - expected.width) > 2 || Math.abs(image.height - expected.height) > 2) {
-    console.warn("[open-ui] capture size differs from plan", {
+    console.warn("[screen-commons] capture size differs from plan", {
       got: [image.width, image.height],
       expected,
     });
@@ -153,7 +153,7 @@ export async function captureFullPage(tabId: number, options: CaptureOptions): P
         : await fullPageCdp(tabId, metrics);
     } catch (error) {
       if (error instanceof CaptureError && error.code === "restricted_page") throw error;
-      console.warn("[open-ui] full-page capture failed, falling back to stitching", error);
+      console.warn("[screen-commons] full-page capture failed, falling back to stitching", error);
     }
   }
   result ??= await fullPageStitched(tab, metrics);
@@ -298,7 +298,7 @@ export async function captureElement(
         };
       });
     } catch (error) {
-      console.warn("[open-ui] element capture failed, falling back to viewport crop", error);
+      console.warn("[screen-commons] element capture failed, falling back to viewport crop", error);
     }
   }
 

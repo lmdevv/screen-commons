@@ -1,8 +1,8 @@
-# Open UI
+# Screen Commons
 
-Open UI is an open-source, self-hostable UI reference library in the spirit of Mobbin. It's a catalog of real product screens and ordered user flows, grouped by app and searchable by screen pattern (Pricing, Login, Dashboard), UI element (Table, Tabs, Toast) and flow type (Onboarding, Checkout). Fill it from the website, a browser extension, or AI agents over MCP, and let those same agents search it for inspiration. It runs on Cloudflare Workers, D1 and R2, and locally with no Cloudflare account.
+Screen Commons is an open-source, self-hostable UI reference library in the spirit of Mobbin. It's a catalog of real product screens and ordered user flows, grouped by app and searchable by screen pattern (Pricing, Login, Dashboard), UI element (Table, Tabs, Toast) and flow type (Onboarding, Checkout). Fill it from the website, a browser extension, or AI agents over MCP, and let those same agents search it for inspiration. It runs on Cloudflare Workers, D1 and R2, and locally with no Cloudflare account.
 
-![Open UI](docs/assets/screenshot.png)
+![Screen Commons](docs/assets/screenshot.png)
 
 ## Features
 
@@ -11,7 +11,7 @@ Open UI is an open-source, self-hostable UI reference library in the spirit of M
 - **Collections** to save screens, flows and apps.
 - **Contribute** from the website: drop images, tag them, order them into a flow.
 - **Browser extension** for Chrome, Edge and Firefox: capture the visible area, the full page or one element, record flows, and upload from a tray.
-- **MCP**: a remote server at `/mcp` for catalog search and uploads, and a local `open-ui-mcp` server that adds browser tools to crawl, capture and upload sites through your real browser or headless Chromium.
+- **MCP**: a remote server at `/mcp` for catalog search and uploads, and a local `screen-commons-mcp` server that adds browser tools to crawl, capture and upload sites through your real browser or headless Chromium.
 - **REST API** with API keys and a typed TypeScript client.
 - **Review workflow**: the first account is admin; member contributions wait for approval.
 
@@ -20,8 +20,8 @@ Open UI is an open-source, self-hostable UI reference library in the spirit of M
 Requires Node.js 24 and pnpm 11.
 
 ```bash
-git clone https://github.com/lmdevv/open-ui.git
-cd open-ui
+git clone https://github.com/lmdevv/open-ui.git screen-commons
+cd screen-commons
 pnpm install
 cp apps/web/.dev.vars.example apps/web/.dev.vars   # then set BETTER_AUTH_SECRET
 pnpm dev
@@ -41,7 +41,7 @@ To fill the library with demo content, create an API key in **Settings** and run
 | `packages/db`      | Drizzle schema and D1 migrations, including FTS5 search.                             |
 | `packages/ui`      | Design tokens and React primitives shared by web and extension.                      |
 | `packages/capture` | Page capture and crawl engine with a headless `playwright-core` driver.              |
-| `packages/mcp`     | `open-ui-mcp` stdio MCP server: catalog and browser tools.                           |
+| `packages/mcp`     | `screen-commons-mcp` stdio MCP server: catalog and browser tools.                    |
 | `packages/config`  | Shared TypeScript configuration.                                                     |
 | `scripts/seed`     | Captures curated public sites and uploads them through the API.                      |
 | `docs/spec.md`     | Build specification.                                                                 |

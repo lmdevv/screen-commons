@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { LIMITS, OpenUiApiError, type CaptureBatchResult, type OpenUiClient } from "@open-ui/core";
+import {
+  LIMITS,
+  ScreenCommonsApiError,
+  type CaptureBatchResult,
+  type ScreenCommonsClient,
+} from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng, makeWebp } from "./images";
@@ -11,18 +16,18 @@ const suffix = uniqueSuffix();
 let admin: Session;
 let member: Session;
 let other: Session;
-let adminApi: OpenUiClient;
-let memberApi: OpenUiClient;
+let adminApi: ScreenCommonsClient;
+let memberApi: ScreenCommonsClient;
 let adminKey: string;
 let memberKey: string;
 
-async function apiError(promise: Promise<unknown>): Promise<OpenUiApiError> {
+async function apiError(promise: Promise<unknown>): Promise<ScreenCommonsApiError> {
   const error = await promise.then(
     () => null,
     (failure: unknown) => failure,
   );
-  expect(error).toBeInstanceOf(OpenUiApiError);
-  return error as OpenUiApiError;
+  expect(error).toBeInstanceOf(ScreenCommonsApiError);
+  return error as ScreenCommonsApiError;
 }
 
 async function mcpCall(token: string, name: string, args: Record<string, unknown>) {
@@ -48,8 +53,8 @@ const sha = (buffer: Buffer) => createHash("sha256").update(buffer).digest("hex"
 beforeAll(async () => {
   const credentials = inject("admin");
   admin = await Session.signIn(credentials.email, credentials.password);
-  member = await Session.signUp("Reg Member", `reg-member-${suffix}@open-ui.test`);
-  other = await Session.signUp("Reg Other", `reg-other-${suffix}@open-ui.test`);
+  member = await Session.signUp("Reg Member", `reg-member-${suffix}@screen-commons.test`);
+  other = await Session.signUp("Reg Other", `reg-other-${suffix}@screen-commons.test`);
   adminKey = (await admin.client().createKey("regressions")).token;
   memberKey = (await member.client().createKey("regressions")).token;
   adminApi = keyClient(adminKey);

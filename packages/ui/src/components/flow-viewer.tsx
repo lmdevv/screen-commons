@@ -1,5 +1,5 @@
-import type { FlowDetail } from "@open-ui/core/schemas";
-import { labelFor } from "@open-ui/core/taxonomy";
+import type { FlowDetail } from "@screen-commons/core/schemas";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import { Bookmark, Copy, Download } from "lucide-react";
 import type * as React from "react";
 

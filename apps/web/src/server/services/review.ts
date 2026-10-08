@@ -1,5 +1,5 @@
-import { reviewDecisionSchema, type ReviewQueue } from "@open-ui/core";
-import { app, flow, flowStep, screen } from "@open-ui/db";
+import { reviewDecisionSchema, type ReviewQueue } from "@screen-commons/core";
+import { app, flow, flowStep, screen } from "@screen-commons/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 

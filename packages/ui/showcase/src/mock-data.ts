@@ -7,8 +7,13 @@ import type {
   Screen,
   ScreenDetail,
   User,
-} from "@open-ui/core/schemas";
-import type { CategorySlug, ElementSlug, PatternSlug, Platform } from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/schemas";
+import type {
+  CategorySlug,
+  ElementSlug,
+  PatternSlug,
+  Platform,
+} from "@screen-commons/core/taxonomy";
 
 import manifest from "../public/mock/manifest.json";
 
@@ -506,7 +511,7 @@ export const collections: Collection[] = [
 export const user: User = {
   id: "usr_1",
   name: "Mira Okafor",
-  email: "mira@openui.dev",
+  email: "mira@screencommons.dev",
   image: null,
   role: "admin",
   createdAt: isoDay(90),

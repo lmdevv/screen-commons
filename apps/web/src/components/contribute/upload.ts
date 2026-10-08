@@ -1,4 +1,4 @@
-import type { CreateFlowInput, CreateScreenInput, FlowDetail, Screen } from "@open-ui/core";
+import type { CreateFlowInput, CreateScreenInput, FlowDetail, Screen } from "@screen-commons/core";
 
 /**
  * `fetch`-compatible adapter over XMLHttpRequest, so the core API client can report upload
@@ -35,8 +35,8 @@ export function progressFetch(onProgress: (fraction: number) => void): typeof fe
 
 /** The core client pulls in zod (via the API schema module): load it only when submitting. */
 async function client(onProgress: (fraction: number) => void) {
-  const { createOpenUiClient } = await import("@open-ui/core/client");
-  return createOpenUiClient({ baseUrl: location.origin, fetch: progressFetch(onProgress) });
+  const { createScreenCommonsClient } = await import("@screen-commons/core/client");
+  return createScreenCommonsClient({ baseUrl: location.origin, fetch: progressFetch(onProgress) });
 }
 
 export async function uploadScreen(

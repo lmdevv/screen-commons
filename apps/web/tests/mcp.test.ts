@@ -1,4 +1,4 @@
-import { catalogTools, readImageHeader, type CaptureBatchResult } from "@open-ui/core";
+import { catalogTools, readImageHeader, type CaptureBatchResult } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng } from "./images";
@@ -73,7 +73,7 @@ describe("remote MCP (/mcp)", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
     const body = (await response.json()) as RpcResponse;
     expect(body.result).toMatchObject({
-      serverInfo: { name: "open-ui" },
+      serverInfo: { name: "screen-commons" },
       capabilities: { tools: expect.any(Object) },
     });
   });

@@ -1,4 +1,4 @@
-import type { ScreenDetail } from "@open-ui/core";
+import type { ScreenDetail } from "@screen-commons/core";
 import {
   AppLogo,
   Button,
@@ -10,7 +10,7 @@ import {
   frameKind,
   textLinkClassName,
   useHotkey,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_app/screens/$id")({
     return { title: screen.title ? `${screen.title} — ${screen.app.name}` : screen.app.name };
   },
   head: ({ loaderData }) => ({
-    meta: [{ title: loaderData ? `${loaderData.title} — Open UI` : "Open UI" }],
+    meta: [{ title: loaderData ? `${loaderData.title} — Screen Commons` : "Screen Commons" }],
   }),
   component: ScreenPage,
 });

@@ -1,7 +1,7 @@
 import "./showcase.css";
 
-import { ThemeProvider, Toaster, TooltipProvider } from "@open-ui/ui";
-import type { Platform } from "@open-ui/core/taxonomy";
+import { ThemeProvider, Toaster, TooltipProvider } from "@screen-commons/ui";
+import type { Platform } from "@screen-commons/core/taxonomy";
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 

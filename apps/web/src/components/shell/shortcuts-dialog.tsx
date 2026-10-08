@@ -8,7 +8,7 @@ import {
   Kbd,
   KbdGroup,
   useIsMac,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 
 export default function ShortcutsDialog({
   open,

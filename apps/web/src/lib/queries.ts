@@ -9,7 +9,7 @@ import type {
   ListScreensQuery,
   SaveKind,
   SearchQuery,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
 import * as fn from "../server/functions";

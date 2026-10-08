@@ -1,4 +1,4 @@
-import type { SearchResult } from "@open-ui/core";
+import type { SearchResult } from "@screen-commons/core";
 import {
   Button,
   Chip,
@@ -11,7 +11,7 @@ import {
   SectionHeader,
   Skeleton,
   useIsMac,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search, SearchX, TextSearch } from "lucide-react";
@@ -43,7 +43,11 @@ export const Route = createFileRoute("/_app/search")({
     if (typeof window === "undefined") await work;
   },
   head: ({ match }) => ({
-    meta: [{ title: match.search.q ? `“${match.search.q}” — Open UI` : "Search — Open UI" }],
+    meta: [
+      {
+        title: match.search.q ? `“${match.search.q}” — Screen Commons` : "Search — Screen Commons",
+      },
+    ],
   }),
   component: SearchPage,
 });
@@ -196,7 +200,7 @@ function SearchPage() {
                   platform={platform}
                   showApp
                   priority={data.apps.length === 0}
-                  downloadName={`Open UI ${q}`}
+                  downloadName={`Screen Commons ${q}`}
                   renderCaption={(screen) =>
                     matches[screen.id] ? <TextMatch snippet={matches[screen.id]!} /> : null
                   }

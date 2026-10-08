@@ -1,6 +1,9 @@
 /* The account menu itself (lazy chunk, see account-menu.tsx). */
-import { DropdownMenuItem, DropdownMenuLinkItem } from "@open-ui/ui/components/dropdown-menu";
-import AccountMenuPopupBase from "@open-ui/ui/components/account-menu-popup";
+import {
+  DropdownMenuItem,
+  DropdownMenuLinkItem,
+} from "@screen-commons/ui/components/dropdown-menu";
+import AccountMenuPopupBase from "@screen-commons/ui/components/account-menu-popup";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { BookOpen, Bookmark, Code, Inbox, Keyboard, Plus, Settings } from "lucide-react";

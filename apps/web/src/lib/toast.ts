@@ -3,11 +3,11 @@
  * a separate chunk, mounted on the first toast (or once the page is idle), so they never weigh on
  * a route's first load. Use `notify.*` from app code.
  */
-type ToastFn = typeof import("@open-ui/ui/components/toast").toast;
+type ToastFn = typeof import("@screen-commons/ui/components/toast").toast;
 type Options = Parameters<ToastFn>[1];
 
 let loading: Promise<ToastFn> | null = null;
-const load = () => (loading ??= import("@open-ui/ui/components/toast").then((m) => m.toast));
+const load = () => (loading ??= import("@screen-commons/ui/components/toast").then((m) => m.toast));
 
 // --- toaster mounting handshake (see components/shell/deferred-toaster.tsx) ---------------------
 let requested = false;

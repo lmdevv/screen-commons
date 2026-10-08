@@ -1,5 +1,5 @@
-import type { User } from "@open-ui/core";
-import { useHotkey } from "@open-ui/ui";
+import type { User } from "@screen-commons/core";
+import { useHotkey } from "@screen-commons/ui";
 import { lazy, Suspense, useState, type ReactNode } from "react";
 
 import { useCurrentPlatform } from "../../lib/use-current-platform";

@@ -1,4 +1,4 @@
-import { createOpenUiClient, type CaptureBatchInput } from "@open-ui/core";
+import { createScreenCommonsClient, type CaptureBatchInput } from "@screen-commons/core";
 import { inject } from "vitest";
 
 import { makePng, makeWebp } from "./images";
@@ -41,7 +41,7 @@ export class Session {
 
   /** Core typed client riding on this session's cookies. */
   client() {
-    return createOpenUiClient({
+    return createScreenCommonsClient({
       baseUrl: baseUrl(),
       fetch: (input, init) => {
         const url =
@@ -72,7 +72,8 @@ export class Session {
   }
 }
 
-export const keyClient = (apiKey: string) => createOpenUiClient({ baseUrl: baseUrl(), apiKey });
+export const keyClient = (apiKey: string) =>
+  createScreenCommonsClient({ baseUrl: baseUrl(), apiKey });
 
 export const b64 = (buffer: Buffer) => buffer.toString("base64");
 

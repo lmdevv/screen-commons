@@ -1,4 +1,9 @@
-import type { FlowTypeSlug, PatternSlug, Platform, CategorySlug } from "@open-ui/core/taxonomy";
+import type {
+  FlowTypeSlug,
+  PatternSlug,
+  Platform,
+  CategorySlug,
+} from "@screen-commons/core/taxonomy";
 
 import type { ShotKind } from "./geometry";
 

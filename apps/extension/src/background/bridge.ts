@@ -3,7 +3,7 @@ import {
   BRIDGE_CLOSE_UNAUTHORIZED,
   BRIDGE_PROTOCOL_VERSION,
   type BridgeMessage,
-} from "@open-ui/core/bridge";
+} from "@screen-commons/core/bridge";
 import { browser } from "wxt/browser";
 
 import { backoffDelay, parseInbound, type BridgeRequest } from "../lib/bridge-protocol";
@@ -13,7 +13,7 @@ import { CaptureError, IS_FIREFOX } from "./browser-utils";
 import { handleBridgeRequest } from "./bridge-handlers";
 
 /**
- * WebSocket client for the local `open-ui-mcp` bridge (protocol: packages/core/src/bridge.ts).
+ * WebSocket client for the local `screen-commons-mcp` bridge (protocol: packages/core/src/bridge.ts).
  * Keepalive: app-level ping every 20s (WebSocket traffic resets the MV3 idle timer in Chrome
  * 116+); exponential backoff reconnect; the background's 1-minute alarm calls `ensure()` to
  * revive the connection after the worker was suspended.
@@ -103,7 +103,7 @@ function connect() {
       token,
       protocol: BRIDGE_PROTOCOL_VERSION,
       client: {
-        name: "open-ui-extension",
+        name: "screen-commons-extension",
         version: browser.runtime.getManifest().version,
         browser: IS_FIREFOX ? "firefox" : "chromium",
       },
@@ -145,7 +145,7 @@ function connect() {
         send({ type: "response", id: message.id, error: message.error });
         break;
       case "ignored":
-        console.warn("[open-ui] ignored bridge frame:", message.reason);
+        console.warn("[screen-commons] ignored bridge frame:", message.reason);
         break;
     }
   };

@@ -1,5 +1,5 @@
-import { createOpenUiClient, OpenUiApiError } from "@open-ui/core/client";
-import type { User } from "@open-ui/core/schemas";
+import { createScreenCommonsClient, ScreenCommonsApiError } from "@screen-commons/core/client";
+import type { User } from "@screen-commons/core/schemas";
 import { useCallback, useEffect, useState } from "react";
 
 import type { Settings } from "../lib/settings";
@@ -29,10 +29,10 @@ export type AccountState =
 export async function checkAccount(serverUrl: string, apiKey: string): Promise<AccountState> {
   if (!apiKey) return { state: "signed-out" };
   try {
-    const user = await createOpenUiClient({ baseUrl: serverUrl, apiKey }).me();
+    const user = await createScreenCommonsClient({ baseUrl: serverUrl, apiKey }).me();
     return { state: "ok", user };
   } catch (error) {
-    if (error instanceof OpenUiApiError && error.status === 401)
+    if (error instanceof ScreenCommonsApiError && error.status === 401)
       return { state: "error", message: "API key rejected" };
     if (error instanceof TypeError) return { state: "error", message: "Server unreachable" };
     return { state: "error", message: error instanceof Error ? error.message : String(error) };

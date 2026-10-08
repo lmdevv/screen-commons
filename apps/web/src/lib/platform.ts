@@ -1,4 +1,4 @@
-import { PLATFORMS, type Platform } from "@open-ui/core/taxonomy";
+import { PLATFORMS, type Platform } from "@screen-commons/core/taxonomy";
 
 export type { Platform };
 

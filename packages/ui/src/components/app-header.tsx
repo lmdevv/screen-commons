@@ -1,5 +1,5 @@
-import type { AppDetail, AppSummary } from "@open-ui/core/schemas";
-import { labelFor } from "@open-ui/core/taxonomy";
+import type { AppDetail, AppSummary } from "@screen-commons/core/schemas";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import type * as React from "react";
 
 import { cn } from "../lib/cn";

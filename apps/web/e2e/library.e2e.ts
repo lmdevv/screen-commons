@@ -1,8 +1,8 @@
 /**
  * Library E2E (playwright-core + node:test) against a running dev server with seeded content:
  *
- *   pnpm --filter @open-ui/web dev            # http://localhost:5173, seeded .wrangler state
- *   pnpm --filter @open-ui/web test:e2e
+ *   pnpm --filter @screen-commons/web dev            # http://localhost:5173, seeded .wrangler state
+ *   pnpm --filter @screen-commons/web test:e2e
  *
  * Env: E2E_BASE_URL (default http://localhost:5173), E2E_EMAIL / E2E_PASSWORD (default: the seed
  * admin), CHROME_PATH (default: the system Chromium). Leaves no data behind: the collection it
@@ -14,8 +14,8 @@ import { after, before, describe, test } from "node:test";
 import playwright, { type Browser, type BrowserContext, type Page } from "playwright-core";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
-const EMAIL = process.env.E2E_EMAIL ?? "admin@openui.dev";
-const PASSWORD = process.env.E2E_PASSWORD ?? "openui-admin-2026";
+const EMAIL = process.env.E2E_EMAIL ?? "admin@screencommons.dev";
+const PASSWORD = process.env.E2E_PASSWORD ?? "screencommons-admin-2026";
 const CHROME = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const COLLECTION = `E2E ${Date.now().toString(36)}`;
 let savedScreen: { id: string; wasSaved: boolean } | null = null;

@@ -1,13 +1,13 @@
-# Open UI design system (`@open-ui/ui`)
+# Screen Commons design system (`@screen-commons/ui`)
 
-Open UI is a library of screenshots. The interface exists to frame them: **quiet chrome, loud
+Screen Commons is a library of screenshots. The interface exists to frame them: **quiet chrome, loud
 content**. This document is the contract for building the website (and the extension pages)
 from this package. Follow it literally; when something is missing, extend the package rather than
 styling one-offs in the app.
 
-- Showcase (every component + composed pages): `pnpm --filter @open-ui/ui showcase` → <http://localhost:5179>
-- Visual check: `pnpm --filter @open-ui/ui showcase:shoot [name…]` → `showcase/.screenshots/*.png`
-- Tests: `pnpm --filter @open-ui/ui test` · types: `check-types` · lint: `lint`
+- Showcase (every component + composed pages): `pnpm --filter @screen-commons/ui showcase` → <http://localhost:5179>
+- Visual check: `pnpm --filter @screen-commons/ui showcase:shoot [name…]` → `showcase/.screenshots/*.png`
+- Tests: `pnpm --filter @screen-commons/ui test` · types: `check-types` · lint: `lint`
 
 ---
 
@@ -34,13 +34,13 @@ styling one-offs in the app.
 
 ```css
 /* apps/web/src/styles.css — the ONLY Tailwind entry. Do not also `@import "tailwindcss"`. */
-@import "@open-ui/ui/styles.css";
+@import "@screen-commons/ui/styles.css";
 /* Tailwind auto-detects the app's own files; the package's classes are covered by its @source. */
 ```
 
 ```tsx
 // apps/web/src/routes/__root.tsx
-import { themeScript, ThemeProvider, TooltipProvider, Toaster } from "@open-ui/ui";
+import { themeScript, ThemeProvider, TooltipProvider, Toaster } from "@screen-commons/ui";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -67,8 +67,8 @@ export const Route = createRootRoute({
 });
 ```
 
-Imports: `import { Button, ScreenTile } from "@open-ui/ui"` (tree-shakable, source-exported), or
-deep imports `@open-ui/ui/components/screen-tile`, `@open-ui/ui/lib/cn`.
+Imports: `import { Button, ScreenTile } from "@screen-commons/ui"` (tree-shakable, source-exported), or
+deep imports `@screen-commons/ui/components/screen-tile`, `@screen-commons/ui/lib/cn`.
 
 **Router links.** Every navigable component takes a `render` / `linkRender` element instead of an
 `href`, so TanStack `<Link>` keeps type-safe params:
@@ -172,7 +172,7 @@ Frames: web 16:10, phones 9:19.5, always top-anchored. Short/wide captures are s
 
 ## 4. Component inventory
 
-Everything below is exported from `@open-ui/ui`. Props are typed against `@open-ui/core`
+Everything below is exported from `@screen-commons/ui`. Props are typed against `@screen-commons/core`
 entities; components never fetch.
 
 ### Primitives
@@ -253,7 +253,7 @@ const [paletteOpen, setPaletteOpen] = useState(false);
 useHotkey("k", () => setPaletteOpen((o) => !o));
 
 <TopBar
-  logo={<Link to="/browse/$platform" params={{ platform }} aria-label="Open UI home" className="ou-focus-ring rounded-sm"><Logo /></Link>}
+  logo={<Link to="/browse/$platform" params={{ platform }} aria-label="Screen Commons home" className="ou-focus-ring rounded-sm"><Logo /></Link>}
   nav={<SegmentedControl aria-label="Platform" size="sm" value={platform} onValueChange={(p) => navigate({ params: { platform: p } })} options={PLATFORMS.map(({ slug, label }) => ({ value: slug, label }))} />}
   onSearchClick={() => setPaletteOpen(true)}
   searchPlaceholder={`Search ${labelFor(platform)} apps, screens, flows…`}
@@ -280,7 +280,7 @@ library pages is optional.
 - Hero: `Container`, `pt-24 pb-16`, centred: `h1.text-2xl sm:text-3xl font-semibold max-w-3xl` ("Real product screens, open to everyone"), `p.text-md text-fg-muted max-w-xl mt-4`, buttons `mt-8`: primary lg "Browse the library" + outline lg "Self-host".
 - Proof: a non-interactive `ScreenGrid columns="apps-web"` of 3–4 `AppCard`s (or a marquee of `ScreenTile`s, `aria-hidden`), `mt-16`.
 - Three feature rows (`grid sm:grid-cols-3 gap-6`), each `Card tone="tile" p-6`: lucide icon in `size-9 rounded-control bg-bg`, `text-md font-semibold`, `text-base text-fg-muted`. Topics: Contribute (uploader + extension), MCP for agents, Self-hostable.
-- `Stat` row (screens · apps · flows) and a `CodeBlock` with `npx open-ui-mcp`.
+- `Stat` row (screens · apps · flows) and a `CodeBlock` with `npx screen-commons-mcp`.
 - `Footer`.
 
 ### Discover (`/browse/$platform`)
@@ -425,7 +425,7 @@ MCP) with `TabsList bordered`.
   the dialog switches to a `Callout tone="warning"` + `CodeBlock code={token}` ("shown once").
   List in `Table` (name, `oui_xxxx••••`, last used, `Button variant="ghost" size="sm"` Revoke →
   confirm `Dialog` with `variant="danger"`).
-- Extension & MCP: `Card`s with `CodeBlock`s (local `npx open-ui-mcp` config JSON; remote URL +
+- Extension & MCP: `Card`s with `CodeBlock`s (local `npx screen-commons-mcp` config JSON; remote URL +
   bearer header), and an install button for the extension.
 
 ### Docs layout (`/docs/*`, public)
@@ -475,10 +475,12 @@ brings the shared positioning/focus engine (~40 KB). Keep it off the critical pa
 - Lazy-load overlays that only appear after interaction, via deep imports:
   ```tsx
   const ScreenViewer = lazy(() =>
-    import("@open-ui/ui/components/screen-viewer").then((m) => ({ default: m.ScreenViewer })),
+    import("@screen-commons/ui/components/screen-viewer").then((m) => ({
+      default: m.ScreenViewer,
+    })),
   );
   const FlowViewer = lazy(() =>
-    import("@open-ui/ui/components/flow-viewer").then((m) => ({ default: m.FlowViewer })),
+    import("@screen-commons/ui/components/flow-viewer").then((m) => ({ default: m.FlowViewer })),
   );
   const CommandPalette = lazy(() => import("./search-palette")); // your wrapper around CommandPalette
   ```
@@ -486,8 +488,8 @@ brings the shared positioning/focus engine (~40 KB). Keep it off the critical pa
   and prefetch on intent (hover a tile → `import(…)`; focus the search pill → prefetch palette).
   For deep links (`?screen=` on first load) the chunk loads in parallel with the data.
 - Mount `<Toaster />` after hydration (`useEffect(() => setReady(true))`) if the route doesn't toast on load.
-- Never import `@open-ui/core` (root) or `@open-ui/core/schemas` values in client components: they
-  pull in zod. Types (`import type`) and `@open-ui/core/taxonomy` are free.
+- Never import `@screen-commons/core` (root) or `@screen-commons/core/schemas` values in client components: they
+  pull in zod. Types (`import type`) and `@screen-commons/core/taxonomy` are free.
 - Images: `priority` for the first row only; thumbnails (`thumbUrl`) in grids, `imageUrl` only in
   the viewer.
 
@@ -499,5 +501,5 @@ brings the shared positioning/focus engine (~40 KB). Keep it off the critical pa
 - **Don't** introduce new colours, shadows, radii or font sizes in app code — add a token here.
 - **Don't** nest interactive elements (tiles already separate the open link and the Save button).
 - **Don't** use `dark:` for component styling; use semantic tokens.
-- **Don't** import from `@open-ui/core` (the root) in client components that only need taxonomy —
-  import `@open-ui/core/taxonomy` to keep zod out of the browse bundle.
+- **Don't** import from `@screen-commons/core` (the root) in client components that only need taxonomy —
+  import `@screen-commons/core/taxonomy` to keep zod out of the browse bundle.

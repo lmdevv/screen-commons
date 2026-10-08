@@ -1,5 +1,5 @@
-import type { AppDetail } from "@open-ui/core";
-import { labelFor } from "@open-ui/core/taxonomy";
+import type { AppDetail } from "@screen-commons/core";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import {
   AppHeader,
   AppLogo,
@@ -15,7 +15,7 @@ import {
   Tooltip,
   cn,
   textLinkClassName,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -82,7 +82,7 @@ export const Route = createFileRoute("/_app/apps/$slug")({
     return { title: app.name };
   },
   head: ({ loaderData }) => ({
-    meta: [{ title: loaderData ? `${loaderData.title} — Open UI` : "Open UI" }],
+    meta: [{ title: loaderData ? `${loaderData.title} — Screen Commons` : "Screen Commons" }],
   }),
   component: AppPage,
 });

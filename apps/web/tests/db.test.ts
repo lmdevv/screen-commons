@@ -18,7 +18,7 @@ let db: D1Database;
 
 /** Database-level invariants (triggers), against a fresh local D1 with all migrations applied. */
 beforeAll(async () => {
-  stateDir = await mkdtemp(join(tmpdir(), "open-ui-db-test-"));
+  stateDir = await mkdtemp(join(tmpdir(), "screen-commons-db-test-"));
   execFileSync(
     "pnpm",
     ["exec", "wrangler", "d1", "migrations", "apply", "DB", "--local", "--persist-to", stateDir],
@@ -105,7 +105,7 @@ describe("save_count triggers (regression: counters diverging)", () => {
 
 describe("0003_global_app_slugs (migration safety)", () => {
   it("renames cross-platform duplicate slugs before enforcing global uniqueness", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "open-ui-migration-test-"));
+    const dir = await mkdtemp(join(tmpdir(), "screen-commons-migration-test-"));
     try {
       const source = join(webDir, "../../packages/db/migrations");
       const migrations = join(dir, "migrations");

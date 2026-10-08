@@ -11,7 +11,7 @@ export const Route = createFileRoute("/docs/$slug")({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(docPageQuery(params.slug)),
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.doc.title ?? "Docs"} · Open UI docs` },
+      { title: `${loaderData?.doc.title ?? "Docs"} · Screen Commons docs` },
       { name: "description", content: loaderData?.doc.description ?? "" },
     ],
   }),

@@ -1,4 +1,4 @@
-import { captureBatchInputSchema } from "@open-ui/core/schemas";
+import { captureBatchInputSchema } from "@screen-commons/core/schemas";
 import { describe, expect, it } from "vitest";
 
 import { chunkByBudget, estimateScreenBytes } from "./chunk";
@@ -122,8 +122,8 @@ describe("settings", () => {
   it("normalises server URLs", () => {
     expect(normalizeServerUrl("localhost:5173/")).toBe("http://localhost:5173");
     expect(normalizeServerUrl("ui.example.com")).toBe("https://ui.example.com");
-    expect(normalizeServerUrl("https://ui.example.com/openui/")).toBe(
-      "https://ui.example.com/openui",
+    expect(normalizeServerUrl("https://ui.example.com/screencommons/")).toBe(
+      "https://ui.example.com/screencommons",
     );
     expect(normalizeServerUrl("ftp://x")).toBeNull();
     expect(normalizeServerUrl("")).toBeNull();

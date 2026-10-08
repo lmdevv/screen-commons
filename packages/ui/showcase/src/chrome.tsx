@@ -16,8 +16,14 @@ import {
   TopBarIconButton,
   pluralize,
   useHotkey,
-} from "@open-ui/ui";
-import { CATEGORIES, ELEMENTS, FLOW_TYPES, PATTERNS, type Platform } from "@open-ui/core/taxonomy";
+} from "@screen-commons/ui";
+import {
+  CATEGORIES,
+  ELEMENTS,
+  FLOW_TYPES,
+  PATTERNS,
+  type Platform,
+} from "@screen-commons/core/taxonomy";
 import {
   Bookmark,
   Code,
@@ -59,7 +65,7 @@ export function Shell({
         logo={
           <a
             href={href("/discover")}
-            aria-label="Open UI home"
+            aria-label="Screen Commons home"
             className="ou-focus-ring rounded-sm"
           >
             <Logo />
@@ -140,7 +146,7 @@ export function Shell({
             ],
           },
         ]}
-        legal="© 2026 Open UI contributors · Apache-2.0"
+        legal="© 2026 Screen Commons contributors · Apache-2.0"
         aside={<ThemeToggle />}
       />
       <SearchPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

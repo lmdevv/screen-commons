@@ -1,4 +1,4 @@
-import { labelFor, type Platform } from "@open-ui/core/taxonomy";
+import { labelFor, type Platform } from "@screen-commons/core/taxonomy";
 import {
   AppLogo,
   Button,
@@ -8,7 +8,7 @@ import {
   UploadItem,
   cn,
   pluralize,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 import { CircleCheck, Info, TriangleAlert } from "lucide-react";
 

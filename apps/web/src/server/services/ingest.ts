@@ -15,7 +15,7 @@ import {
   type Source,
   type Status,
   type catalogTools,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import {
   app,
   flow,
@@ -25,7 +25,7 @@ import {
   type AppRow,
   type NewAppRow,
   type NewScreenRow,
-} from "@open-ui/db";
+} from "@screen-commons/db";
 import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { z } from "zod";

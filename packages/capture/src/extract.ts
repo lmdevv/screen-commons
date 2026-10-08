@@ -3,7 +3,7 @@
  * so it can be serialized into a page with `page.evaluate(fn, arg)`, injected by the browser
  * extension with `scripting.executeScript({ func })`, or run in a test DOM.
  */
-import type { PageMetadata } from "@open-ui/core";
+import type { PageMetadata } from "@screen-commons/core";
 
 export interface IconCandidate {
   url: string;

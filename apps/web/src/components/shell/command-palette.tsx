@@ -1,4 +1,4 @@
-import { useHotkey } from "@open-ui/ui";
+import { useHotkey } from "@screen-commons/ui";
 import { createContext, lazy, Suspense, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 

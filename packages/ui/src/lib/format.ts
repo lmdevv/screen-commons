@@ -55,7 +55,7 @@ export function displayUrl(url: string): string {
   }
 }
 
-/** First letters of up to two words: `Open UI` → `OU`. */
+/** First letters of up to two words: `Screen Commons` → `OU`. */
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/u).filter(Boolean);
   const letters = words.length > 1 ? [words[0]![0], words[1]![0]] : [name.trim()[0]];

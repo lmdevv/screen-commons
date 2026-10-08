@@ -1,4 +1,4 @@
-import { LIMITS, type Viewport } from "@open-ui/core";
+import { LIMITS, type Viewport } from "@screen-commons/core";
 import sharp from "sharp";
 
 export type ImageType = "image/png" | "image/jpeg" | "image/webp";

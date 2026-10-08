@@ -1,5 +1,5 @@
-import { labelFor } from "@open-ui/core/taxonomy";
-import { Button, Chip, EmptyState } from "@open-ui/ui";
+import { labelFor } from "@screen-commons/core/taxonomy";
+import { Button, Chip, EmptyState } from "@screen-commons/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Plus, SearchX, Shapes, Smartphone } from "lucide-react";
@@ -87,7 +87,7 @@ export function PlatformEmpty({ platform, className }: { platform: Platform; cla
       className={className}
       icon={<Smartphone />}
       title={`No ${label} screens yet`}
-      description={`Open UI is built by its community. Upload ${label} screenshots or capture an app with the browser extension, and it shows up here once reviewed.`}
+      description={`Screen Commons is built by its community. Upload ${label} screenshots or capture an app with the browser extension, and it shows up here once reviewed.`}
       actions={
         <>
           <Button render={<Link to="/contribute" />}>

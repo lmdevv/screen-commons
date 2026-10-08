@@ -1,4 +1,4 @@
-import type { FlowStep } from "@open-ui/core/schemas";
+import type { FlowStep } from "@screen-commons/core/schemas";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 

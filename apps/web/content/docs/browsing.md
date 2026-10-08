@@ -2,7 +2,7 @@
 title: Browsing
 description: Find screens and flows with tabs, filters and search, use the viewer and its shortcuts, and save references to collections.
 order: 3
-section: Using Open UI
+section: Using Screen Commons
 ---
 
 Everything in the library requires an account. Sign in and you land on **Discover** for the web platform at `/browse/web`.
@@ -36,7 +36,7 @@ Search matches:
 - Flow names, descriptions and types.
 - Taxonomy terms. Typing `call to action` suggests the **Call to Action** element filter.
 
-Every word must match, and each word also matches as a prefix: `pric tab` finds screens tagged **Pricing Table**. If nothing matches all the words, Open UI shows results that match any of them.
+Every word must match, and each word also matches as a prefix: `pric tab` finds screens tagged **Pricing Table**. If nothing matches all the words, Screen Commons shows results that match any of them.
 
 ## The viewer
 

@@ -144,7 +144,7 @@ export const browserTools = {
     name: "browser_status",
     title: "Browser status",
     description:
-      "Report the active capture driver: 'extension' (the user's real browser via the Open UI extension) or 'headless' (local Chromium), plus open tabs when available.",
+      "Report the active capture driver: 'extension' (the user's real browser via the Screen Commons extension) or 'headless' (local Chromium), plus open tabs when available.",
     input: z.object({}),
     readOnly: true,
   }),
@@ -196,7 +196,7 @@ export const browserTools = {
     name: "capture_pages",
     title: "Capture pages",
     description:
-      "Capture screenshots of the given URLs, auto-tag patterns, and (upload=true) publish them to the Open UI catalog as one app, optionally as an ordered flow.",
+      "Capture screenshots of the given URLs, auto-tag patterns, and (upload=true) publish them to the Screen Commons catalog as one app, optionally as an ordered flow.",
     input: z.object({
       urls: z.array(z.url()).min(1).max(50),
       app: z

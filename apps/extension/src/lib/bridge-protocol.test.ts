@@ -8,7 +8,11 @@ describe("parseInbound", () => {
   it("accepts welcome / ping / pong", () => {
     expect(
       parseInbound(
-        frame({ type: "welcome", protocol: 1, server: { name: "open-ui-mcp", version: "0.1.0" } }),
+        frame({
+          type: "welcome",
+          protocol: 1,
+          server: { name: "screen-commons-mcp", version: "0.1.0" },
+        }),
       ),
     ).toMatchObject({
       type: "welcome",

@@ -5,7 +5,7 @@ import {
   FLOW_TYPES,
   PATTERNS,
   type TaxonomyTerm,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 import {
   Button,
   FilterChip,
@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTitle,
   PopoverTrigger,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { SlidersHorizontal } from "lucide-react";
 
 import type { BrowseSearch, BrowseTab } from "../../lib/search-params";

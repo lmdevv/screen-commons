@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { createDb, type Db } from "@open-ui/db";
+import { createDb, type Db } from "@screen-commons/db";
 
 export { env };
 

@@ -1,5 +1,10 @@
-import type { AppSummary } from "@open-ui/core";
-import { CATEGORIES, labelFor, type CategorySlug, type Platform } from "@open-ui/core/taxonomy";
+import type { AppSummary } from "@screen-commons/core";
+import {
+  CATEGORIES,
+  labelFor,
+  type CategorySlug,
+  type Platform,
+} from "@screen-commons/core/taxonomy";
 import {
   AppLogo,
   Field,
@@ -12,7 +17,7 @@ import {
   Textarea,
   cn,
   pluralize,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Check, Plus, Search } from "lucide-react";
 import { useId, useRef, useState, type KeyboardEvent } from "react";

@@ -1,22 +1,22 @@
 {
-  "name": "open-ui",
+  "name": "screen-commons",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "turbo run dev --filter=@open-ui/web",
-    "dev:extension": "pnpm --filter @open-ui/extension dev",
+    "dev": "turbo run dev --filter=@screen-commons/web",
+    "dev:extension": "pnpm --filter @screen-commons/extension dev",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "seed": "pnpm --filter @open-ui/capture seed",
+    "seed": "pnpm --filter @screen-commons/capture seed",
     "lint": "oxlint",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
     "check": "pnpm lint && pnpm format:check && pnpm check-types"
   },
   "devDependencies": {
-    "@open-ui/config": "workspace:*",
+    "@screen-commons/config": "workspace:*",
     "@types/node": "catalog:",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",

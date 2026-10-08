@@ -1,4 +1,4 @@
-import type { Platform } from "@open-ui/core/taxonomy";
+import type { Platform } from "@screen-commons/core/taxonomy";
 import type * as React from "react";
 
 import { cn } from "../lib/cn";

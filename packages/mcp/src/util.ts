@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { OpenUiApiError } from "@open-ui/core";
+import { ScreenCommonsApiError } from "@screen-commons/core";
 
 import { BridgeError } from "./bridge";
 
@@ -33,15 +33,15 @@ export function absoluteUrl(baseUrl: string, url: string | null | undefined): st
 /** Turn any error into an actionable message for the agent. */
 export function describeError(error: unknown, context: { url: string }): string {
   if (error instanceof FriendlyError) return error.message;
-  if (error instanceof OpenUiApiError) {
+  if (error instanceof ScreenCommonsApiError) {
     if (error.status === 401) {
-      return `Open UI rejected the API key (401). Create a new key at ${context.url}/settings and set OPEN_UI_API_KEY in the MCP server config.`;
+      return `Screen Commons rejected the API key (401). Create a new key at ${context.url}/settings and set SCREEN_COMMONS_API_KEY in the MCP server config.`;
     }
     if (error.status === 403) return `Forbidden (403): ${error.message}`;
     if (error.status === 404) return `Not found (404): ${error.message}`;
     if (error.status === 413)
       return `Payload too large (413): ${error.message}. Capture fewer pages per call.`;
-    return `Open UI API error ${error.status} (${error.code}): ${error.message}`;
+    return `Screen Commons API error ${error.status} (${error.code}): ${error.message}`;
   }
   if (error instanceof BridgeError) {
     return `Browser extension error (${error.code}): ${error.message}`;
@@ -49,10 +49,10 @@ export function describeError(error: unknown, context: { url: string }): string 
   if (error instanceof Error) {
     const cause = (error as Error & { cause?: { code?: string; message?: string } }).cause;
     if (error.name === "TypeError" && /fetch failed/u.test(error.message)) {
-      return `Could not reach Open UI at ${context.url} (${cause?.code ?? cause?.message ?? "network error"}). Is the instance running? Set OPEN_UI_URL if it lives elsewhere.`;
+      return `Could not reach Screen Commons at ${context.url} (${cause?.code ?? cause?.message ?? "network error"}). Is the instance running? Set SCREEN_COMMONS_URL if it lives elsewhere.`;
     }
     if (error instanceof SyntaxError) {
-      return `Unexpected (non-JSON) response from ${context.url}. Is OPEN_UI_URL pointing at an Open UI instance?`;
+      return `Unexpected (non-JSON) response from ${context.url}. Is SCREEN_COMMONS_URL pointing at an Screen Commons instance?`;
     }
     return error.message;
   }

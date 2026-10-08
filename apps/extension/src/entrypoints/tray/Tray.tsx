@@ -5,7 +5,7 @@ import {
   PLATFORMS,
   labelFor,
   type PatternSlug,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, GripVertical, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { browser } from "wxt/browser";
@@ -200,7 +200,7 @@ export function Tray() {
         <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-between gap-4 px-6">
           <div className="flex items-center gap-2.5">
             <Logo size={20} />
-            <span className="text-[14px] font-semibold tracking-[-0.01em]">Open UI</span>
+            <span className="text-[14px] font-semibold tracking-[-0.01em]">Screen Commons</span>
             <span className="text-subtle">/</span>
             <span className="text-[14px] font-medium">Tray</span>
           </div>
@@ -497,7 +497,9 @@ function UploadPanel({
   if (missingKey) {
     return (
       <div className="flex flex-col gap-2 border-t border-line pt-6">
-        <p className="text-[12px] leading-4 text-muted">Connect your Open UI account to upload.</p>
+        <p className="text-[12px] leading-4 text-muted">
+          Connect your Screen Commons account to upload.
+        </p>
         <Button
           size="sm"
           className="self-start"

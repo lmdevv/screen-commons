@@ -15,7 +15,7 @@ import {
   type FlowTypeSlug,
   type PatternSlug,
   type Platform,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 
 type Raw = Record<string, unknown>;
 

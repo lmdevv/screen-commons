@@ -3,10 +3,10 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { BRIDGE_DEFAULT_PORT } from "@open-ui/core";
+import { BRIDGE_DEFAULT_PORT } from "@screen-commons/core";
 
 export interface McpConfig {
-  /** Open UI instance origin. */
+  /** Screen Commons instance origin. */
   url: string;
   apiKey: string | undefined;
   bridge: {
@@ -22,18 +22,20 @@ export interface McpConfig {
   outputDir: string;
 }
 
-const HELP = `open-ui-mcp — Open UI MCP server (stdio)
+const HELP = `screen-commons-mcp — Screen Commons MCP server (stdio)
 
 Options (env var in brackets):
-  --url <origin>          Open UI instance [OPEN_UI_URL] (default http://localhost:5173)
-  --api-key <oui_…>       API key for catalog + upload tools [OPEN_UI_API_KEY]
-  --bridge-port <port>    Extension bridge port on 127.0.0.1 [OPEN_UI_BRIDGE_PORT] (default 7457)
-  --bridge-token <token>  Pairing token [OPEN_UI_BRIDGE_TOKEN] (default: ~/.config/open-ui/bridge-token)
+  --url <origin>          Screen Commons instance [SCREEN_COMMONS_URL] (default http://localhost:5173)
+  --api-key <oui_…>       API key for catalog + upload tools [SCREEN_COMMONS_API_KEY]
+  --bridge-port <port>    Extension bridge port on 127.0.0.1 [SCREEN_COMMONS_BRIDGE_PORT] (default 7457)
+  --bridge-token <token>  Pairing token [SCREEN_COMMONS_BRIDGE_TOKEN] (default: ~/.config/open-ui/bridge-token)
   --no-bridge             Do not start the extension bridge (headless only)
   --chrome-path <path>    Chromium/Chrome executable [CHROME_PATH] (auto-detected)
-  --headful               Show the headless browser window [OPEN_UI_HEADLESS=false]
-  --output-dir <dir>      Where screenshots are saved [OPEN_UI_OUTPUT_DIR] (default: $TMPDIR/open-ui-mcp)
+  --headful               Show the headless browser window [SCREEN_COMMONS_HEADLESS=false]
+  --output-dir <dir>      Where screenshots are saved [SCREEN_COMMONS_OUTPUT_DIR] (default: $TMPDIR/screen-commons-mcp)
   --help                  Show this help
+
+Legacy OPEN_UI_* environment variables are also accepted; SCREEN_COMMONS_* takes precedence.
 `;
 
 export function helpText(): string {
@@ -98,30 +100,31 @@ export interface LoadConfigInput {
 
 export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig> {
   const env = input.env ?? process.env;
+  // Prefer the new name while keeping existing MCP client configurations working.
+  const setting = (name: string) => env[`SCREEN_COMMONS_${name}`] ?? env[`OPEN_UI_${name}`];
   const args = parseArgs(input.argv ?? process.argv.slice(2));
   const str = (key: string) => (typeof args[key] === "string" ? (args[key] as string) : undefined);
 
-  const url = (str("url") ?? env.OPEN_UI_URL ?? "http://localhost:5173")
-    .trim()
-    .replace(/\/+$/u, "");
+  const url = (str("url") ?? setting("URL") ?? "http://localhost:5173").trim().replace(/\/+$/u, "");
   try {
     new URL(url);
   } catch {
-    throw new Error(`Invalid Open UI URL: ${url}`);
+    throw new Error(`Invalid Screen Commons URL: ${url}`);
   }
-  const apiKey = (str("api-key") ?? env.OPEN_UI_API_KEY)?.trim() || undefined;
+  const apiKey = (str("api-key") ?? setting("API_KEY"))?.trim() || undefined;
 
-  const portRaw = str("bridge-port") ?? env.OPEN_UI_BRIDGE_PORT;
+  const portRaw = str("bridge-port") ?? setting("BRIDGE_PORT");
   const port = portRaw ? Number.parseInt(portRaw, 10) : BRIDGE_DEFAULT_PORT;
   if (!Number.isInteger(port) || port < 0 || port > 65_535) {
     throw new Error(`Invalid bridge port: ${portRaw}`);
   }
   const tokenPath = defaultTokenPath(env, input.home);
-  const enabled = args.bridge !== false && !/^(0|false|off)$/iu.test(env.OPEN_UI_BRIDGE ?? "");
+  const enabled = args.bridge !== false && !/^(0|false|off)$/iu.test(setting("BRIDGE") ?? "");
   let token = str("bridge-token");
   let tokenSource: McpConfig["bridge"]["tokenSource"] = "arg";
-  if (!token && env.OPEN_UI_BRIDGE_TOKEN?.trim()) {
-    token = env.OPEN_UI_BRIDGE_TOKEN.trim();
+  const envToken = setting("BRIDGE_TOKEN")?.trim();
+  if (!token && envToken) {
+    token = envToken;
     tokenSource = "env";
   }
   if (!token) {
@@ -135,9 +138,9 @@ export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig
       ? false
       : args.headless === false
         ? false
-        : env.OPEN_UI_HEADLESS === undefined
+        : setting("HEADLESS") === undefined
           ? true
-          : truthy(env.OPEN_UI_HEADLESS);
+          : truthy(setting("HEADLESS"));
 
   return {
     url,
@@ -145,6 +148,6 @@ export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig
     bridge: { enabled, port, token, tokenSource, tokenPath },
     chromePath: (str("chrome-path") ?? env.CHROME_PATH)?.trim() || undefined,
     headless,
-    outputDir: str("output-dir") ?? env.OPEN_UI_OUTPUT_DIR ?? join(tmpdir(), "open-ui-mcp"),
+    outputDir: str("output-dir") ?? setting("OUTPUT_DIR") ?? join(tmpdir(), "screen-commons-mcp"),
   };
 }

@@ -1,16 +1,16 @@
 ---
 title: MCP
-description: Connect AI agents to Open UI. Search the catalog for inspiration, and let agents crawl, capture and upload sites.
+description: Connect AI agents to Screen Commons. Search the catalog for inspiration, and let agents crawl, capture and upload sites.
 order: 6
 section: Integrations
 ---
 
-Open UI speaks the [Model Context Protocol](https://modelcontextprotocol.io), so agents such as Claude Code and Cursor can use the catalog directly. There are two servers. Both register the same catalog tools with the same names and arguments.
+Screen Commons speaks the [Model Context Protocol](https://modelcontextprotocol.io), so agents such as Claude Code and Cursor can use the catalog directly. There are two servers. Both register the same catalog tools with the same names and arguments.
 
-| Server     | Runs                             | Transport       | Tools             | Use it to                                                             |
-| ---------- | -------------------------------- | --------------- | ----------------- | --------------------------------------------------------------------- |
-| **Remote** | Inside your instance at `/mcp`   | Streamable HTTP | Catalog           | Search screens and flows, view images, upload.                        |
-| **Local**  | On your machine as `open-ui-mcp` | stdio           | Catalog + browser | Everything above, plus navigate, screenshot, crawl and capture sites. |
+| Server     | Runs                                    | Transport       | Tools             | Use it to                                                             |
+| ---------- | --------------------------------------- | --------------- | ----------------- | --------------------------------------------------------------------- |
+| **Remote** | Inside your instance at `/mcp`          | Streamable HTTP | Catalog           | Search screens and flows, view images, upload.                        |
+| **Local**  | On your machine as `screen-commons-mcp` | stdio           | Catalog + browser | Everything above, plus navigate, screenshot, crawl and capture sites. |
 
 Pick one per client. The local server proxies the catalog tools to your instance, so you don't need both.
 
@@ -23,7 +23,7 @@ The endpoint is `https://<your-instance>/mcp` (`http://localhost:5173/mcp` local
 ### Claude Code
 
 ```bash
-claude mcp add --transport http open-ui http://localhost:5173/mcp \
+claude mcp add --transport http screen-commons http://localhost:5173/mcp \
   --header "Authorization: Bearer oui_…"
 ```
 
@@ -34,7 +34,7 @@ Add to `~/.cursor/mcp.json`, or `.cursor/mcp.json` in a project:
 ```json
 {
   "mcpServers": {
-    "open-ui": {
+    "screen-commons": {
       "url": "http://localhost:5173/mcp",
       "headers": { "Authorization": "Bearer oui_…" }
     }
@@ -49,7 +49,7 @@ Most clients accept this shape, for example Claude Code's project-level `.mcp.js
 ```json
 {
   "mcpServers": {
-    "open-ui": {
+    "screen-commons": {
       "type": "http",
       "url": "http://localhost:5173/mcp",
       "headers": { "Authorization": "Bearer oui_…" }
@@ -63,16 +63,16 @@ Clients that only support stdio can reach the remote server through [`mcp-remote
 ```json
 {
   "mcpServers": {
-    "open-ui": {
+    "screen-commons": {
       "command": "npx",
       "args": [
         "-y",
         "mcp-remote",
         "http://localhost:5173/mcp",
         "--header",
-        "Authorization:${OPEN_UI_AUTH}"
+        "Authorization:${SCREEN_COMMONS_AUTH}"
       ],
-      "env": { "OPEN_UI_AUTH": "Bearer oui_…" }
+      "env": { "SCREEN_COMMONS_AUTH": "Bearer oui_…" }
     }
   }
 }
@@ -92,9 +92,9 @@ The server is stateless and answers with plain JSON. It accepts `POST` only. Req
 
 ## Local server
 
-`open-ui-mcp` is a stdio server that runs next to your agent. It exposes the catalog tools (proxied to your instance's REST API) and browser tools that capture pages with one of two drivers:
+`screen-commons-mcp` is a stdio server that runs next to your agent. It exposes the catalog tools (proxied to your instance's REST API) and browser tools that capture pages with one of two drivers:
 
-- **Extension** (preferred). Your real browser, through the [Open UI Capture extension](/docs/extension) connected to the local bridge. Pages render exactly as you see them.
+- **Extension** (preferred). Your real browser, through the [Screen Commons Capture extension](/docs/extension) connected to the local bridge. Pages render exactly as you see them.
 - **Headless** (fallback). A local Chrome or Chromium driven by `playwright-core`. Used automatically when no extension is connected.
 
 ### Build
@@ -103,21 +103,23 @@ From the repository root:
 
 ```bash
 pnpm install
-pnpm --filter @open-ui/mcp build
+pnpm --filter @screen-commons/mcp build
 ```
 
-Then run it with `node packages/mcp/dist/index.js`, or `npx open-ui-mcp` where the package is installed.
+Then run it with `node packages/mcp/dist/index.js`. The workspace package is currently private and unpublished; `screen-commons-mcp` is its executable name, not an available npm install.
 
 ### Configure
 
-| Variable               | Default                 | Purpose                                                                                                            |
-| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `OPEN_UI_URL`          | `http://localhost:5173` | Your Open UI instance.                                                                                             |
-| `OPEN_UI_API_KEY`      | none                    | `oui_…` key for the catalog tools and uploads.                                                                     |
-| `OPEN_UI_BRIDGE_PORT`  | `7457`                  | Port of the extension bridge on `127.0.0.1`.                                                                       |
-| `OPEN_UI_BRIDGE_TOKEN` | generated               | Pairing token for the extension. If unset, one is generated, saved to `~/.config/open-ui/bridge-token` and reused. |
-| `CHROME_PATH`          | auto-detected           | Chrome or Chromium binary for the headless driver.                                                                 |
-| `OPEN_UI_HEADLESS`     | `true`                  | Set to `false` to watch the headless browser work.                                                                 |
+| Variable                      | Default                 | Purpose                                                                                                            |
+| ----------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `SCREEN_COMMONS_URL`          | `http://localhost:5173` | Your Screen Commons instance.                                                                                      |
+| `SCREEN_COMMONS_API_KEY`      | none                    | `oui_…` key for the catalog tools and uploads.                                                                     |
+| `SCREEN_COMMONS_BRIDGE_PORT`  | `7457`                  | Port of the extension bridge on `127.0.0.1`.                                                                       |
+| `SCREEN_COMMONS_BRIDGE_TOKEN` | generated               | Pairing token for the extension. If unset, one is generated, saved to `~/.config/open-ui/bridge-token` and reused. |
+| `CHROME_PATH`                 | auto-detected           | Chrome or Chromium binary for the headless driver.                                                                 |
+| `SCREEN_COMMONS_HEADLESS`     | `true`                  | Set to `false` to watch the headless browser work.                                                                 |
+
+Legacy `OPEN_UI_*` variables remain supported; `SCREEN_COMMONS_*` takes precedence. The pairing token stays at `~/.config/open-ui/bridge-token` so an existing extension stays paired.
 
 All logs, including the pairing token, go to stderr; stdout carries only MCP messages.
 
@@ -125,9 +127,9 @@ All logs, including the pairing token, go to stderr; stdout carries only MCP mes
 
 ```bash
 claude mcp add --transport stdio \
-  --env OPEN_UI_URL=http://localhost:5173 \
-  --env OPEN_UI_API_KEY=oui_… \
-  open-ui -- node /absolute/path/to/open-ui/packages/mcp/dist/index.js
+  --env SCREEN_COMMONS_URL=http://localhost:5173 \
+  --env SCREEN_COMMONS_API_KEY=oui_… \
+  screen-commons -- node /absolute/path/to/screen-commons/packages/mcp/dist/index.js
 ```
 
 ### Cursor and other clients
@@ -135,25 +137,25 @@ claude mcp add --transport stdio \
 ```json
 {
   "mcpServers": {
-    "open-ui": {
+    "screen-commons": {
       "command": "node",
-      "args": ["/absolute/path/to/open-ui/packages/mcp/dist/index.js"],
+      "args": ["/absolute/path/to/screen-commons/packages/mcp/dist/index.js"],
       "env": {
-        "OPEN_UI_URL": "http://localhost:5173",
-        "OPEN_UI_API_KEY": "oui_…"
+        "SCREEN_COMMONS_URL": "http://localhost:5173",
+        "SCREEN_COMMONS_API_KEY": "oui_…"
       }
     }
   }
 }
 ```
 
-With the package installed, use `"command": "npx", "args": ["open-ui-mcp"]` instead.
+Use the built local file above until an npm package is published.
 
 ## Pair the browser extension
 
 The bridge is a WebSocket server on `ws://127.0.0.1:7457` that only accepts the extension when it presents the pairing token.
 
-1. Start your agent so it launches `open-ui-mcp`. The token is printed to stderr and saved to `~/.config/open-ui/bridge-token`:
+1. Start your agent so it launches `screen-commons-mcp`. The token is printed to stderr and saved to `~/.config/open-ui/bridge-token`:
 
    ```bash
    cat ~/.config/open-ui/bridge-token
@@ -163,7 +165,7 @@ The bridge is a WebSocket server on `ws://127.0.0.1:7457` that only accepts the 
 3. Click **Test bridge**. The status changes to **Connected**, and the popup shows **MCP bridge: Connected**.
 4. Ask your agent to call `browser_status`. It reports the `extension` driver.
 
-The token persists, so you pair once. To rotate it, delete the file (or set `OPEN_UI_BRIDGE_TOKEN`), restart the server and paste the new token.
+The token persists, so you pair once. To rotate it, delete the file (or set `SCREEN_COMMONS_BRIDGE_TOKEN`), restart the server and paste the new token.
 
 | Popup status         | Meaning                                                             |
 | -------------------- | ------------------------------------------------------------------- |
@@ -216,7 +218,7 @@ Valid values for `platform`, `pattern`, `element`, `type` and `category` come fr
 
 Uses the local server. With the extension paired, capture runs in your browser; otherwise headless Chromium.
 
-> Capture the Linear marketing site into Open UI: home, pricing, sign up and changelog, desktop, full page.
+> Capture the Linear marketing site into Screen Commons: home, pricing, sign up and changelog, desktop, full page.
 
 A typical sequence:
 

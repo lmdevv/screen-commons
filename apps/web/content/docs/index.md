@@ -1,11 +1,11 @@
 ---
 title: Introduction
-description: What Open UI is, the concepts it is built on, and how content gets into the library.
+description: What Screen Commons is, the concepts it is built on, and how content gets into the library.
 order: 1
 section: Getting started
 ---
 
-Open UI is an open-source, self-hostable UI reference library. It is a curated catalog of real product screens and ordered user flows, grouped by app and searchable by screen pattern, UI element and flow type.
+Screen Commons is an open-source, self-hostable UI reference library. It is a curated catalog of real product screens and ordered user flows, grouped by app and searchable by screen pattern, UI element and flow type.
 
 You run your own instance on Cloudflare (or locally), invite your team, and fill it from three places: the website uploader, the browser extension, and AI agents through MCP. Agents can also search the catalog for inspiration.
 
@@ -48,6 +48,6 @@ Every path ends at the same API, so the same limits and review rules apply every
 
 ## Next steps
 
-- [Quickstart](/docs/quickstart): run Open UI locally in five minutes.
+- [Quickstart](/docs/quickstart): run Screen Commons locally in five minutes.
 - [Browsing](/docs/browsing): find screens and flows, and save them.
 - [Self-hosting](/docs/self-hosting): deploy your own instance to Cloudflare.

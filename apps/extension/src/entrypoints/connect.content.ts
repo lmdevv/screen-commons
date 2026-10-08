@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
 /**
- * Runs on Open UI origins (manifest: default dev server; custom servers are registered at
+ * Runs on Screen Commons origins (manifest: default dev server; custom servers are registered at
  * runtime). Bridges `/extension/connect` to the background:
  *
  *   page → window.postMessage({ type: "open-ui:connect", token, baseUrl }, location.origin)
@@ -43,8 +43,8 @@ export default defineContentScript({
             );
             toast(
               response.data.userName
-                ? `Open UI Capture connected as ${response.data.userName}`
-                : "Open UI Capture connected",
+                ? `Screen Commons Capture connected as ${response.data.userName}`
+                : "Screen Commons Capture connected",
             );
           } else {
             const error =

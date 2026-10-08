@@ -1,5 +1,5 @@
-import type { User } from "@open-ui/core";
-import { Container, PageHeader, TabNav, TabNavItem } from "@open-ui/ui";
+import type { User } from "@screen-commons/core";
+import { Container, PageHeader, TabNav, TabNavItem } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 
 import { ApiKeysSection } from "./api-keys";

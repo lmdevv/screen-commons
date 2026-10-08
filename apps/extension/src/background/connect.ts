@@ -1,5 +1,5 @@
-import { API_KEY_PREFIX } from "@open-ui/core/api";
-import { createOpenUiClient, OpenUiApiError } from "@open-ui/core/client";
+import { API_KEY_PREFIX } from "@screen-commons/core/api";
+import { createScreenCommonsClient, ScreenCommonsApiError } from "@screen-commons/core/client";
 import { browser, type Browser } from "wxt/browser";
 
 import {
@@ -11,7 +11,7 @@ import {
 } from "../lib/settings";
 import { getSettings, saveSettings, setItem } from "../lib/storage";
 
-const SCRIPT_ID = "open-ui-connect";
+const SCRIPT_ID = "screen-commons-connect";
 /** Built path of `entrypoints/connect.content.ts`. */
 const SCRIPT_FILE = "content-scripts/connect.js";
 
@@ -28,7 +28,7 @@ export async function syncConnectScript(settings: Settings): Promise<void> {
     if (!pattern) return;
     const granted = await browser.permissions.contains({ origins: [pattern] }).catch(() => false);
     if (!granted) {
-      console.warn("[open-ui] no host permission for", pattern, "— grant it from Options");
+      console.warn("[screen-commons] no host permission for", pattern, "— grant it from Options");
       return;
     }
     await browser.scripting.registerContentScripts([
@@ -41,13 +41,13 @@ export async function syncConnectScript(settings: Settings): Promise<void> {
       },
     ]);
   } catch (error) {
-    console.warn("[open-ui] could not register the connect content script", error);
+    console.warn("[screen-commons] could not register the connect content script", error);
   }
 }
 
 const TOKEN_PATTERN = new RegExp(`^${API_KEY_PREFIX}[A-Za-z0-9_-]{8,200}$`, "u");
 
-/** Accept a key handed over by `/extension/connect` on a configured Open UI origin. */
+/** Accept a key handed over by `/extension/connect` on a configured Screen Commons origin. */
 export async function acceptConnectToken(
   message: { token: unknown; baseUrl: unknown },
   sender: Browser.runtime.MessageSender,
@@ -57,7 +57,7 @@ export async function acceptConnectToken(
   const senderOrigin = originOf(sender.url ?? sender.tab.url ?? "");
   const allowed = new Set([originOf(settings.serverUrl), originOf(DEFAULT_SERVER_URL)]);
   if (!senderOrigin || !allowed.has(senderOrigin)) {
-    throw new Error(`${senderOrigin ?? "This page"} is not your configured Open UI server`);
+    throw new Error(`${senderOrigin ?? "This page"} is not your configured Screen Commons server`);
   }
   if (typeof message.token !== "string" || !TOKEN_PATTERN.test(message.token))
     throw new Error("Invalid API key");
@@ -67,10 +67,10 @@ export async function acceptConnectToken(
 
   let userName: string | null = null;
   try {
-    const me = await createOpenUiClient({ baseUrl, apiKey: message.token }).me();
+    const me = await createScreenCommonsClient({ baseUrl, apiKey: message.token }).me();
     userName = me.name || me.email;
   } catch (error) {
-    if (error instanceof OpenUiApiError && error.status === 401)
+    if (error instanceof ScreenCommonsApiError && error.status === 401)
       throw new Error("The server rejected the new key");
     // Network hiccup: keep the key, the popup will show the account state later.
   }

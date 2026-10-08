@@ -1,7 +1,7 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
-import type { FlowSummary } from "@open-ui/core/schemas";
-import { labelFor } from "@open-ui/core/taxonomy";
+import type { FlowSummary } from "@screen-commons/core/schemas";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import type * as React from "react";
 
 import { cn } from "../lib/cn";

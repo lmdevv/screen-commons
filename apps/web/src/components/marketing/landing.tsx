@@ -11,7 +11,7 @@ import {
   ScreenTile,
   cn,
   formatNumber,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -241,7 +241,7 @@ function ExtensionVisual() {
         <div className="flex items-center justify-between px-4 pt-3.5 pb-3">
           <span className="flex items-center gap-2">
             <LogoMark size={18} />
-            <span className="text-base font-semibold tracking-[-0.01em]">Open UI</span>
+            <span className="text-base font-semibold tracking-[-0.01em]">Screen Commons</span>
           </span>
           <SettingsIcon className="size-4 text-fg-muted" strokeWidth={1.75} />
         </div>
@@ -252,7 +252,9 @@ function ExtensionVisual() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">Ada Lovelace</span>
-              <span className="block truncate text-xs text-fg-muted">openui.example.com</span>
+              <span className="block truncate text-xs text-fg-muted">
+                screencommons.example.com
+              </span>
             </span>
             <span className="size-2 rounded-full bg-success" />
           </div>
@@ -317,11 +319,11 @@ function McpVisual({ origin, pricing }: { origin: string; pricing: Thumb[] }) {
       <CodeBlock
         title="Terminal"
         className="bg-bg"
-        code={`claude mcp add --transport http open-ui ${origin}/mcp \\\n  --header "Authorization: Bearer oui_…"`}
+        code={`claude mcp add --transport http screen-commons ${origin}/mcp \\\n  --header "Authorization: Bearer oui_…"`}
       />
       <div aria-hidden className="rounded-card bg-bg p-4">
         <p className="font-mono text-[13px] leading-[21px] text-fg">
-          <span className="text-fg-muted">open-ui</span> · search_screens
+          <span className="text-fg-muted">screen-commons</span> · search_screens
           <span className="text-fg-muted">{" { "}</span>pattern:{" "}
           <span className="text-accent">"pricing"</span>
           <span className="text-fg-muted">{" }"}</span>
@@ -375,7 +377,7 @@ function OpenSource() {
         </div>
         <CodeBlock
           title="Terminal"
-          code={`git clone ${GITHUB_URL}.git\ncd open-ui\npnpm install\npnpm dev`}
+          code={`git clone ${GITHUB_URL}.git screen-commons\ncd screen-commons\npnpm install\npnpm dev`}
         />
       </div>
     </Container>

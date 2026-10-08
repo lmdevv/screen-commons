@@ -3,7 +3,7 @@
  * dimensions, generate the 640px top-anchored thumbnail and a dominant colour. Runs in a Web
  * Worker (OffscreenCanvas) when available, otherwise on the main thread.
  *
- * Mirrors `LIMITS` in @open-ui/core (kept local so zod stays out of the bundle).
+ * Mirrors `LIMITS` in @screen-commons/core (kept local so zod stays out of the bundle).
  */
 export const IMAGE_LIMITS = {
   maxImageBytes: 15 * 1024 * 1024,

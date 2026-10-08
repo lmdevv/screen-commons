@@ -1,4 +1,4 @@
-import { API_PREFIX, type ApiErrorBody } from "@open-ui/core";
+import { API_PREFIX, type ApiErrorBody } from "@screen-commons/core";
 import { Hono, type Context } from "hono";
 
 import { appOrigin } from "../env";

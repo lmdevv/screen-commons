@@ -1,4 +1,4 @@
-import type { ApiKey } from "@open-ui/core";
+import type { ApiKey } from "@screen-commons/core";
 import {
   Button,
   Callout,
@@ -24,7 +24,7 @@ import {
   TableHeaderCell,
   TableRow,
   formatDate,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Plus, TriangleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";

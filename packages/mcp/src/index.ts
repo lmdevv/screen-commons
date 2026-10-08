@@ -3,10 +3,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { BridgeServer } from "./bridge";
 import { helpText, loadConfig } from "./config";
-import { SERVER_INFO, createOpenUiMcpServer } from "./server";
+import { SERVER_INFO, createScreenCommonsMcpServer } from "./server";
 
 /** stdout is the MCP channel: every diagnostic goes to stderr. */
-const log = (message: string) => process.stderr.write(`[open-ui-mcp] ${message}\n`);
+const log = (message: string) => process.stderr.write(`[screen-commons-mcp] ${message}\n`);
 
 async function main() {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -34,13 +34,13 @@ async function main() {
       const code = (error as NodeJS.ErrnoException).code;
       log(
         code === "EADDRINUSE"
-          ? `bridge port ${config.bridge.port} is in use (another open-ui-mcp running?); continuing with headless capture only.`
+          ? `bridge port ${config.bridge.port} is in use (another screen-commons-mcp running?); continuing with headless capture only.`
           : `bridge failed to start: ${(error as Error).message}; continuing with headless capture only.`,
       );
     }
   }
 
-  const app = createOpenUiMcpServer({ config, bridge, log });
+  const app = createScreenCommonsMcpServer({ config, bridge, log });
   const transport = new StdioServerTransport();
 
   let closing = false;
@@ -63,7 +63,7 @@ async function main() {
   await app.server.connect(transport);
 
   log(
-    `v${SERVER_INFO.version} ready · Open UI ${config.url} · API key ${config.apiKey ? "set" : "MISSING (set OPEN_UI_API_KEY for catalog + upload tools)"}`,
+    `v${SERVER_INFO.version} ready · Screen Commons ${config.url} · API key ${config.apiKey ? "set" : "MISSING (set SCREEN_COMMONS_API_KEY for catalog + upload tools)"}`,
   );
   if (bridge) {
     log(`extension bridge on ws://127.0.0.1:${bridge.port}`);
@@ -71,7 +71,7 @@ async function main() {
       `pairing token (${config.bridge.tokenSource === "generated" ? `new, saved to ${config.bridge.tokenPath}` : config.bridge.tokenSource === "file" ? config.bridge.tokenPath : config.bridge.tokenSource}): ${config.bridge.token}`,
     );
     log(
-      "pair: Open UI extension → Options → MCP bridge → port " +
+      "pair: Screen Commons extension → Options → MCP bridge → port " +
         bridge.port +
         " + paste the token above.",
     );

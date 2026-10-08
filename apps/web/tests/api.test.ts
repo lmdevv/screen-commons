@@ -1,4 +1,8 @@
-import { OpenUiApiError, type CaptureBatchResult, type OpenUiClient } from "@open-ui/core";
+import {
+  ScreenCommonsApiError,
+  type CaptureBatchResult,
+  type ScreenCommonsClient,
+} from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng, makeWebp } from "./images";
@@ -10,7 +14,7 @@ let admin: Session;
 let member: Session;
 let other: Session;
 let adminKey: string;
-let adminApi: OpenUiClient;
+let adminApi: ScreenCommonsClient;
 let batch: CaptureBatchResult;
 
 async function expectApiError(promise: Promise<unknown>, status: number, code?: string) {
@@ -18,9 +22,9 @@ async function expectApiError(promise: Promise<unknown>, status: number, code?: 
     () => null,
     (failure: unknown) => failure,
   );
-  expect(error).toBeInstanceOf(OpenUiApiError);
-  expect((error as OpenUiApiError).status).toBe(status);
-  if (code) expect((error as OpenUiApiError).code).toBe(code);
+  expect(error).toBeInstanceOf(ScreenCommonsApiError);
+  expect((error as ScreenCommonsApiError).status).toBe(status);
+  if (code) expect((error as ScreenCommonsApiError).code).toBe(code);
 }
 
 beforeAll(async () => {
@@ -31,8 +35,8 @@ beforeAll(async () => {
 describe("auth", () => {
   it("makes the first account admin and later sign-ups members", async () => {
     expect((await admin.client().me()).role).toBe("admin");
-    member = await Session.signUp("Mia Member", `mia-${suffix}@open-ui.test`);
-    other = await Session.signUp("Oscar Other", `oscar-${suffix}@open-ui.test`);
+    member = await Session.signUp("Mia Member", `mia-${suffix}@screen-commons.test`);
+    other = await Session.signUp("Oscar Other", `oscar-${suffix}@screen-commons.test`);
     expect((await member.client().me()).role).toBe("member");
     expect((await other.client().me()).role).toBe("member");
   });

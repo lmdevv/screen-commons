@@ -1,6 +1,6 @@
-# Open UI — build specification
+# Screen Commons — build specification
 
-Open UI is an open-source, self-hostable UI reference library in the spirit of Mobbin: a curated
+Screen Commons is an open-source, self-hostable UI reference library in the spirit of Mobbin: a curated
 catalog of real product **screens** and ordered **flows**, grouped by **app**, searchable by
 **screen pattern** (Login, Pricing, Dashboard…), **UI element** (Modal, Table, Tabs…) and **flow
 type** (Onboarding, Checkout…). Content gets in through the website uploader, a WXT browser
@@ -21,7 +21,7 @@ packages/
   db/          Drizzle schema + D1 migrations
   ui/          design tokens + React primitives shared by web and extension
   capture/     page capture/crawl engine (in-page extractors + headless playwright-core driver)
-  mcp/         `open-ui-mcp` stdio MCP server: catalog tools + browser tools (extension bridge or headless)
+  mcp/         `screen-commons-mcp` stdio MCP server: catalog tools + browser tools (extension bridge or headless)
   config/      shared tsconfig
 scripts/       seed + e2e helpers
 docs/          this spec + architecture notes (user docs live in apps/web/content/docs)
@@ -143,8 +143,8 @@ Two servers share tool names and schemas (defined in `packages/core/src/mcp.ts`)
 `get_app`, `get_screen` (returns the image as MCP image content), `get_flow`, `get_taxonomy`,
 `upload_screen`, `create_flow`.
 
-**Local** (`npx open-ui-mcp`, stdio): the same catalog tools proxied to the API using
-`OPEN_UI_URL` + `OPEN_UI_API_KEY`, plus browser tools:
+**Local** (`node packages/mcp/dist/index.js`, stdio; executable name `screen-commons-mcp`): the same catalog tools proxied to the API using
+`SCREEN_COMMONS_URL` + `SCREEN_COMMONS_API_KEY`, plus browser tools:
 
 - `browser_status` — which driver is active (`extension` when the extension is connected to the
   bridge on `ws://127.0.0.1:7457`, otherwise `headless` using playwright-core + system Chromium).
@@ -158,7 +158,7 @@ viewport?: "desktop" | "mobile", fullPage?, upload: boolean }` → captures each
 
 Bridge protocol: JSON messages over WebSocket, `{ id, type: "request", method, params }` →
 `{ id, type: "response", result | error }`; the extension authenticates with a pairing token
-shown by the MCP server (`OPEN_UI_BRIDGE_TOKEN`, default printed on start and saved to
+shown by the MCP server (`SCREEN_COMMONS_BRIDGE_TOKEN`, default printed on start and saved to
 `~/.config/open-ui/bridge-token`). Methods: `hello`, `navigate`, `screenshot`, `extract`,
 `listTabs`. Defined in `packages/core/src/bridge.ts`.
 
@@ -173,7 +173,7 @@ shown by the MCP server (`OPEN_UI_BRIDGE_TOKEN`, default printed on start and sa
 - Background: full-page capture via `chrome.debugger` + CDP `Page.captureScreenshot`
   (`captureBeyondViewport`), fallback scroll-and-stitch with `tabs.captureVisibleTab` (Firefox);
   thumbnail generation via OffscreenCanvas; WebSocket client to the MCP bridge with backoff
-  reconnect + keepalive; content script on the Open UI origin to receive connect tokens.
+  reconnect + keepalive; content script on the Screen Commons origin to receive connect tokens.
 - Options: server URL, API key (manual), bridge port + pairing token.
 
 ## Seed + tests

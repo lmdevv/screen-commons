@@ -61,7 +61,7 @@ export default defineBackground(() => {
             : null;
     if (!mode) return;
     void captureActive(mode).catch((error: unknown) =>
-      console.warn("[open-ui] capture failed", error),
+      console.warn("[screen-commons] capture failed", error),
     );
   });
 

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
-import { VIEWPORTS, type Viewport } from "@open-ui/core";
+import { VIEWPORTS, type Viewport } from "@screen-commons/core";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 
 export type { Browser, BrowserContext, Page } from "playwright-core";

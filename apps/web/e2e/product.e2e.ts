@@ -2,8 +2,8 @@
  * Product E2E (playwright-core + node:test) for the public pages, contribute → review, settings
  * and MCP, against a running dev server with seeded content:
  *
- *   pnpm --filter @open-ui/web dev            # http://localhost:5173, seeded .wrangler state
- *   pnpm --filter @open-ui/web test:e2e
+ *   pnpm --filter @screen-commons/web dev            # http://localhost:5173, seeded .wrangler state
+ *   pnpm --filter @screen-commons/web test:e2e
  *
  * Env: E2E_BASE_URL (default http://localhost:5173), E2E_EMAIL / E2E_PASSWORD (default: the seed
  * admin), CHROME_PATH (default: the system Chromium).
@@ -17,8 +17,8 @@ import { after, before, describe, test } from "node:test";
 import playwright, { type Browser, type BrowserContext, type Page } from "playwright-core";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
-const ADMIN_EMAIL = process.env.E2E_EMAIL ?? "admin@openui.dev";
-const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "openui-admin-2026";
+const ADMIN_EMAIL = process.env.E2E_EMAIL ?? "admin@screencommons.dev";
+const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "screencommons-admin-2026";
 const CHROME = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const STAMP = Date.now().toString(36);
 const MEMBER = {

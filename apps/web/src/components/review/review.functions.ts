@@ -1,5 +1,5 @@
-import type { FlowSummary, ReviewQueue, Screen } from "@open-ui/core";
-import { flow, flowStep, screen, user } from "@open-ui/db";
+import type { FlowSummary, ReviewQueue, Screen } from "@screen-commons/core";
+import { flow, flowStep, screen, user } from "@screen-commons/db";
 import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";

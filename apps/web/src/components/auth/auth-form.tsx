@@ -8,7 +8,7 @@ import {
   Separator,
   cn,
   textLinkClassName,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { CircleAlert, Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -22,10 +22,10 @@ export type AuthMode = "sign-in" | "sign-up";
 
 const COPY = {
   "sign-in": {
-    title: "Sign in to Open UI",
+    title: "Sign in to Screen Commons",
     description: "Welcome back. Pick up where you left off.",
     submit: "Sign in",
-    switchPrompt: "New to Open UI?",
+    switchPrompt: "New to Screen Commons?",
     switchLabel: "Create an account",
   },
   "sign-up": {

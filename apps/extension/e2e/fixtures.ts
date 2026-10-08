@@ -6,8 +6,8 @@ import {
   BRIDGE_PROTOCOL_VERSION,
   type BridgeMethod,
   type BridgeMethods,
-} from "@open-ui/core/bridge";
-import { captureBatchInputSchema, type CaptureBatchInput } from "@open-ui/core/schemas";
+} from "@screen-commons/core/bridge";
+import { captureBatchInputSchema, type CaptureBatchInput } from "@screen-commons/core/schemas";
 import { WebSocketServer, type WebSocket } from "ws";
 
 export const FIXTURE = {
@@ -224,7 +224,7 @@ export async function startMockBridge(token: string) {
   };
 }
 
-/** Minimal Open UI API: /api/v1/me, /api/v1/captures (validated), /extension/connect. */
+/** Minimal Screen Commons API: /api/v1/me, /api/v1/captures (validated), /extension/connect. */
 export async function startMockApi(keys: string[]) {
   const batches: CaptureBatchInput[] = [];
   const errors: string[] = [];

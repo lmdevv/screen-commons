@@ -1,11 +1,11 @@
 ---
 title: Browser extension
-description: Install Open UI Capture, connect it to your account, capture screens and flows from any website, and upload them.
+description: Install Screen Commons Capture, connect it to your account, capture screens and flows from any website, and upload them.
 order: 5
 section: Integrations
 ---
 
-**Open UI Capture** is a browser extension for Chrome, Edge and Firefox. It captures the visible area, the full page or a single element of any website, collects shots in a tray, and uploads them to your Open UI instance as screens or a flow. It can also let a local AI agent drive your browser through the [MCP bridge](/docs/mcp#pair-the-browser-extension).
+**Screen Commons Capture** is a browser extension for Chrome, Edge and Firefox. It captures the visible area, the full page or a single element of any website, collects shots in a tray, and uploads them to your Screen Commons instance as screens or a flow. It can also let a local AI agent drive your browser through the [MCP bridge](/docs/mcp#pair-the-browser-extension).
 
 ## Install from source
 
@@ -13,7 +13,7 @@ The extension isn't in the browser stores yet. Build it from the repository:
 
 ```bash
 pnpm install
-pnpm --filter @open-ui/extension build
+pnpm --filter @screen-commons/extension build
 ```
 
 This writes two builds:
@@ -28,7 +28,7 @@ This writes two builds:
 1. Open `chrome://extensions`.
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select `apps/extension/.output/chrome-mv3`.
-4. Pin **Open UI Capture** to the toolbar.
+4. Pin **Screen Commons Capture** to the toolbar.
 
 ### Edge
 
@@ -42,7 +42,7 @@ This writes two builds:
 2. Click **Load Temporary Add-on…** and select `apps/extension/.output/firefox-mv2/manifest.json`.
 
 > **Note**
-> Firefox removes temporary add-ons when it restarts. Load it again after each restart. A permanent install needs a build signed by Mozilla; `pnpm --filter @open-ui/extension zip` produces the package to submit.
+> Firefox removes temporary add-ons when it restarts. Load it again after each restart. A permanent install needs a build signed by Mozilla; `pnpm --filter @screen-commons/extension zip` produces the package to submit.
 
 ### Development
 
@@ -52,7 +52,7 @@ This writes two builds:
 
 1. Click the extension icon, then **Connect**.
 2. A tab opens at `/extension/connect` on your instance. Sign in if asked.
-3. The page creates an API key named **Browser extension** and hands it to the extension. A toast confirms "Open UI Capture connected as …".
+3. The page creates an API key named **Browser extension** and hands it to the extension. A toast confirms "Screen Commons Capture connected as …".
 
 The popup now shows your name and server.
 
@@ -62,7 +62,7 @@ The extension points at `http://localhost:5173` by default. To use another insta
 
 1. Open the extension's **Settings** (gear icon in the popup).
 2. Set **Server URL**, for example `https://ui.example.com`.
-3. Click **Connect with Open UI**. The browser asks for access to that site; allow it so the connect page can talk to the extension.
+3. Click **Connect with Screen Commons**. The browser asks for access to that site; allow it so the connect page can talk to the extension.
 
 If you decline, create a key in **Settings → API keys** on your instance and paste it into **API key** instead. Use **Test connection** to check it.
 
@@ -119,11 +119,11 @@ Admin uploads publish immediately; member uploads wait for [review](/docs/contri
 
 | Setting                 | Default                 | Purpose                                                                                                                                                                                                        |
 | ----------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server URL              | `http://localhost:5173` | The Open UI instance to upload to.                                                                                                                                                                             |
+| Server URL              | `http://localhost:5173` | The Screen Commons instance to upload to.                                                                                                                                                                      |
 | API key                 | empty                   | Filled by **Connect**, or paste an `oui_…` key.                                                                                                                                                                |
-| Enable MCP bridge       | on                      | Lets a local `open-ui-mcp` server drive this browser.                                                                                                                                                          |
+| Enable MCP bridge       | on                      | Lets a local `screen-commons-mcp` server drive this browser.                                                                                                                                                   |
 | Port                    | `7457`                  | Bridge port on `127.0.0.1`.                                                                                                                                                                                    |
-| Pairing token           | empty                   | Printed by `open-ui-mcp` on start. The bridge stays off until you set it.                                                                                                                                      |
+| Pairing token           | empty                   | Printed by `screen-commons-mcp` on start. The bridge stays off until you set it.                                                                                                                               |
 | Full-page method        | Automatic               | **Automatic** renders the page once (DevTools Protocol in Chrome and Edge, native full-page capture in Firefox). **Scroll and stitch** combines viewport captures; slower, but try it if a page renders oddly. |
 | Load lazy content first | on                      | Scroll through the page before full-page captures.                                                                                                                                                             |
 
@@ -131,7 +131,7 @@ Admin uploads publish immediately; member uploads wait for [review](/docs/contri
 
 | Permission                        | Why                                                                                                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Access to all websites            | Capture any page you choose, read its title, favicon and visible text, and reach your Open UI server. Firefox requires it for full-page capture.                                |
+| Access to all websites            | Capture any page you choose, read its title, favicon and visible text, and reach your Screen Commons server. Firefox requires it for full-page capture.                         |
 | `activeTab`, `tabs`               | Find the tab you're capturing and its URL and title.                                                                                                                            |
 | `scripting`                       | Measure the page, scroll it for full-page captures, run the element picker and read metadata.                                                                                   |
 | `debugger` (Chrome and Edge only) | Full-page and element capture through the DevTools Protocol, and mobile emulation for the MCP bridge. Chrome shows a "started debugging this browser" bar while a capture runs. |

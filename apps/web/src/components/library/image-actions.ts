@@ -1,5 +1,5 @@
 /** Clipboard / download helpers for screenshots (all client-side). */
-import type { Screen } from "@open-ui/core";
+import type { Screen } from "@screen-commons/core";
 
 type Downloadable = Pick<Screen, "id" | "imageUrl" | "title"> & {
   app: Pick<Screen["app"], "name" | "slug">;

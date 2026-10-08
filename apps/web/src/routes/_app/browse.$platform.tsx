@@ -4,7 +4,7 @@ import {
   FLOW_TYPES,
   PATTERNS,
   type TaxonomyTerm,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 import {
   CategoryChips,
   Container,
@@ -16,7 +16,7 @@ import {
   TabNavItem,
   Toolbar,
   cn,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -91,7 +91,7 @@ export const Route = createFileRoute("/_app/browse/$platform")({
   head: ({ params }) => ({
     meta: [
       {
-        title: `Discover ${isPlatform(params.platform) ? platformLabel(params.platform) : ""} — Open UI`,
+        title: `Discover ${isPlatform(params.platform) ? platformLabel(params.platform) : ""} — Screen Commons`,
       },
     ],
   }),
@@ -358,7 +358,7 @@ function ScreensTab({ platform, search, tab, onClear }: TabProps & { tab: Browse
         hasMore={query.hasNextPage}
         isFetchingMore={query.isFetchingNextPage}
         loadMore={query.fetchNextPage}
-        downloadName={`Open UI ${platformLabel(platform)} screens`}
+        downloadName={`Screen Commons ${platformLabel(platform)} screens`}
       />
     </Dimmed>
   );

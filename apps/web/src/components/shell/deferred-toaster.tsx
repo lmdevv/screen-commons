@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 import { toasterStore } from "../../lib/toast";
 
 const Toaster = lazy(() =>
-  import("@open-ui/ui/components/toast").then(({ Toaster: Viewport }) => ({
+  import("@screen-commons/ui/components/toast").then(({ Toaster: Viewport }) => ({
     default: function ReadyToaster() {
       // Child effects (sonner's subscription) run before this one: safe to emit afterwards.
       useEffect(() => toasterStore.ready(), []);
@@ -14,7 +14,7 @@ const Toaster = lazy(() =>
 
 /**
  * The toast viewport, mounted on the first `notify()` or when the page goes idle (so direct
- * `toast()` calls from `@open-ui/ui` work too) — never on the first-paint path.
+ * `toast()` calls from `@screen-commons/ui` work too) — never on the first-paint path.
  */
 export function DeferredToaster() {
   const requested = useSyncExternalStore(

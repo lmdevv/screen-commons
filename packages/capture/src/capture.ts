@@ -1,4 +1,4 @@
-import { LIMITS, VIEWPORTS, type Viewport } from "@open-ui/core";
+import { LIMITS, VIEWPORTS, type Viewport } from "@screen-commons/core";
 import type { Browser, Page } from "playwright-core";
 
 import { createCaptureContext, ensureInPageHelpers, launchBrowser } from "./browser";

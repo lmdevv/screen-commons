@@ -69,7 +69,7 @@ mkdirSync(work, { recursive: true });
 const entry = join(work, "entry.tsx");
 writeFileSync(
   entry,
-  `${imports.length ? `import { ${imports.join(", ")} } from "@open-ui/ui";\n` : ""}import { createRoot } from "react-dom/client";\ncreateRoot(document.body).render(${wrap(`<>${body}</>`)});\n`,
+  `${imports.length ? `import { ${imports.join(", ")} } from "@screen-commons/ui";\n` : ""}import { createRoot } from "react-dom/client";\ncreateRoot(document.body).render(${wrap(`<>${body}</>`)});\n`,
 );
 
 await build({
@@ -77,7 +77,7 @@ await build({
   root,
   logLevel: "warn",
   plugins: [react()],
-  resolve: { alias: { "@open-ui/ui": join(root, "src", "index.ts") } },
+  resolve: { alias: { "@screen-commons/ui": join(root, "src", "index.ts") } },
   build: { outDir, emptyOutDir: true, rolldownOptions: { input: entry } },
 });
 

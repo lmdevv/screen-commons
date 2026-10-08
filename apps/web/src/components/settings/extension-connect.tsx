@@ -1,4 +1,4 @@
-import { Button, Callout, CodeBlock, Spinner, cn, textLinkClassName } from "@open-ui/ui";
+import { Button, Callout, CodeBlock, Spinner, cn, textLinkClassName } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 import { CircleAlert, CircleCheck, PlugZap, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -168,10 +168,10 @@ export function ExtensionConnect() {
       }
       description={
         waiting
-          ? "Creating a key for Open UI Capture and handing it over."
+          ? "Creating a key for Screen Commons Capture and handing it over."
           : state.kind === "failed"
             ? state.error
-            : "Open UI Capture didn’t answer. Install it, then reload this page — or paste the key into the extension yourself."
+            : "Screen Commons Capture didn’t answer. Install it, then reload this page — or paste the key into the extension yourself."
       }
     >
       {!waiting ? (
@@ -183,7 +183,7 @@ export function ExtensionConnect() {
                 <span>
                   Build it:{" "}
                   <code className="font-mono text-sm text-fg">
-                    pnpm --filter @open-ui/extension build
+                    pnpm --filter @screen-commons/extension build
                   </code>
                 </span>
               </li>

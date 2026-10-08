@@ -1,4 +1,4 @@
-import { labelFor } from "@open-ui/core/taxonomy";
+import { labelFor } from "@screen-commons/core/taxonomy";
 import {
   AppLogo,
   Button,
@@ -8,7 +8,7 @@ import {
   cn,
   pluralize,
   textLinkClassName,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Bookmark, Download, Link2 } from "lucide-react";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/flows/$id")({
     return { title: `${flow.name} on ${flow.app.name}` };
   },
   head: ({ loaderData }) => ({
-    meta: [{ title: loaderData ? `${loaderData.title} — Open UI` : "Open UI" }],
+    meta: [{ title: loaderData ? `${loaderData.title} — Screen Commons` : "Screen Commons" }],
   }),
   component: FlowPage,
 });

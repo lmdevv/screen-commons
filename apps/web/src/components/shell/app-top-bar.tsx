@@ -1,5 +1,5 @@
-import type { User } from "@open-ui/core";
-import { Button, Logo, SearchPill, Tooltip, TopBar, cn } from "@open-ui/ui";
+import type { User } from "@screen-commons/core";
+import { Button, Logo, SearchPill, Tooltip, TopBar, cn } from "@screen-commons/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bookmark, Plus } from "lucide-react";
 
@@ -27,7 +27,7 @@ export function AppTopBar({ user, platform, onShowShortcuts }: AppTopBarProps) {
         <Link
           to="/browse/$platform"
           params={{ platform }}
-          aria-label="Open UI home"
+          aria-label="Screen Commons home"
           className="ou-focus-ring rounded-sm"
         >
           <Logo />

@@ -1,4 +1,4 @@
-import { LIMITS } from "@open-ui/core";
+import { LIMITS } from "@screen-commons/core";
 
 import { ServiceError } from "../errors";
 

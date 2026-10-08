@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_app/settings")({
       context.queryClient.ensureQueryData(originQuery()),
       deps.tab === "keys" ? context.queryClient.ensureQueryData(queries.keys()) : null,
     ]),
-  head: () => ({ meta: [{ title: "Settings · Open UI" }] }),
+  head: () => ({ meta: [{ title: "Settings · Screen Commons" }] }),
   component: Settings,
 });
 

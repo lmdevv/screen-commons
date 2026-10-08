@@ -2,8 +2,8 @@ import {
   captureBatchInputSchema,
   captureScreenSchema,
   type CaptureBatchInput,
-  type OpenUiClient,
-} from "@open-ui/core";
+  type ScreenCommonsClient,
+} from "@screen-commons/core";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
@@ -206,7 +206,7 @@ describe("prepareScreen + uploadCaptures", () => {
       baseUrl: "http://localhost:5173",
       captures,
       createFlow,
-    } as unknown as OpenUiClient;
+    } as unknown as ScreenCommonsClient;
     const result = await uploadCaptures(client, batch, { maxBatchBytes: 1 });
     expect(captures).toHaveBeenCalledTimes(3);
     expect(captures.mock.calls.every(([input]) => input.flow === undefined)).toBe(true);

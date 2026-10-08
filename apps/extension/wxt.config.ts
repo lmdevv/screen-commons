@@ -25,10 +25,10 @@ export default defineConfig({
   manifest: ({ browser }) => {
     const firefox = browser === "firefox";
     return {
-      name: "Open UI Capture",
-      short_name: "Open UI",
+      name: "Screen Commons Capture",
+      short_name: "Commons",
       description:
-        "Capture screens and flows from any website into your Open UI library. Also lets local AI agents drive the browser through the Open UI MCP bridge.",
+        "Capture screens and flows into Screen Commons, and connect AI agents through its local MCP bridge.",
       permissions: [
         "activeTab",
         "tabs",
@@ -43,6 +43,7 @@ export default defineConfig({
         ? {
             browser_specific_settings: {
               gecko: {
+                // Keep the installed extension identity stable across the rename.
                 id: "open-ui@openui.dev",
                 strict_min_version: "140.0",
                 data_collection_permissions: { required: ["websiteContent"], optional: [] },

@@ -3,7 +3,7 @@
  * on its own, so it must be fully self-contained: no imports, no outer-scope references, no
  * helpers defined outside the function body.
  */
-import type { PageMetadata } from "@open-ui/core/bridge";
+import type { PageMetadata } from "@screen-commons/core/bridge";
 
 export interface PageMetrics {
   width: number;
@@ -125,9 +125,9 @@ export function hideFixedElements(): number {
   for (const el of Array.from(all)) {
     const position = getComputedStyle(el).position;
     if (position !== "fixed" && position !== "sticky") continue;
-    if (el.hasAttribute("data-open-ui-hidden")) continue;
+    if (el.hasAttribute("data-screen-commons-hidden")) continue;
     el.setAttribute(
-      "data-open-ui-hidden",
+      "data-screen-commons-hidden",
       el.style.getPropertyValue("visibility") + "|" + el.style.getPropertyPriority("visibility"),
     );
     el.style.setProperty("visibility", "hidden", "important");
@@ -137,11 +137,13 @@ export function hideFixedElements(): number {
 }
 
 export function restoreFixedElements(): void {
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>("[data-open-ui-hidden]"))) {
-    const [value, priority] = (el.getAttribute("data-open-ui-hidden") ?? "|").split("|");
+  for (const el of Array.from(
+    document.querySelectorAll<HTMLElement>("[data-screen-commons-hidden]"),
+  )) {
+    const [value, priority] = (el.getAttribute("data-screen-commons-hidden") ?? "|").split("|");
     if (value) el.style.setProperty("visibility", value, priority ?? "");
     else el.style.removeProperty("visibility");
-    el.removeAttribute("data-open-ui-hidden");
+    el.removeAttribute("data-screen-commons-hidden");
   }
 }
 
@@ -236,11 +238,11 @@ export async function findElement(
  * to parent/child, Esc cancels. Resolves with a unique-ish selector for the picked element.
  */
 export function pickElement(): Promise<{ selector: string } | null> {
-  const existing = document.getElementById("__open-ui-picker");
+  const existing = document.getElementById("__screen-commons-picker");
   if (existing) existing.remove();
   return new Promise((resolve) => {
     const host = document.createElement("div");
-    host.id = "__open-ui-picker";
+    host.id = "__screen-commons-picker";
     host.style.cssText =
       "all: initial; position: fixed; inset: 0; pointer-events: none; z-index: 2147483647;";
     const root = host.attachShadow({ mode: "closed" });

@@ -1,7 +1,7 @@
-import { createOpenUiClient, OpenUiApiError } from "@open-ui/core/client";
-import type { CaptureBatchInput, CaptureBatchResult } from "@open-ui/core/schemas";
-import { LIMITS } from "@open-ui/core/schemas";
-import { readImageHeader } from "@open-ui/core/utils";
+import { createScreenCommonsClient, ScreenCommonsApiError } from "@screen-commons/core/client";
+import type { CaptureBatchInput, CaptureBatchResult } from "@screen-commons/core/schemas";
+import { LIMITS } from "@screen-commons/core/schemas";
+import { readImageHeader } from "@screen-commons/core/utils";
 import { browser, type Browser } from "wxt/browser";
 
 import type { UploadClientMessage, UploadServerMessage } from "../lib/messages";
@@ -48,12 +48,13 @@ async function fetchLogo(url: string | null): Promise<CaptureBatchInput["logo"]>
 }
 
 function describeError(error: unknown): string {
-  if (error instanceof OpenUiApiError) {
+  if (error instanceof ScreenCommonsApiError) {
     if (error.status === 401) return "Your API key was rejected. Reconnect in Options.";
     if (error.status === 413) return "The upload is too large for the server.";
     return error.message;
   }
-  if (error instanceof TypeError) return "Could not reach the Open UI server. Is it running?";
+  if (error instanceof TypeError)
+    return "Could not reach the Screen Commons server. Is it running?";
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -66,7 +67,7 @@ export async function runUpload(
   if (!settings.apiKey) {
     report({
       type: "error",
-      message: "Connect your Open UI account first (Options → Connect with Open UI).",
+      message: "Connect your Screen Commons account first (Options → Connect with Screen Commons).",
     });
     return;
   }
@@ -79,10 +80,10 @@ export async function runUpload(
     return;
   }
 
-  const client = createOpenUiClient({
+  const client = createScreenCommonsClient({
     baseUrl: settings.serverUrl,
     apiKey: settings.apiKey,
-    headers: { "x-open-ui-client": `extension/${browser.runtime.getManifest().version}` },
+    headers: { "x-screen-commons-client": `extension/${browser.runtime.getManifest().version}` },
   });
   const plan = planUpload(
     draft,

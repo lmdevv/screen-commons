@@ -9,7 +9,7 @@ import {
   prepareScreen,
   uploadCaptures,
   type PreparedScreen,
-} from "@open-ui/capture";
+} from "@screen-commons/capture";
 import {
   appNameFromUrl,
   browserTools,
@@ -18,8 +18,8 @@ import {
   slugify,
   type BrowserToolName,
   type CaptureBatchInput,
-  type OpenUiClient,
-} from "@open-ui/core";
+  type ScreenCommonsClient,
+} from "@screen-commons/core";
 import type { z } from "zod";
 
 import type { DriverManager, PageCapture } from "./drivers";
@@ -39,7 +39,7 @@ import {
 export interface BrowserContext {
   baseUrl: string;
   apiKey: string | undefined;
-  client: OpenUiClient;
+  client: ScreenCommonsClient;
   drivers: DriverManager;
   outputDir: string;
   bridge: { port: number | null; enabled: boolean };
@@ -98,7 +98,7 @@ export function registerBrowserTools(server: McpServer, context: BrowserContext)
         ? `Extension bridge: ws://127.0.0.1:${context.bridge.port ?? "?"} · ${info ? `connected (${info.name} ${info.version}, ${info.browser}, since ${info.connectedAt})` : "no extension connected"}`
         : "Extension bridge: disabled",
       `Headless: ${drivers.headless.launched ? "running" : "not started (launches on first use)"} · executable ${drivers.headless.executablePath ?? "not found — set CHROME_PATH"}`,
-      `Open UI: ${context.baseUrl} · API key ${context.apiKey ? "set" : "missing (catalog + upload tools need OPEN_UI_API_KEY)"}`,
+      `Screen Commons: ${context.baseUrl} · API key ${context.apiKey ? "set" : "missing (catalog + upload tools need SCREEN_COMMONS_API_KEY)"}`,
     ];
     if (driver.kind === "extension" || drivers.headless.launched) {
       const tabs = await driver.listTabs().catch(() => []);
@@ -189,7 +189,7 @@ export function registerBrowserTools(server: McpServer, context: BrowserContext)
   register("capture_pages", async (args, extra) => {
     if (args.upload && !context.apiKey) {
       throw new FriendlyError(
-        `upload=true needs OPEN_UI_API_KEY. Create a key at ${context.baseUrl}/settings, or call capture_pages with upload=false to only capture locally.`,
+        `upload=true needs SCREEN_COMMONS_API_KEY. Create a key at ${context.baseUrl}/settings, or call capture_pages with upload=false to only capture locally.`,
       );
     }
     const driver = drivers.active();

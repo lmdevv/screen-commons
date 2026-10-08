@@ -1,4 +1,4 @@
-import { Footer, Logo, ThemeToggle, cn } from "@open-ui/ui";
+import { Footer, Logo, ThemeToggle, cn } from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 
 export const GITHUB_URL = "https://github.com/lmdevv/open-ui";
@@ -37,7 +37,7 @@ export function SiteFooter({ className }: { className?: string }) {
     <Footer
       className={cn("mt-24", className)}
       logo={
-        <Link to="/" aria-label="Open UI home" className="ou-focus-ring w-fit rounded-sm">
+        <Link to="/" aria-label="Screen Commons home" className="ou-focus-ring w-fit rounded-sm">
           <Logo size="sm" />
         </Link>
       }

@@ -1,4 +1,4 @@
-import { PLATFORMS, type Platform } from "@open-ui/core/taxonomy";
+import { PLATFORMS, type Platform } from "@screen-commons/core/taxonomy";
 import {
   SegmentedControl,
   Spinner,
@@ -8,7 +8,7 @@ import {
   formatBytes,
   formatDimensions,
   type RejectedFile,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 
 import { IMAGE_LIMITS } from "./image-processing";
 import { MAX_SCREENS, type Draft } from "./model";

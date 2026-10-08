@@ -2,7 +2,7 @@
 title: Contributing screens
 description: Upload screens and flows from the website, describe them well, and get them through review.
 order: 4
-section: Using Open UI
+section: Using Screen Commons
 ---
 
 Anyone with an account can contribute. Admin contributions publish immediately; member contributions wait for an admin to review them.
@@ -38,7 +38,7 @@ Use [`GET /api/v1/taxonomy`](/docs/api#taxonomy) for the full list of patterns, 
 
 ### How uploads find their app
 
-Open UI matches an upload to an existing app on the same platform by, in order: the app's slug, the website's domain, then a slug derived from the name. If nothing matches, it creates the app.
+Screen Commons matches an upload to an existing app on the same platform by, in order: the app's slug, the website's domain, then a slug derived from the name. If nothing matches, it creates the app.
 
 When you upload to an app that's already published, your screens attach to it but the app's name, tagline, description, category, website and logo don't change. Only admins, or the member who created a still-pending app, can fill in app details.
 
@@ -69,14 +69,14 @@ Uploading an image that's already in the app (byte for byte) returns the existin
 | Images per request | 28 MiB decoded in total; split larger batches       |
 | Steps per flow     | 2 to 60                                             |
 
-Open UI reads the real type and dimensions from each file's header and rejects anything that doesn't match. Full-size images are stored exactly as uploaded.
+Screen Commons reads the real type and dimensions from each file's header and rejects anything that doesn't match. Full-size images are stored exactly as uploaded.
 
 > **Note**
 > The browser extension shrinks or re-encodes captures that exceed these limits before upload, and splits large trays into several requests automatically.
 
 ## Content policy
 
-Open UI is a reference library of public product UI. Before you upload:
+Screen Commons is a reference library of public product UI. Before you upload:
 
 - **Capture public pages only.** Marketing sites, docs, pricing, sign-up and sign-in pages are fine. Don't upload internal tools, private dashboards or anything behind someone else's login.
 - **Remove personal data.** No real names, email addresses, avatars, messages, addresses or payment details, whether yours or anyone else's. Use demo or test accounts when you capture product screens.

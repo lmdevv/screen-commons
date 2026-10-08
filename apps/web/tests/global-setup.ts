@@ -11,7 +11,9 @@ import type { TestProject } from "vitest/node";
 import { writeTestWranglerConfig } from "./wrangler-config";
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), "..");
-const FIRST_PORT = Number(process.env.OPEN_UI_TEST_PORT ?? 5179);
+const FIRST_PORT = Number(
+  process.env.SCREEN_COMMONS_TEST_PORT ?? process.env.OPEN_UI_TEST_PORT ?? 5179,
+);
 
 /** First port from `start` that nothing is listening on (a dev server may hold 5173/5179). */
 async function freePort(start: number): Promise<number> {
@@ -28,7 +30,7 @@ async function freePort(start: number): Promise<number> {
 }
 export const ADMIN = {
   name: "Ada Admin",
-  email: "admin@open-ui.test",
+  email: "admin@screen-commons.test",
   password: "correct-horse-1",
 };
 
@@ -63,7 +65,7 @@ async function waitFor(url: string, child: ChildProcess, log: () => string) {
 export default async function setup(project: TestProject) {
   const PORT = await freePort(FIRST_PORT);
   const BASE_URL = `http://localhost:${PORT}`;
-  const stateDir = await mkdtemp(join(tmpdir(), "open-ui-test-"));
+  const stateDir = await mkdtemp(join(tmpdir(), "screen-commons-test-"));
   const configDir = join(stateDir, "config");
   await mkdir(configDir);
   const configPath = writeTestWranglerConfig(configDir, {
@@ -73,9 +75,9 @@ export default async function setup(project: TestProject) {
     ...process.env,
     CI: "1",
     PORT: String(PORT),
-    OPEN_UI_PERSIST_DIR: stateDir,
-    OPEN_UI_WRANGLER_CONFIG: configPath,
-    OPEN_UI_VITE_CACHE_DIR: join(webDir, "node_modules/.vite-test"),
+    SCREEN_COMMONS_PERSIST_DIR: stateDir,
+    SCREEN_COMMONS_WRANGLER_CONFIG: configPath,
+    SCREEN_COMMONS_VITE_CACHE_DIR: join(webDir, "node_modules/.vite-test"),
   };
   execFileSync(
     "pnpm",

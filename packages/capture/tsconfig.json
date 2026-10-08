@@ -1,5 +1,5 @@
 {
-  "extends": "@open-ui/config/tsconfig.base.json",
+  "extends": "@screen-commons/config/tsconfig.base.json",
   "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"], "types": ["node"] },
   "include": ["src", "test", "../../scripts/seed"]
 }

@@ -1,4 +1,4 @@
-import { Button, Logo, TopBar, cn } from "@open-ui/ui";
+import { Button, Logo, TopBar, cn } from "@screen-commons/ui";
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -24,7 +24,7 @@ export function SiteHeader({ nav, actions, className }: SiteHeaderProps) {
     <TopBar
       className={className}
       logo={
-        <Link to="/" aria-label="Open UI home" className="ou-focus-ring rounded-sm">
+        <Link to="/" aria-label="Screen Commons home" className="ou-focus-ring rounded-sm">
           <Logo />
         </Link>
       }

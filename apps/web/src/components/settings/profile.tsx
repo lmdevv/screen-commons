@@ -1,4 +1,4 @@
-import type { User } from "@open-ui/core";
+import type { User } from "@screen-commons/core";
 import {
   Avatar,
   Badge,
@@ -14,7 +14,7 @@ import {
   Label,
   Description,
   ThemeToggle,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";

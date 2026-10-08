@@ -1,4 +1,4 @@
-import type { Screen } from "@open-ui/core";
+import type { Screen } from "@screen-commons/core";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 import { sql } from "drizzle-orm";

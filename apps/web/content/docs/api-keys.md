@@ -12,7 +12,7 @@ API keys let scripts, the browser extension and MCP servers act as you. Every ke
 1. Go to **Settings** (`/settings`) on your instance.
 2. Under **API keys**, enter a name that says where the key will live, such as `Laptop MCP` or `CI seed`.
 3. Click **Create key**.
-4. Copy the key. It's shown **once**; Open UI only stores a hash of it.
+4. Copy the key. It's shown **once**; Screen Commons only stores a hash of it.
 
 The browser extension creates its own key, named **Browser extension**, when you click **Connect**. See [Browser extension](/docs/extension#connect-your-account).
 
@@ -44,8 +44,8 @@ The list shows each key's name, its first eight characters (such as `oui_qy9o…
 
 - **Treat a key like a password.** Anyone who has it can upload and browse as you.
 - **One key per place.** Create separate keys for your laptop, CI and each agent, so you can revoke one without breaking the others.
-- **Keep keys out of source control.** Pass them through environment variables such as `OPEN_UI_API_KEY`, or your client's secret store.
+- **Keep keys out of source control.** Pass them through environment variables such as `SCREEN_COMMONS_API_KEY`, or your client's secret store.
 - **Don't put keys in front-end code.** The API accepts bearer keys from any origin, so a key embedded in a public web page is public.
 - **Revoke on suspicion.** If a key might have leaked, revoke it and create a new one. Revoking is instant.
 
-Keys are 32 random bytes, stored as SHA-256 hashes. Open UI can't show you a key again after creation; if you lose one, revoke it and create another.
+Keys are 32 random bytes, stored as SHA-256 hashes. Screen Commons can't show you a key again after creation; if you lose one, revoke it and create another.

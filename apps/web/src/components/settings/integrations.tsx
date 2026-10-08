@@ -8,7 +8,7 @@ import {
   CodeBlock,
   SegmentedControl,
   textLinkClassName,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { Link } from "@tanstack/react-router";
 import { KeyRound, PlugZap } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -28,7 +28,7 @@ export function mcpSnippet(client: Client, origin: string, key: string) {
     case "claude":
       return {
         title: "Terminal",
-        code: `claude mcp add --transport http open-ui ${origin}/mcp \\\n  --header "Authorization: Bearer ${key}"`,
+        code: `claude mcp add --transport http screen-commons ${origin}/mcp \\\n  --header "Authorization: Bearer ${key}"`,
       };
     case "cursor":
       return {
@@ -36,7 +36,10 @@ export function mcpSnippet(client: Client, origin: string, key: string) {
         code: JSON.stringify(
           {
             mcpServers: {
-              "open-ui": { url: `${origin}/mcp`, headers: { Authorization: `Bearer ${key}` } },
+              "screen-commons": {
+                url: `${origin}/mcp`,
+                headers: { Authorization: `Bearer ${key}` },
+              },
             },
           },
           null,
@@ -49,10 +52,10 @@ export function mcpSnippet(client: Client, origin: string, key: string) {
         code: JSON.stringify(
           {
             mcpServers: {
-              "open-ui": {
-                command: "npx",
-                args: ["-y", "open-ui-mcp"],
-                env: { OPEN_UI_URL: origin, OPEN_UI_API_KEY: key },
+              "screen-commons": {
+                command: "node",
+                args: ["/absolute/path/to/screen-commons/packages/mcp/dist/index.js"],
+                env: { SCREEN_COMMONS_URL: origin, SCREEN_COMMONS_API_KEY: key },
               },
             },
           },
@@ -67,7 +70,7 @@ const CLIENT_NOTES: Record<Client, string> = {
   claude: "Adds the remote server at /mcp: search and view screens and flows, upload.",
   cursor: "Paste into ~/.cursor/mcp.json, or .cursor/mcp.json in a project.",
   local:
-    "The local stdio server adds browser tools: crawl, capture and upload sites through the extension or headless Chromium.",
+    "Build with pnpm --filter @screen-commons/mcp build, then replace the absolute path with your checkout. The local server adds browser capture tools.",
 };
 
 export function IntegrationsSection({ origin }: { origin: string }) {
@@ -88,7 +91,7 @@ export function IntegrationsSection({ origin }: { origin: string }) {
         <CardContent className="flex flex-col gap-5">
           <ol className="flex flex-col gap-4">
             <Step n={1} title="Build it from the repository">
-              <CodeBlock code="pnpm --filter @open-ui/extension build" className="mt-2" />
+              <CodeBlock code="pnpm --filter @screen-commons/extension build" className="mt-2" />
             </Step>
             <Step n={2} title="Load it in your browser">
               <p className="mt-1 text-base text-fg-muted">

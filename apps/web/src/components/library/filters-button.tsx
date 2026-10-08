@@ -1,4 +1,4 @@
-import { Button, cn } from "@open-ui/ui";
+import { Button, cn } from "@screen-commons/ui";
 import { SlidersHorizontal } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 

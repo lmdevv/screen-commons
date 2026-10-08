@@ -1,6 +1,6 @@
 /**
  * Seed tooling: capture curated marketing sites with the headless driver and upload them to an
- * Open UI instance through the real `/api/v1/captures` pipeline.
+ * Screen Commons instance through the real `/api/v1/captures` pipeline.
  *
  *   pnpm seed capture [--only linear,vercel] [--force] [--concurrency 3] [--timeout 90]
  *   pnpm seed upload --url http://localhost:5173 --key oui_… [--only …] [--force]
@@ -28,9 +28,9 @@ import {
 } from "../../packages/capture/src/index";
 import {
   LIMITS,
-  OpenUiApiError,
+  ScreenCommonsApiError,
   captureBatchInputSchema,
-  createOpenUiClient,
+  createScreenCommonsClient,
   labelFor,
   suggestPatterns,
   type CaptureBatchInput,
@@ -306,17 +306,22 @@ async function commandCapture(flags: Record<string, string | boolean>) {
 // ---------------------------------------------------------------------------------------------
 
 async function commandUpload(flags: Record<string, string | boolean>) {
-  const baseUrl = String(flags.url ?? process.env.OPEN_UI_URL ?? "http://localhost:5173").replace(
-    /\/+$/u,
-    "",
-  );
-  const apiKey = typeof flags.key === "string" ? flags.key : process.env.OPEN_UI_API_KEY;
+  const baseUrl = String(
+    flags.url ??
+      process.env.SCREEN_COMMONS_URL ??
+      process.env.OPEN_UI_URL ??
+      "http://localhost:5173",
+  ).replace(/\/+$/u, "");
+  const apiKey =
+    typeof flags.key === "string"
+      ? flags.key
+      : (process.env.SCREEN_COMMONS_API_KEY ?? process.env.OPEN_UI_API_KEY);
   if (!apiKey)
     throw new Error("Missing --key oui_… (an admin API key so seed content publishes immediately)");
-  const client = createOpenUiClient({
+  const client = createScreenCommonsClient({
     baseUrl,
     apiKey,
-    headers: { "x-open-ui-client": "open-ui-seed/0.1.0" },
+    headers: { "x-screen-commons-client": "screen-commons-seed/0.1.0" },
   });
   const me = await client.me();
   log(
@@ -413,7 +418,7 @@ async function commandUpload(flags: Record<string, string | boolean>) {
       );
     } catch (error) {
       const message =
-        error instanceof OpenUiApiError
+        error instanceof ScreenCommonsApiError
           ? `${error.status} ${error.code}: ${error.message}`
           : String(error);
       failures.push(`${site.slug}: ${message}`);

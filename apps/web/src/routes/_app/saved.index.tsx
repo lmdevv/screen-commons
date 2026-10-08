@@ -7,7 +7,7 @@ import {
   ScreenGrid,
   ScreenGridItem,
   ScreenGridSkeleton,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Bookmark, Plus } from "lucide-react";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_app/saved/")({
     const work = queryClient.prefetchQuery(queries.collections());
     if (typeof window === "undefined") await work;
   },
-  head: () => ({ meta: [{ title: "Saved — Open UI" }] }),
+  head: () => ({ meta: [{ title: "Saved — Screen Commons" }] }),
   component: SavedPage,
 });
 

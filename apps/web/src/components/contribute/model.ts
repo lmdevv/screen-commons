@@ -1,4 +1,4 @@
-import type { AppSummary, FlowDetail, Screen } from "@open-ui/core";
+import type { AppSummary, FlowDetail, Screen } from "@screen-commons/core";
 import {
   PATTERNS,
   type CategorySlug,
@@ -6,7 +6,7 @@ import {
   type FlowTypeSlug,
   type PatternSlug,
   type Platform,
-} from "@open-ui/core/taxonomy";
+} from "@screen-commons/core/taxonomy";
 
 import type { ProcessedImage } from "./image-processing";
 

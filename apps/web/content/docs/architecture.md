@@ -5,7 +5,7 @@ order: 10
 section: Self-hosting
 ---
 
-Open UI is a pnpm monorepo. One Cloudflare Worker serves everything on the web side; capture happens on clients (browser, extension, Node), never in the Worker.
+Screen Commons is a pnpm monorepo. One Cloudflare Worker serves everything on the web side; capture happens on clients (browser, extension, Node), never in the Worker.
 
 ## Monorepo
 
@@ -17,7 +17,7 @@ Open UI is a pnpm monorepo. One Cloudflare Worker serves everything on the web s
 | `packages/db`      | Drizzle schema and D1 migrations, including FTS5 search tables and triggers.                                                  |
 | `packages/ui`      | Design tokens and React primitives shared by the web app and the extension.                                                   |
 | `packages/capture` | Page capture and crawl engine: in-page extractors and a headless `playwright-core` driver.                                    |
-| `packages/mcp`     | The `open-ui-mcp` stdio server: catalog tools plus browser tools.                                                             |
+| `packages/mcp`     | The `screen-commons-mcp` stdio server: catalog tools plus browser tools.                                                      |
 | `packages/config`  | Shared TypeScript configuration.                                                                                              |
 | `scripts/seed`     | Captures curated public sites and uploads them through the API.                                                               |
 | `docs/spec.md`     | The build specification.                                                                                                      |
@@ -98,7 +98,7 @@ Search uses SQLite FTS5 in D1. Triggers on `app`, `screen` and `flow` keep the i
 ## Auth
 
 - **Better Auth** handles email and password accounts, plus GitHub OAuth when credentials are set. Sessions are cookies bound to `APP_URL`.
-- **API keys** are `oui_` plus 32 random bytes, stored as SHA-256 hashes in Open UI's own `api_key` table. `last_used_at` updates at most once a minute per key.
+- **API keys** are `oui_` plus 32 random bytes, stored as SHA-256 hashes in Screen Commons's own `api_key` table. `last_used_at` updates at most once a minute per key.
 - **Principal resolution.** A bearer key works from any origin. Session cookies only count for same-origin requests, so a third-party page can't act as a signed-in user.
 - **Key management** requires a session; keys can't mint or revoke keys.
 - **First admin.** A database trigger promotes the first user atomically by claiming the `instance_bootstrap` row, so two simultaneous sign-ups can't both become admin.
@@ -121,8 +121,8 @@ Each upload carries the full image and a 640 px WebP thumbnail (top-anchored cro
  AI agent (Claude Code, Cursor, …)
         │ stdio (MCP)
         ▼
- open-ui-mcp  (packages/mcp, on your machine)
-   ├── catalog tools ───── HTTPS + Bearer oui_… ─────▶ Open UI Worker  /api/v1/*
+ screen-commons-mcp  (packages/mcp, on your machine)
+   ├── catalog tools ───── HTTPS + Bearer oui_… ─────▶ Screen Commons Worker  /api/v1/*
    │                                                    (capture_pages uploads via
    │                                                     POST /api/v1/captures)
    └── browser tools
@@ -130,7 +130,7 @@ Each upload carries the full image and a 640 px WebP thumbnail (top-anchored cro
          ├── extension driver (preferred)
          │     ws://127.0.0.1:7457, pairing token
          │            ▼
-         │     Open UI Capture extension (background worker)
+         │     Screen Commons Capture extension (background worker)
          │            └─ drives a tab in your real browser:
          │               navigate · screenshot · extract · listTabs
          │
@@ -138,7 +138,7 @@ Each upload carries the full image and a 640 px WebP thumbnail (top-anchored cro
                playwright-core + local Chrome/Chromium (CHROME_PATH)
 
 
- Open UI Capture extension, used by hand
+ Screen Commons Capture extension, used by hand
    popup / shortcuts ─▶ capture ─▶ tray (local) ─▶ POST /api/v1/captures
                                                    with the extension's API key
 ```

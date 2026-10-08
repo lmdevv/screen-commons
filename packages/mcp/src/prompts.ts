@@ -1,14 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CATEGORY_SLUGS, FLOW_TYPE_SLUGS, PATTERN_SLUGS, TAXONOMY } from "@open-ui/core";
+import { CATEGORY_SLUGS, FLOW_TYPE_SLUGS, PATTERN_SLUGS, TAXONOMY } from "@screen-commons/core";
 import { z } from "zod";
 
-export const TAXONOMY_RESOURCE_URI = "open-ui://taxonomy";
+export const TAXONOMY_RESOURCE_URI = "screen-commons://taxonomy";
 
 export function registerPrompts(server: McpServer) {
   server.registerPrompt(
     "capture_site",
     {
-      title: "Capture a website into Open UI",
+      title: "Capture a website into Screen Commons",
       description:
         "Crawl a site, pick its canonical marketing pages and capture + upload them as one app (optionally a flow).",
       argsSchema: {
@@ -24,7 +24,7 @@ export function registerPrompts(server: McpServer) {
           content: {
             type: "text",
             text: [
-              `Capture ${url} into the Open UI catalog.`,
+              `Capture ${url} into the Screen Commons catalog.`,
               "",
               "1. Call browser_status to see whether the user's browser (extension) or headless Chromium will be used.",
               `2. Call site_crawl with url=${url}, maxDepth=1, maxPages=20 to discover pages.`,
@@ -42,7 +42,7 @@ export function registerPrompts(server: McpServer) {
   server.registerPrompt(
     "find_inspiration",
     {
-      title: "Find UI inspiration in Open UI",
+      title: "Find UI inspiration in Screen Commons",
       description:
         "Search the catalog for screens and flows that match a design problem and look at the best ones.",
       argsSchema: {
@@ -59,7 +59,7 @@ export function registerPrompts(server: McpServer) {
           content: {
             type: "text",
             text: [
-              `Find UI inspiration in Open UI for: ${query}${platform ? ` (platform: ${platform})` : ""}.`,
+              `Find UI inspiration in Screen Commons for: ${query}${platform ? ` (platform: ${platform})` : ""}.`,
               "",
               `1. Map the request to taxonomy terms if possible (patterns: ${PATTERN_SLUGS.join(", ")}). Call get_taxonomy for UI elements and flow types.`,
               "2. Call search_screens with the free-text query and, when it fits, a pattern/element filter. If the problem is a multi-step journey, also call search_flows (flow types: " +
@@ -78,7 +78,7 @@ export function registerPrompts(server: McpServer) {
     "taxonomy",
     TAXONOMY_RESOURCE_URI,
     {
-      title: "Open UI taxonomy",
+      title: "Screen Commons taxonomy",
       description:
         "Platforms, categories, screen patterns, UI elements and flow types (slugs + labels) used for filtering and tagging.",
       mimeType: "application/json",

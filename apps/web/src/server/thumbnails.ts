@@ -1,5 +1,5 @@
 import type { ImagesBinding } from "@cloudflare/workers-types";
-import { LIMITS } from "@open-ui/core";
+import { LIMITS } from "@screen-commons/core";
 
 type ImageStream = Parameters<ImagesBinding["input"]>[0];
 
@@ -37,7 +37,9 @@ export async function generateThumbnail(
   platform: string,
 ): Promise<Uint8Array | null> {
   if (!images) {
-    console.warn("open-ui: IMAGES binding unavailable; using the full image as the thumbnail");
+    console.warn(
+      "screen-commons: IMAGES binding unavailable; using the full image as the thumbnail",
+    );
     return null;
   }
   const box = thumbnailBox(size.width, size.height, platform);
@@ -54,9 +56,11 @@ export async function generateThumbnail(
       const bytes = new Uint8Array(await result.response().arrayBuffer());
       if (bytes.byteLength <= LIMITS.maxThumbnailBytes) return bytes;
     }
-    console.warn("open-ui: generated thumbnail exceeds the size limit; using the full image");
+    console.warn(
+      "screen-commons: generated thumbnail exceeds the size limit; using the full image",
+    );
   } catch (error) {
-    console.warn("open-ui: thumbnail generation failed; using the full image", error);
+    console.warn("screen-commons: thumbnail generation failed; using the full image", error);
   }
   return null;
 }

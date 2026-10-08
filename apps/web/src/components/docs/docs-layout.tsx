@@ -1,4 +1,4 @@
-import { Container, TopBarIconButton } from "@open-ui/ui";
+import { Container, TopBarIconButton } from "@screen-commons/ui";
 import { useRouterState } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { Suspense, lazy, useState, type ReactNode } from "react";

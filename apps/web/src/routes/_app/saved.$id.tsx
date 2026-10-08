@@ -1,4 +1,4 @@
-import type { Screen } from "@open-ui/core";
+import type { Screen } from "@screen-commons/core";
 import {
   Badge,
   Button,
@@ -16,7 +16,7 @@ import {
   cn,
   pluralize,
   textLinkClassName,
-} from "@open-ui/ui";
+} from "@screen-commons/ui";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Bookmark, Pencil, Trash2 } from "lucide-react";
@@ -38,7 +38,9 @@ export const Route = createFileRoute("/_app/saved/$id")({
     return { title: collection.name };
   },
   head: ({ loaderData }) => ({
-    meta: [{ title: loaderData ? `${loaderData.title} — Open UI` : "Saved — Open UI" }],
+    meta: [
+      { title: loaderData ? `${loaderData.title} — Screen Commons` : "Saved — Screen Commons" },
+    ],
   }),
   component: CollectionPage,
 });

@@ -1,4 +1,4 @@
-import type { BridgeMessage, BridgeMethod, BridgeMethods } from "@open-ui/core/bridge";
+import type { BridgeMessage, BridgeMethod, BridgeMethods } from "@screen-commons/core/bridge";
 import { z } from "zod";
 
 /** Max accepted inbound frame. Requests are tiny; anything larger is hostile or a bug. */

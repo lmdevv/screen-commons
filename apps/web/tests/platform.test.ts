@@ -1,4 +1,4 @@
-import { readImageHeader } from "@open-ui/core";
+import { readImageHeader } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { DEV_AUTH_SECRET, resolveAuthSecret } from "../src/server/auth-config";
@@ -35,7 +35,7 @@ describe("sign-up responses report the real role", () => {
       headers: { "content-type": "application/json", origin: baseUrl() },
       body: JSON.stringify({
         name: "Second",
-        email: `second-${suffix}@open-ui.test`,
+        email: `second-${suffix}@screen-commons.test`,
         password: "password-123",
       }),
     });

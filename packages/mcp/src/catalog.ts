@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { makePreview, prepareScreen } from "@open-ui/capture";
+import { makePreview, prepareScreen } from "@screen-commons/capture";
 import {
   TAXONOMY,
   base64ToBytes,
@@ -9,9 +9,9 @@ import {
   type AppSummary,
   type CatalogToolName,
   type FlowSummary,
-  type OpenUiClient,
+  type ScreenCommonsClient,
   type Screen,
-} from "@open-ui/core";
+} from "@screen-commons/core";
 import type { z } from "zod";
 
 import {
@@ -28,7 +28,7 @@ import {
 export interface CatalogContext {
   baseUrl: string;
   apiKey: string | undefined;
-  client: OpenUiClient;
+  client: ScreenCommonsClient;
   fetch: typeof fetch;
 }
 
@@ -37,7 +37,7 @@ const MAX_INLINE_IMAGE_BYTES = 3.5 * 1024 * 1024;
 function requireKey(context: CatalogContext) {
   if (!context.apiKey) {
     throw new FriendlyError(
-      `OPEN_UI_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the open-ui-mcp server env, e.g. "env": { "OPEN_UI_API_KEY": "oui_…" }.`,
+      `SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env, e.g. "env": { "SCREEN_COMMONS_API_KEY": "oui_…" }.`,
     );
   }
 }
@@ -257,7 +257,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
     }
     return ok(
       text(
-        `Open UI taxonomy (${source}). Use the slugs as filter values.\n${JSON.stringify(taxonomy)}`,
+        `Screen Commons taxonomy (${source}). Use the slugs as filter values.\n${JSON.stringify(taxonomy)}`,
       ),
     );
   });

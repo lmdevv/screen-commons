@@ -8,7 +8,7 @@ export const Route = createFileRoute("/docs/")({
   loader: ({ context }) => context.queryClient.ensureQueryData(docPageQuery("index")),
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.doc.title ?? "Docs"} · Open UI docs` },
+      { title: `${loaderData?.doc.title ?? "Docs"} · Screen Commons docs` },
       { name: "description", content: loaderData?.doc.description ?? "" },
     ],
   }),

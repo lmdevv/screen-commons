@@ -2,7 +2,7 @@
  * Saving: optimistic toggles that patch every cached copy of an item (grids, viewer, search,
  * collections), a brief toast with "Add to collection", and the collection picker store.
  */
-import type { SaveKind } from "@open-ui/core";
+import type { SaveKind } from "@screen-commons/core";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useCallback, useSyncExternalStore } from "react";
 

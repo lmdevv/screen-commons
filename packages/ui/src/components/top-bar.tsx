@@ -1,4 +1,4 @@
-import type { User } from "@open-ui/core/schemas";
+import type { User } from "@screen-commons/core/schemas";
 import { Search } from "lucide-react";
 import * as React from "react";
 
@@ -8,7 +8,7 @@ import { Avatar } from "./avatar";
 import { SearchPill } from "./search-pill";
 
 export interface TopBarProps extends React.HTMLAttributes<HTMLElement> {
-  /** Logo link, e.g. `<Link to="/" aria-label="Open UI home"><Logo /></Link>`. */
+  /** Logo link, e.g. `<Link to="/" aria-label="Screen Commons home"><Logo /></Link>`. */
   logo: React.ReactNode;
   /** Next to the logo: the platform SegmentedControl (library) or nav links (marketing/docs). */
   nav?: React.ReactNode;

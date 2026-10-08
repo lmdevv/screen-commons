@@ -1,4 +1,4 @@
-import { VIEWPORTS, type Viewport } from "@open-ui/core/bridge";
+import { VIEWPORTS, type Viewport } from "@screen-commons/core/bridge";
 import { browser } from "wxt/browser";
 
 import { CaptureError } from "./browser-utils";

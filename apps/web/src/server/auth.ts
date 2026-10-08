@@ -1,5 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { authSchema, user } from "@open-ui/db";
+import { authSchema, user } from "@screen-commons/db";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
@@ -17,7 +17,7 @@ function createAuth() {
       : undefined;
 
   return betterAuth({
-    appName: "Open UI",
+    appName: "Screen Commons",
     baseURL,
     secret,
     trustedOrigins: [baseURL],
