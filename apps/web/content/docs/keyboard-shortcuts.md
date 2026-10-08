@@ -86,12 +86,23 @@ Admins only, on `/review`.
 
 Hold `J` or `K` to keep moving. `Esc` closes the reason field without rejecting.
 
+These keys only work while focus is on the review page itself: the queue, the item you are reviewing, the tabs, or nothing in particular. With focus in the top bar, the account menu or another control outside the page, `A` does nothing, so a stray key can't publish a screen.
+
 ## How shortcuts behave
 
 - **Only the top layer listens.** While a dialog, menu or the palette is open, page shortcuts pause. The viewer's keys pause while a dialog such as the collection picker sits on top of it. `⌘K`, `/` and `?` work everywhere.
+- **A stray `G` costs nothing.** A key that doesn't finish a `G` shortcut cancels it and does nothing else, so `G` then `A` never approves. `⌘K`, `/` and `?` still run after a `G`.
 - **Typing is safe.** Letter shortcuts are ignored in text fields and select menus, and while an input method editor (IME) is composing.
 - **No surprises from modifiers or held keys.** `S` doesn't fire on `⌘S` or `Alt+S`, and holding a key doesn't repeat an action. The exceptions are the arrows and `J`/`K`, which keep moving.
 - **Browser and system shortcuts stay yours.** Navigation uses `G` sequences rather than `Ctrl` or `Alt` chords. `⌥⇧S`, `⌥⇧V` and `⌥⇧E` belong to the [browser extension](/docs/extension).
 - **Focus comes back.** Closing a dialog returns focus to where you were, and every page starts with a **Skip to content** link.
 
-Buttons with a single-key shortcut expose it to assistive technology through `aria-keyshortcuts`. Hints next to links and menu items are read out as "G then S".
+## Turning off single-key shortcuts
+
+Speech input and screen reader browse mode type single letters and symbols, which can trigger shortcuts by accident. To turn off every shortcut that is a single character, switch off **Use single-key shortcuts** in **Settings** (under **Keyboard**), or at the top of the **Keyboard shortcuts** dialog. The dialog opens from the keyboard button in the header, **Keyboard shortcuts** in the account menu, or the palette.
+
+With single-key shortcuts off, letters, `/`, `?` and the `G` sequences do nothing, and their hints disappear. `⌘K` / `Ctrl+K`, `⌘C` / `Ctrl+C`, `Esc`, the viewer arrows and keyboard reordering keep working. The choice is saved on this device and applies to every tab.
+
+## Screen readers
+
+Shortcut hints are visual only, so names stay short: the Saved link is read as "Saved", not "Saved G then S". A single-key shortcut is exposed through `aria-keyshortcuts`. A sequence, which that attribute can't express, is the control's description ("G then S"). In the **Keyboard shortcuts** dialog, every shortcut is read out in full.

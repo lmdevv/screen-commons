@@ -20,6 +20,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { authClient } from "../../lib/auth-client";
+import { SingleKeyShortcutsSwitch } from "../shell/single-key-shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 
 export function ProfileSection({ user }: { user: User }) {
@@ -109,6 +110,16 @@ export function ProfileSection({ user }: { user: User }) {
             <CardDescription className="mt-1">Light, dark, or follow your system.</CardDescription>
           </div>
           <ThemeToggle size="md" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <div>
+            <CardTitle>Keyboard</CardTitle>
+            <CardDescription className="mt-1">Saved on this device.</CardDescription>
+          </div>
+          <SingleKeyShortcutsSwitch />
         </CardContent>
       </Card>
 

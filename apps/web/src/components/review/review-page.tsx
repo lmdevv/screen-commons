@@ -19,10 +19,12 @@ import {
   Textarea,
   ariaKeyShortcuts,
   cn,
+  isImeKeyEvent,
   formatBytes,
   formatDimensions,
   pluralize,
   useHotkey,
+  useSingleKeyShortcuts,
 } from "@screen-commons/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -125,36 +127,46 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
     selected && decide.mutate({ entry: selected, decision: "reject", reason });
 
   // J/K move (hold to keep moving), A approves, R rejects. Page scope: paused while typing (the
-  // reject reason) or with a dialog open; never on auto-repeat for A/R.
+  // reject reason) or with a dialog open; never on auto-repeat for A/R. Only while focus is in the
+  // review page itself (or on no control at all): a stray A typed at the top bar, the account menu
+  // or the skip link must never publish anything.
+  const pageRef = useRef<HTMLDivElement>(null);
+  const keys = { focusWithin: pageRef };
   const move = (step: 1 | -1) => {
     const next = items[index + step];
     if (next) setSelectedId(next.item.id);
   };
-  useHotkey(SHORTCUTS.reviewNext.keys, () => move(1), { allowRepeat: true });
-  useHotkey(SHORTCUTS.reviewPrevious.keys, () => move(-1), { allowRepeat: true });
-  useHotkey(SHORTCUTS.reviewApprove.keys, approve, { enabled: !!selected });
-  useHotkey(SHORTCUTS.reviewReject.keys, () => setRejecting(true), { enabled: !!selected });
+  useHotkey(SHORTCUTS.reviewNext.keys, () => move(1), { ...keys, allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewPrevious.keys, () => move(-1), { ...keys, allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewApprove.keys, approve, { ...keys, enabled: !!selected });
+  useHotkey(SHORTCUTS.reviewReject.keys, () => setRejecting(true), {
+    ...keys,
+    enabled: !!selected,
+  });
+  const [singleKeys] = useSingleKeyShortcuts();
 
   const counts = { screens: data?.screens.length ?? 0, flows: data?.flows.length ?? 0 };
 
   return (
-    <Container className="pt-10 pb-24 sm:pt-12">
+    <Container ref={pageRef} className="pt-10 pb-24 sm:pt-12">
       <PageHeader
         title="Review"
         description="Contributions from members wait here. Approved items publish immediately."
         actions={
-          <p className="hidden items-center gap-3 text-sm text-fg-muted lg:flex">
-            <span className="flex items-center gap-1.5">
-              <Shortcut keys={SHORTCUTS.reviewNext.keys} also={[SHORTCUTS.reviewPrevious.keys]} />{" "}
-              move
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Shortcut keys={SHORTCUTS.reviewApprove.keys} /> approve
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Shortcut keys={SHORTCUTS.reviewReject.keys} /> reject
-            </span>
-          </p>
+          singleKeys ? (
+            <p className="hidden items-center gap-3 text-sm text-fg-muted lg:flex">
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewNext.keys} also={[SHORTCUTS.reviewPrevious.keys]} />{" "}
+                move
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewApprove.keys} /> approve
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewReject.keys} /> reject
+              </span>
+            </p>
+          ) : null
         }
       />
       <TabNav aria-label="Review queue" className="mt-5">
@@ -333,6 +345,8 @@ function ItemDetail({
 }) {
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const rejectRef = useRef<HTMLButtonElement>(null);
+  const [singleKeys] = useSingleKeyShortcuts();
+  const keyHint = (keys: string) => (singleKeys ? ariaKeyShortcuts(keys) : undefined);
   const [reason, setReason] = useState("");
   useEffect(() => {
     if (rejecting) reasonRef.current?.focus();
@@ -366,15 +380,12 @@ function ItemDetail({
             ref={rejectRef}
             variant="outline"
             onClick={() => onRejectingChange(true)}
-            aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.reviewReject.keys)}
+            aria-keyshortcuts={keyHint(SHORTCUTS.reviewReject.keys)}
           >
             <X />
             Reject
           </Button>
-          <Button
-            onClick={onApprove}
-            aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.reviewApprove.keys)}
-          >
+          <Button onClick={onApprove} aria-keyshortcuts={keyHint(SHORTCUTS.reviewApprove.keys)}>
             <Check />
             Approve
           </Button>
@@ -394,7 +405,7 @@ function ItemDetail({
               cancelRejecting();
             }
             // Not while an IME is composing: Enter there commits the composition.
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            if (event.key === "Enter" && !event.shiftKey && !isImeKeyEvent(event.nativeEvent)) {
               event.preventDefault();
               onReject(reason.trim());
             }
