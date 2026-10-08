@@ -2,6 +2,7 @@ import {
   API_PREFIX,
   type ApiErrorBody,
   type ApiResponses,
+  type BackfillDisplayInput,
   type ErrorCode,
   type ListAppsQuery,
   type ListFlowsQuery,
@@ -147,6 +148,8 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
       decision: "approve" | "reject",
       reason?: string,
     ) => request<void>("POST", `/review/${kind}/${encodeURIComponent(id)}`, { decision, reason }),
+    backfillDisplay: (input: BackfillDisplayInput = {}) =>
+      request<ApiResponses["backfillDisplay"]>("POST", "/admin/media/backfill", input),
   };
 }
 

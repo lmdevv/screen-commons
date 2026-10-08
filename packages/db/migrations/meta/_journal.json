@@ -29,6 +29,13 @@
       "when": 1791346552311,
       "tag": "0003_global_app_slugs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791479680316,
+      "tag": "0004_display_media",
+      "breakpoints": true
     }
   ]
 }

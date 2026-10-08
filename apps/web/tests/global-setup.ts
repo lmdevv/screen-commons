@@ -38,6 +38,9 @@ declare module "vitest" {
     admin: { name: string; email: string; password: string };
     /** `user.role` in the first account's sign-up response. */
     adminSignUpRole: string;
+    /** The test server's local D1/R2 state and wrangler config, for `wranglerLocal`. */
+    stateDir: string;
+    wranglerConfig: string;
   }
 }
 
@@ -148,5 +151,7 @@ export default async function setup(project: TestProject) {
   project.provide("baseUrl", BASE_URL);
   project.provide("admin", ADMIN);
   project.provide("adminSignUpRole", adminSignUpRole);
+  project.provide("stateDir", stateDir);
+  project.provide("wranglerConfig", configPath);
   return stop;
 }

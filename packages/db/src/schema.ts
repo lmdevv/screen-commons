@@ -139,6 +139,13 @@ export const screen = sqliteTable(
     bytes: integer("bytes").notNull(),
     thumbWidth: integer("thumb_width").notNull(),
     thumbHeight: integer("thumb_height").notNull(),
+    /** Source kept when `imageKey` is a server-derived display image (never served). */
+    originalKey: text("original_key"),
+    /**
+     * Display policy version `imageKey`/`thumbKey` were checked against; null when they couldn't be
+     * normalized (Images binding failure, rows from before the policy) and the backfill should retry.
+     */
+    displayVersion: integer("display_version"),
     title: text("title"),
     sourceUrl: text("source_url"),
     /** Visible text on the screen (DOM innerText / OCR), indexed for search. */
@@ -174,6 +181,7 @@ export const screen = sqliteTable(
     index("screen_app_image_idx").on(table.appId, table.imageKey),
     index("screen_image_key_idx").on(table.imageKey),
     index("screen_thumb_key_idx").on(table.thumbKey),
+    index("screen_display_version_idx").on(table.displayVersion),
     index("screen_contributor_idx").on(table.contributorId),
   ],
 );

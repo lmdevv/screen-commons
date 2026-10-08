@@ -35,6 +35,7 @@ const ENDPOINTS = [
   ["DELETE", "/keys/:id"],
   ["GET", "/review"],
   ["POST", "/review/:kind/:id"],
+  ["POST", "/admin/media/backfill"],
 ] as const;
 
 const PUBLIC = new Set(["GET /taxonomy"]);
@@ -62,7 +63,7 @@ async function expectNoSuchEndpoint(response: Response) {
 
 describe("REST route table", () => {
   it("has a file route for every endpoint, and no others", () => {
-    expect(ENDPOINTS).toHaveLength(26);
+    expect(ENDPOINTS).toHaveLength(27);
     const tree = readFileSync(new URL("../src/routeTree.gen.ts", import.meta.url), "utf8");
     const byFullPath = tree.slice(tree.indexOf("interface FileRoutesByFullPath"));
     const routed = new Set(

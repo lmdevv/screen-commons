@@ -1,7 +1,10 @@
+import { execFileSync } from "node:child_process";
+
 import { createScreenCommonsClient, type CaptureBatchInput } from "@screen-commons/core";
 import { inject } from "vitest";
 
 import { makePng, makeWebp } from "./images";
+import { webDir } from "./wrangler-config";
 
 export const baseUrl = () => inject("baseUrl");
 
@@ -98,3 +101,31 @@ export function captureScreen(
 }
 
 export const uniqueSuffix = () => Math.random().toString(36).slice(2, 8);
+
+/**
+ * Run a wrangler command against the test server's local state, e.g.
+ * `wranglerLocal(["d1", "execute", "DB", "--command", sql])`, to set up states the API can't
+ * produce (rows from before a migration).
+ */
+export function wranglerLocal(args: string[]): string {
+  return execFileSync(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      ...args,
+      "--local",
+      "--config",
+      inject("wranglerConfig"),
+      "--persist-to",
+      inject("stateDir"),
+    ],
+    { cwd: webDir, env: { ...process.env, CI: "1" }, stdio: "pipe" },
+  ).toString();
+}
+
+/** Run SQL against the test server's local D1. */
+export function d1(sql: string): unknown[] {
+  const output = wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
+  return (JSON.parse(output) as { results: unknown[] }[])[0]?.results ?? [];
+}

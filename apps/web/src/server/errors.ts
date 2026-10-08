@@ -11,6 +11,7 @@ const STATUS: Record<ErrorCode, number> = {
   unsupported_media_type: 415,
   rate_limited: 429,
   internal: 500,
+  unavailable: 503,
 };
 
 /** Error thrown by the service layer; mapped to `{ error: { code, message } }` by the HTTP layer. */

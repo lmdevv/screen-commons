@@ -38,6 +38,8 @@ export const ERROR_CODES = [
   "unsupported_media_type",
   "rate_limited",
   "internal",
+  /** A dependency (e.g. the Images binding) failed; retrying later may succeed. */
+  "unavailable",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -108,6 +110,33 @@ export interface ReviewQueue {
   flows: FlowSummary[];
 }
 
+/** POST /admin/media/backfill: one page of the display-media backfill (admin only). */
+export const backfillDisplayInputSchema = z.object({
+  limit: z.number().int().min(1).max(50).default(10),
+  /** `nextCursor` from the previous page. */
+  cursor: z.string().max(100).optional(),
+  /** List what would be processed without deriving or writing anything. */
+  dryRun: z.boolean().default(false),
+});
+export type BackfillDisplayInput = z.input<typeof backfillDisplayInputSchema>;
+
+export interface BackfillDisplayResult {
+  items: {
+    screenId: string;
+    /**
+     * `updated`: new display image and/or thumbnail; `current`: already met the policy, only
+     * marked; `failed`: left for a later run; `pending`: dry run.
+     */
+    action: "updated" | "current" | "failed" | "pending";
+    imageKey: string;
+    thumbKey: string;
+    reason?: string;
+  }[];
+  nextCursor: string | null;
+  /** Screens still below the current policy version after this page. */
+  remaining: number;
+}
+
 /** Response shapes, keyed by endpoint, so clients and handlers agree. */
 export interface ApiResponses {
   me: User;
@@ -134,4 +163,5 @@ export interface ApiResponses {
   /** `token` is only ever returned once, at creation. */
   createKey: { key: ApiKey; token: string };
   reviewQueue: ReviewQueue;
+  backfillDisplay: BackfillDisplayResult;
 }
