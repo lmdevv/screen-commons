@@ -82,7 +82,8 @@ export async function encodeDisplay(input: Buffer): Promise<EncodedImage> {
     ),
     "The display image",
   );
-  if (best.bytes > source.bytes * DISPLAY_POLICY.full.losslessTryRatio) {
+  // Lossless only pays off against PNG sources (flat UI); a JPEG has already lost the detail.
+  if (type === "image/png" && best.bytes > source.bytes * DISPLAY_POLICY.full.losslessTryRatio) {
     const lossless = await encoded(await pipeline().webp({ lossless: true, effort: 4 }).toBuffer());
     if (lossless.bytes < best.bytes) best = lossless;
   }
@@ -97,7 +98,10 @@ export interface ThumbnailOptions {
   viewport?: Viewport;
 }
 
-/** Thumbnail (`DISPLAY_POLICY.thumbnail`): ≤640px wide WebP, never upscaled, top-anchored crop. */
+/**
+ * Thumbnail (`DISPLAY_POLICY.thumbnail`): ≤640px wide WebP, never upscaled and no wider than the
+ * display image, top-anchored crop, drawn from the source.
+ */
 export async function makeThumbnail(
   input: Buffer,
   options: ThumbnailOptions = {},

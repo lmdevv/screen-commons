@@ -12,7 +12,7 @@ import { DISPLAY_POLICY, WEBP_MAX_DIMENSION } from "./image-policy";
 
 // Synthetic files: valid headers (what sniffImage checks) padded to the requested byte size.
 function webp(width: number, height: number, bytes: number): Uint8Array {
-  const out = new Uint8Array(Math.max(bytes, 30));
+  const out = new Uint8Array(Math.max(bytes, 32));
   const view = new DataView(out.buffer);
   out.set(new TextEncoder().encode("RIFF"), 0);
   view.setUint32(4, out.length - 8, true);
@@ -24,25 +24,31 @@ function webp(width: number, height: number, bytes: number): Uint8Array {
 }
 
 function png(width: number, height: number, bytes: number): Uint8Array {
-  const out = new Uint8Array(Math.max(bytes, 45));
+  const out = new Uint8Array(Math.max(bytes, 57));
   const view = new DataView(out.buffer);
   out.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
   view.setUint32(8, 13);
   out.set(new TextEncoder().encode("IHDR"), 12);
   view.setUint32(16, width);
   view.setUint32(20, height);
+  // IDAT filling the rest, then IEND (PNG completeness walks the chunks)
+  view.setUint32(33, out.length - 57);
+  out.set(new TextEncoder().encode("IDAT"), 37);
   out.set(new TextEncoder().encode("IEND"), out.length - 8);
   return out;
 }
 
 function jpeg(width: number, height: number, bytes: number): Uint8Array {
-  const out = new Uint8Array(Math.max(bytes, 24));
+  const out = new Uint8Array(Math.max(bytes, 32));
   const view = new DataView(out.buffer);
   out.set([0xff, 0xd8, 0xff, 0xc0], 0);
   view.setUint16(4, 17);
   out[6] = 8;
   view.setUint16(7, height);
   view.setUint16(9, width);
+  // start of scan after the frame header, end of image last
+  out.set([0xff, 0xda, 0x00, 0x02], 21);
+  out.set([0xff, 0xd9], out.length - 2);
   return out;
 }
 
@@ -54,14 +60,19 @@ type Encoder = (
 ) => Uint8Array;
 
 let encoder: Encoder;
+/** Encodes of real canvases; the 1×1 WebP support probe is counted in `probes`. */
 const calls: { type: string; quality?: number; width: number; height: number }[] = [];
+let probes = 0;
+const canvases: FakeCanvas[] = [];
 
 class FakeCanvas {
   draws: unknown[][] = [];
   constructor(
     public width: number,
     public height: number,
-  ) {}
+  ) {
+    canvases.push(this);
+  }
   getContext() {
     return {
       imageSmoothingEnabled: false,
@@ -72,7 +83,8 @@ class FakeCanvas {
     };
   }
   async convertToBlob({ type, quality }: { type: string; quality?: number }) {
-    calls.push({ type, quality, width: this.width, height: this.height });
+    if (this.width === 1 && this.height === 1) probes += 1;
+    else calls.push({ type, quality, width: this.width, height: this.height });
     return new Blob([encoder(type, quality, this.width, this.height) as Uint8Array<ArrayBuffer>], {
       type,
     });
@@ -103,6 +115,8 @@ async function original(bytes: Uint8Array): Promise<EncodedBlob> {
 
 beforeEach(() => {
   calls.length = 0;
+  probes = 0;
+  canvases.length = 0;
   vi.stubGlobal("OffscreenCanvas", FakeCanvas);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -167,6 +181,16 @@ describe("encodeDisplayImage", () => {
     encoder = safari(500_000);
     const input = await original(png(2880, 20_000, 9_000_000));
     expect(await encodeDisplayImage(source(2880, 20_000), input)).toBe(input);
+    // found out on a 1×1 probe: the 2359×16,383 canvas is never allocated
+    expect(probes).toBe(1);
+    expect(canvases.map(({ width, height }) => [width, height])).toEqual([[0, 0]]);
+  });
+
+  it("releases its canvases once encoded", async () => {
+    encoder = browser(() => 900_000);
+    await encodeDisplayImage(source(2880, 1800), await original(png(2880, 1800, 3_000_000)));
+    await encodeThumbnail(source(2880, 1800), "desktop");
+    expect(canvases.every(({ width, height }) => width === 0 && height === 0)).toBe(true);
   });
 
   it("falls back to PNG, then JPEG, when the source can't be sent as-is", async () => {
@@ -176,7 +200,8 @@ describe("encodeDisplayImage", () => {
         : png(width, height, DISPLAY_POLICY.full.maxBytes + 1);
     const image = await encodeDisplayImage(source(3000, 2000));
     expect(image).toMatchObject({ type: "image/jpeg", width: 3000, height: 2000 });
-    expect(calls.map((call) => call.type)).toEqual(["image/webp", "image/png", "image/jpeg"]);
+    // the probe found no WebP encoder, so no WebP attempt at full size
+    expect(calls.map((call) => call.type)).toEqual(["image/png", "image/jpeg"]);
   });
 });
 
@@ -186,6 +211,19 @@ describe("encodeThumbnail", () => {
     const thumb = await encodeThumbnail(source(2880, 9000), "desktop");
     expect(thumb).toMatchObject({ type: "image/webp", width: 640, height: 400, bytes: 20_000 });
     expect(calls).toEqual([{ type: "image/webp", quality: 0.82, width: 640, height: 400 }]);
+  });
+
+  it("sizes tall narrow pages from their display image, drawing from the source", async () => {
+    encoder = browser(() => 20_000);
+    // 750×20,000 displays at 614×16,383 and 390×18,000 at 355×16,383: the thumbnail is never
+    // wider than the display image the server checks it against
+    const tall = await encodeThumbnail(source(750, 20_000), "mobile");
+    expect(tall).toMatchObject({ width: 614, height: 1330 });
+    expect(canvases.at(-1)!.draws[0]).toEqual([expect.anything(), 0, 0, 750, 1625, 0, 0, 614, 1330]);
+    expect(await encodeThumbnail(source(390, 18_000), "mobile")).toMatchObject({
+      width: 355,
+      height: 769,
+    });
   });
 
   it("never upscales small images", async () => {

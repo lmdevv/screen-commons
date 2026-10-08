@@ -1,6 +1,7 @@
 import {
   captureBatchInputSchema,
   captureScreenSchema,
+  isThumbnailOf,
   sniffImage,
   type CaptureBatchInput,
   type ScreenCommonsClient,
@@ -55,6 +56,26 @@ describe("image encoding", () => {
     expect(await dominantColor(thumb.buffer)).toMatch(/^#f[0-9a-f]0[0-9a-f]0[0-9a-f]$/u);
     const mobile = await makeThumbnail(await solid(1170, 2532), { viewport: "mobile" });
     expect([mobile.width, mobile.height]).toEqual([640, 1385]);
+  });
+
+  it("sizes thumbnails of tall narrow pages from their display image", async () => {
+    // 750×20,000 displays at 614×16,383 and 390×18,000 at 355×16,383; the server checks the
+    // thumbnail against the display image, so it can't be wider
+    for (const [width, height, thumb] of [
+      [750, 20_000, [614, 1330]],
+      [390, 18_000, [355, 769]],
+    ] as const) {
+      const { screen } = await prepareScreen({
+        png: await solid(width, height),
+        sourceUrl: "https://example.com/tall",
+        viewport: "mobile",
+      });
+      const image = sniffImage(Buffer.from(screen.image.base64, "base64"))!;
+      const thumbnail = sniffImage(Buffer.from(screen.thumbnail.base64, "base64"))!;
+      expect([image.width, image.height]).toEqual([thumb[0], 16_383]);
+      expect([thumbnail.width, thumbnail.height]).toEqual(thumb);
+      expect(isThumbnailOf(thumbnail, image)).toBe(true);
+    }
   });
 
   it("never upscales thumbnails and enforces the WebP output", async () => {
@@ -129,6 +150,19 @@ describe("image encoding", () => {
       [ui, display.buffer].map((buffer) => sharp(buffer).removeAlpha().raw().toBuffer()),
     );
     expect(Buffer.compare(a!, b!)).toBe(0);
+  });
+
+  it("only tries lossless WebP for PNG sources", async () => {
+    const jpeg = await sharp(await noisy(800, 500))
+      .jpeg({ quality: 95 })
+      .toBuffer();
+    const webp = vi.spyOn(sharp.prototype, "webp");
+    try {
+      await encodeDisplay(jpeg);
+      expect(webp.mock.calls.some(([options]) => options?.lossless)).toBe(false);
+    } finally {
+      webp.mockRestore();
+    }
   });
 
   it("computes dominant colours as hex", async () => {

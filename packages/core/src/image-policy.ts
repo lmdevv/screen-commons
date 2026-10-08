@@ -76,9 +76,17 @@ export const thumbnailKindFor = (platform: string): ThumbnailKind =>
  * the thumbnail width (HiDPI encoders), and a top crop no taller than the source's aspect or the
  * mobile ratio (the extension picks desktop/mobile by viewport, not platform). Rejects a full
  * page sent as its own thumbnail.
+ *
+ * A display image at WebP's height limit may have been scaled down from a wider source (750 ×
+ * 20,000 → 614 × 16,383), and a thumbnail sized from that source (640px wide) is still a
+ * downscale of it, so up to the thumbnail width is accepted there.
  */
 export function isThumbnailOf(thumb: ImageSize, source: ImageSize): boolean {
-  if (thumb.width > Math.min(source.width, DISPLAY_POLICY.thumbnail.width * 2)) return false;
+  const sourceWidth =
+    source.height >= WEBP_MAX_DIMENSION
+      ? Math.max(source.width, DISPLAY_POLICY.thumbnail.width)
+      : source.width;
+  if (thumb.width > Math.min(sourceWidth, DISPLAY_POLICY.thumbnail.width * 2)) return false;
   const ratio = Math.min(source.height / source.width, THUMBNAIL_MAX_RATIO.mobile);
   // Encoders round the height to whole pixels.
   return thumb.height <= Math.round(thumb.width * ratio) + 1;
@@ -111,11 +119,18 @@ export interface ThumbnailBox extends ImageSize {
   cropped: boolean;
 }
 
-/** Thumbnail geometry: ≤640px wide (never upscaled), top-anchored crop to the kind's max ratio. */
+/**
+ * Thumbnail geometry for a `width` × `height` source: ≤640px wide and never wider than the
+ * source's display image (`displaySize`, what the server checks thumbnails against: a 750 ×
+ * 20,000 page displays at 614 × 16,383, so its thumbnail is 614px wide), top-anchored crop to the
+ * kind's max ratio. `sourceHeight` is in source rows: encoders draw from the source, never from
+ * the display image.
+ */
 export function thumbnailBox(width: number, height: number, kind: ThumbnailKind): ThumbnailBox {
   const ratio = THUMBNAIL_MAX_RATIO[kind];
-  const targetWidth = Math.min(DISPLAY_POLICY.thumbnail.width, width);
-  const scaledHeight = Math.max(1, Math.round((height * targetWidth) / width));
+  const display = displaySize(width, height);
+  const targetWidth = Math.min(DISPLAY_POLICY.thumbnail.width, display.width);
+  const scaledHeight = Math.max(1, Math.round((display.height * targetWidth) / display.width));
   const maxHeight = Math.max(1, Math.round(targetWidth * ratio));
   return {
     width: targetWidth,
@@ -150,6 +165,45 @@ export function keepSource(source: SourceImage, derivedBytes: number): boolean {
     derivedBytes >= source.bytes
   );
 }
+
+/**
+ * Input limits of the Cloudflare Images binding
+ * (https://developers.cloudflare.com/images/get-started/limits/,
+ * https://developers.cloudflare.com/images/transform-images/bindings/). The server never sends
+ * the binding a source outside them: production rejects it, and the local binding (a
+ * "low-fidelity offline" version) enforces none of them, so local runs wouldn't notice.
+ */
+export const IMAGES_BINDING_LIMITS = {
+  /** "12,000 pixels" on either edge, for formats other than WebP and AVIF. */
+  maxDimension: 12_000,
+  /** "100 MP" of image area. */
+  maxArea: 100_000_000,
+  /** `.input()` accepts at most "20 MB". */
+  maxBytes: 20_000_000,
+} as const;
+
+/** Whether the Images binding accepts `image` as input (`IMAGES_BINDING_LIMITS`). */
+export function bindingAccepts(image: SourceImage): boolean {
+  const { maxDimension, maxArea, maxBytes } = IMAGES_BINDING_LIMITS;
+  return (
+    image.bytes <= maxBytes &&
+    image.width * image.height <= maxArea &&
+    (image.type === "image/webp" || Math.max(image.width, image.height) <= maxDimension)
+  );
+}
+
+/**
+ * Why a screen's media is, as documented, not a server derivative although its display version
+ * is current (so the backfill doesn't retry it forever):
+ * - `binding_limits`: a PNG/JPEG source outside `IMAGES_BINDING_LIMITS` (pages taller than
+ *   12,000px). It is displayed as uploaded; clients encode such pages themselves.
+ * - `no_binding`: the instance has no Images binding (self-hosted). The source is displayed as
+ *   uploaded, and the backfill re-checks it once a binding is configured.
+ * - `unconvertible`: the binding's output was unusable (wrong type or size, or over the byte
+ *   budget at the lowest quality); a retry would produce the same.
+ */
+export const DISPLAY_EXCEPTIONS = ["binding_limits", "no_binding", "unconvertible"] as const;
+export type DisplayException = (typeof DISPLAY_EXCEPTIONS)[number];
 
 /** What an encoder produced, as read back from the encoded bytes (never the requested values). */
 export interface EncodedResult extends ImageSize {
@@ -209,18 +263,58 @@ export async function encodeWithinBudget<T extends EncodedResult>(
 
 /**
  * Type and dimensions read from a whole encoded file, never from a declared type or file name.
- * Null unless the header parses and, for WebP and PNG, the file is complete (RIFF length covered,
- * IEND present), so truncated uploads and encoder output are rejected too.
+ * Null unless the header parses, the image is still (an animated WebP would display only its
+ * first frame) and the file is complete, so truncated uploads and encoder output are rejected
+ * too: the RIFF length is covered (WebP), an `IEND` chunk is reached (PNG), or an end-of-image
+ * marker follows the scan (JPEG). Trailing bytes after the end are tolerated.
  */
 export function sniffImage(bytes: Uint8Array): (ImageSize & { type: StoredImageType }) | null {
   const header = readImageHeader(bytes);
   if (!header || header.width < 1 || header.height < 1) return null;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (header.type === "image/webp" && view.getUint32(4, true) + 8 > bytes.byteLength) return null;
-  if (header.type === "image/png" && view.getUint32(bytes.byteLength - 8) !== 0x49454e44) {
-    return null;
+  const complete =
+    header.type === "image/webp"
+      ? stillWebpComplete(bytes, view)
+      : header.type === "image/png"
+        ? pngComplete(view)
+        : jpegComplete(bytes);
+  return complete ? header : null;
+}
+
+/** RIFF length covered, and no VP8X animation flag. */
+function stillWebpComplete(bytes: Uint8Array, view: DataView): boolean {
+  if (view.getUint32(4, true) + 8 > bytes.byteLength) return false;
+  const extended = String.fromCharCode(...bytes.subarray(12, 16)) === "VP8X";
+  return !(extended && (bytes[20]! & 0x02) !== 0);
+}
+
+/** Walks the chunks (length, type, data, CRC) to `IEND`; a truncated file runs out first. */
+function pngComplete(view: DataView): boolean {
+  for (let offset = 8; offset + 12 <= view.byteLength; offset += 12 + view.getUint32(offset)) {
+    if (view.getUint32(offset + 4) === 0x49454e44) return true;
   }
-  return header;
+  return false;
+}
+
+/**
+ * Walks the marker segments to the first start-of-scan, then looks for the end-of-image marker
+ * after it, from the end. Entropy-coded data never contains `FF D9` (0xFF bytes are stuffed), so
+ * a file cut anywhere in the scan has none.
+ */
+function jpegComplete(bytes: Uint8Array): boolean {
+  let offset = 2;
+  while (offset + 4 <= bytes.byteLength) {
+    if (bytes[offset] !== 0xff) return false;
+    const marker = bytes[offset + 1]!;
+    if (marker === 0xda) break;
+    if (marker === 0xff) offset += 1;
+    else if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) offset += 2;
+    else offset += 2 + ((bytes[offset + 2]! << 8) | bytes[offset + 3]!);
+  }
+  for (let index = bytes.byteLength - 2; index > offset; index -= 1) {
+    if (bytes[index] === 0xff && bytes[index + 1] === 0xd9) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------------
