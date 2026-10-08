@@ -80,6 +80,7 @@ export interface SearchPaletteProps {
   platform: Platform;
   audience: Audience;
   onShowShortcuts: () => void;
+  finalFocus: () => boolean;
 }
 
 export default function SearchPalette({
@@ -89,6 +90,7 @@ export default function SearchPalette({
   platform,
   audience,
   onShowShortcuts,
+  finalFocus,
 }: SearchPaletteProps) {
   const navigate = useNavigate();
   const changePlatform = usePlatformChange();
@@ -286,6 +288,7 @@ export default function SearchPalette({
       <CommandPalette
         open={open}
         onOpenChange={onOpenChange}
+        finalFocus={finalFocus}
         search={query}
         onSearchChange={setQuery}
         shouldFilter={false}
@@ -319,6 +322,7 @@ export default function SearchPalette({
     <CommandPalette
       open={open}
       onOpenChange={onOpenChange}
+      finalFocus={finalFocus}
       search={query}
       onSearchChange={setQuery}
       shouldFilter={false}

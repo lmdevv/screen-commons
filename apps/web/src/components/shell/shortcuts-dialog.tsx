@@ -13,16 +13,18 @@ import { helpSections, type Audience } from "../../lib/shortcuts";
 
 export default function ShortcutsDialog({
   audience,
+  finalFocus,
   open,
   onOpenChange,
 }: {
   audience: Audience;
+  finalFocus: () => boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="sm" finalFocus={finalFocus}>
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
           <DialogDescription>

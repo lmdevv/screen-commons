@@ -1,5 +1,5 @@
 import type { User } from "@screen-commons/core";
-import { Shortcut, useHotkey, usePendingShortcut } from "@screen-commons/ui";
+import { Shortcut, useHotkey, usePendingShortcut, useReturnFocus } from "@screen-commons/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { createContext, lazy, Suspense, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
@@ -22,7 +22,11 @@ export function KeyboardShortcuts({ user, children }: { user: User | null; child
   const audience = audienceOf(user);
   const platform = useCurrentPlatform();
   const [help, setHelp] = useState({ open: false, mounted: false });
-  const showShortcuts = useCallback(() => setHelp({ open: true, mounted: true }), []);
+  const { remember, finalFocus } = useReturnFocus();
+  const showShortcuts = useCallback(() => {
+    remember();
+    setHelp({ open: true, mounted: true });
+  }, [remember]);
   useHotkey(SHORTCUTS.help.keys, showShortcuts, { scope: "global" });
   const commands = commandsFor(audience).filter((command) => command.shortcut);
 
@@ -42,6 +46,7 @@ export function KeyboardShortcuts({ user, children }: { user: User | null; child
           <Suspense fallback={null}>
             <ShortcutsDialog
               audience={audience}
+              finalFocus={finalFocus}
               open={help.open}
               onOpenChange={(open) => setHelp({ open, mounted: true })}
             />

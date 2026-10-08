@@ -44,6 +44,8 @@ export interface CommandPaletteProps {
   rail?: React.ReactNode;
   /** Replaces the default keyboard-hint footer. Pass `null` to hide it. */
   footer?: React.ReactNode;
+  /** Where focus goes on close (see `useReturnFocus`). Default: back to the opener. */
+  finalFocus?: React.ComponentProps<typeof BaseDialog.Popup>["finalFocus"];
   className?: string;
 }
 
@@ -60,6 +62,7 @@ export function CommandPalette({
   label = "Search",
   rail,
   footer,
+  finalFocus,
   className,
 }: CommandPaletteProps) {
   return (
@@ -69,6 +72,7 @@ export function CommandPalette({
         <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-3 sm:pt-[12vh]">
           <BaseDialog.Popup
             aria-label={label}
+            finalFocus={finalFocus}
             className={cn(
               "flex max-h-[min(640px,calc(100dvh-24px))] w-[720px] max-w-full flex-col overflow-hidden rounded-overlay bg-surface text-fg shadow-overlay outline-none sm:max-h-[min(640px,76vh)]",
               "transition-[opacity,scale] duration-150 ease-out data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0",

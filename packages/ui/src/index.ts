@@ -14,6 +14,7 @@ export {
   useHotkey,
   useIsMac,
   usePendingShortcut,
+  useReturnFocus,
   useScrolled,
   useScrollEdges,
   type HotkeyOptions,

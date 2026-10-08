@@ -107,6 +107,36 @@ export function usePendingShortcut(): readonly string[] {
 }
 const NO_CHORDS: readonly string[] = [];
 
+/**
+ * Focus to restore when an overlay opened from the keyboard closes: call `remember()` just before
+ * opening it and pass `finalFocus` to the dialog. Base UI's own return swaps an element that isn't
+ * tabbable — such as a viewer's `tabIndex=-1` popup — for its first button (which then flashes a
+ * tooltip and eats the next Escape), so the element is focused here once the overlay is gone.
+ */
+export function useReturnFocus(): {
+  remember: () => void;
+  finalFocus: () => boolean;
+} {
+  const element = React.useRef<HTMLElement | null>(null);
+  return React.useMemo(
+    () => ({
+      remember: () => {
+        const active = document.activeElement;
+        element.current = active instanceof HTMLElement && active !== document.body ? active : null;
+      },
+      finalFocus: () => {
+        const target = element.current;
+        // `true`: Base UI's default when there is nothing (left) to return to.
+        if (!target?.isConnected) return true;
+        // Next frame: the closing overlay has unmounted and the page is no longer inert.
+        requestAnimationFrame(() => target.focus({ preventScroll: true }));
+        return false;
+      },
+    }),
+    [],
+  );
+}
+
 /** True once the window has scrolled past `threshold` px. */
 export function useScrolled(threshold = 4): boolean {
   const [scrolled, setScrolled] = React.useState(false);
