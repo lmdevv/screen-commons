@@ -1,4 +1,5 @@
 import type { User } from "@screen-commons/core";
+import logoUrl from "@screen-commons/ui/assets/logo.svg?url&no-inline";
 import {
   Button,
   EmptyState,
@@ -20,11 +21,6 @@ import type { ReactNode } from "react";
 import { DeferredToaster } from "../components/shell/deferred-toaster";
 import { queries } from "../lib/queries";
 import styles from "../styles.css?url";
-
-/** The Screen Commons mark as an inline SVG favicon (follows the OS colour scheme). */
-const FAVICON = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>*{fill:#0a0a0a}@media (prefers-color-scheme:dark){*{fill:#f2f2f3}}</style><circle cx="6.25" cy="6.25" r="5.25"/><rect x="13" y="1" width="10.5" height="10.5" rx="2.75"/><rect x="1" y="13" width="10.5" height="10.5" rx="2.75"/><rect x="13" y="13" width="10.5" height="10.5" rx="2.75" fill-opacity=".32"/></svg>',
-)}`;
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -48,7 +44,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [
       { rel: "stylesheet", href: styles },
-      { rel: "icon", type: "image/svg+xml", href: FAVICON },
+      { rel: "icon", type: "image/svg+xml", href: logoUrl },
     ],
   }),
   beforeLoad: async ({ context }) => ({

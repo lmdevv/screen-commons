@@ -1,5 +1,6 @@
 import type * as React from "react";
 
+import logoUrl from "../assets/logo.svg?url&no-inline";
 import { cn } from "../lib/cn";
 
 export interface LogoMarkProps extends React.SVGProps<SVGSVGElement> {
@@ -25,10 +26,7 @@ export function LogoMark({ size = 22, title, className, ...props }: LogoMarkProp
       className={cn("shrink-0", className)}
       {...props}
     >
-      <circle cx="6.25" cy="6.25" r="5.25" />
-      <rect x="13" y="1" width="10.5" height="10.5" rx="2.75" />
-      <rect x="1" y="13" width="10.5" height="10.5" rx="2.75" />
-      <rect x="13" y="13" width="10.5" height="10.5" rx="2.75" fillOpacity="0.32" />
+      <use href={`${logoUrl}#mark`} />
     </svg>
   );
 }
