@@ -8,13 +8,18 @@
  * Env: E2E_BASE_URL (default http://localhost:5173), E2E_EMAIL / E2E_PASSWORD (default: the seed
  * admin), CHROME_PATH (default: the system Chromium).
  *
- * Data: signs up a fresh member each run. The contributed flow and screens are rejected at the
- * end, the API key is revoked; the "E2E Product Test" app row is reused across runs.
+ * Data: signs up e2e-product@example.com, who contributes a flow to a new "E2E Product Test" app
+ * that the admin approves; the admin's API key is revoked at the end. Before and after the run,
+ * `purgeE2EData` (local-data.ts) deletes the member, the app, its flow, screens and media from the
+ * dev server's local D1 and R2, so nothing stays published. The contribute → review journey needs
+ * a local dev server and is skipped against any other E2E_BASE_URL.
  */
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 
 import playwright, { type Browser, type BrowserContext, type Page } from "playwright-core";
+
+import { isLocalBase, purgeE2EData } from "./local-data.ts";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
 const ADMIN_EMAIL = process.env.E2E_EMAIL ?? "admin@screencommons.dev";
@@ -23,10 +28,14 @@ const CHROME = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const STAMP = Date.now().toString(36);
 const MEMBER = {
   name: "E2E Member",
-  email: `e2e-${STAMP}@example.com`,
-  password: `pw-${STAMP}-e2e`,
+  email: "e2e-product@example.com",
+  password: "e2e-product-password",
 };
 const APP_NAME = "E2E Product Test";
+const DATA = { emails: [MEMBER.email], appNames: [APP_NAME] };
+const WRITES = isLocalBase(BASE)
+  ? {}
+  : { skip: "writes data; cleanup needs a local dev server (see the file comment)" };
 const FLOW_NAME = `Signing up ${STAMP}`;
 const STEPS = ["Sign up", "Verify email", "Welcome"];
 
@@ -77,10 +86,13 @@ async function makeScreenshots(): Promise<{ name: string; mimeType: string; buff
 
 before(async () => {
   browser = await playwright.chromium.launch({ executablePath: CHROME });
+  // A crashed earlier run may have left its member and app behind.
+  if (!WRITES.skip) await purgeE2EData(BASE, DATA);
 });
 
 after(async () => {
   await browser?.close();
+  if (!WRITES.skip) await purgeE2EData(BASE, DATA);
   assert.deepEqual(problems, [], "no console errors or page errors");
 });
 
@@ -124,12 +136,11 @@ describe("public pages", () => {
   });
 });
 
-describe("contribute → review", () => {
+describe("contribute → review", WRITES, () => {
   let member: BrowserContext;
   let admin: BrowserContext;
   let flowId = "";
   let appSlug = "";
-  let screenIds: string[] = [];
 
   before(async () => {
     member = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -137,17 +148,7 @@ describe("contribute → review", () => {
   });
 
   after(async () => {
-    // Leave the library as we found it.
-    for (const id of flowId ? [flowId] : [])
-      await admin.request.post(`${BASE}/api/v1/review/flow/${id}`, {
-        data: { decision: "reject", reason: "E2E cleanup" },
-        headers: { origin: BASE },
-      });
-    for (const id of screenIds)
-      await admin.request.post(`${BASE}/api/v1/review/screen/${id}`, {
-        data: { decision: "reject", reason: "E2E cleanup" },
-        headers: { origin: BASE },
-      });
+    // The approved flow, its screens and app go with the purge after the run.
     await member.close();
     await admin.close();
   });
@@ -172,15 +173,10 @@ describe("contribute → review", () => {
     await page.getByRole("button", { name: "Continue" }).click();
 
     await page.getByLabel("Search apps").fill(APP_NAME);
-    const existing = page.getByRole("option", { name: new RegExp(`^${APP_NAME}`, "u") });
-    const create = page.getByRole("option", { name: /Create/u });
-    await create.waitFor();
-    await page.waitForTimeout(400); // debounced search
-    if ((await existing.count()) > 0) await existing.first().click();
-    else {
-      await create.click();
-      await page.getByLabel("Website").fill("https://e2e.example.com");
-    }
+    // The app was purged before the run: once the debounced search has answered, the list offers
+    // to create it by name.
+    await page.getByRole("option", { name: `Create “${APP_NAME}”` }).click();
+    await page.getByLabel("Website").fill("https://e2e.example.com");
     await page.getByRole("button", { name: "Continue" }).click();
 
     await page.getByRole("switch", { name: "Save as a flow" }).click();
@@ -210,7 +206,6 @@ describe("contribute → review", () => {
       flow.steps.map((step: { label: string }) => step.label),
       STEPS,
     );
-    screenIds = flow.steps.map((step: { screen: { id: string } }) => step.screen.id);
     for (const step of flow.steps) assert.equal(step.screen.status, "pending");
 
     // Display policy: the browser uploaded WebP it encoded itself (not a server derivative).
@@ -287,6 +282,9 @@ describe("settings", () => {
 
     await page.getByRole("button", { name: `Revoke ${name}` }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Revoke key" }).click();
+    // Not the row: under the open dialog the page is inert, so it reads as gone before the revoke
+    // has landed.
+    await page.getByText("Key revoked").waitFor();
     await page.getByRole("row", { name: new RegExp(name, "u") }).waitFor({ state: "detached" });
     assert.equal((await call()).status(), 401);
     await context.close();

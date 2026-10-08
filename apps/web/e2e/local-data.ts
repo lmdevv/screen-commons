@@ -93,19 +93,18 @@ export async function purgeE2EData(base: string, data: E2EData): Promise<void> {
     )
   ).filter((key): key is string => typeof key === "string");
 
-  await raw(
-    [
+  await raw([
+    ...[
       // Saves point at items by id without a foreign key: drop other users' saves of purged items.
       `DELETE FROM collection_item WHERE (kind = 'screen' AND item_id IN (${screens}))
          OR (kind = 'flow' AND item_id IN (${flows})) OR (kind = 'app' AND item_id IN (${apps}))`,
       `DELETE FROM flow WHERE id IN (${flows})`,
       `DELETE FROM screen WHERE id IN (${screens})`,
       `DELETE FROM app WHERE id IN (${apps})`,
-    ]
-      .map((sql) => ({ sql, params }))
-      // D1 wants exactly the parameters a statement uses: this one only takes the emails.
-      .concat({ sql: `DELETE FROM user WHERE id IN (${users})`, params: data.emails }),
-  );
+    ].map((sql) => ({ sql, params })),
+    // D1 wants exactly the parameters a statement uses: this one only takes the emails.
+    { sql: `DELETE FROM user WHERE id IN (${users})`, params: data.emails },
+  ]);
   if (media.length > 0) {
     await explorer(base, `/r2/buckets/${buckets[0]!.name}/objects`, {
       method: "DELETE",

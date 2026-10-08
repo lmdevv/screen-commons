@@ -161,7 +161,8 @@ async function shortcut(page: Page, keys: string) {
 async function runCommand(page: Page, query: string, row: string | RegExp) {
   await page.keyboard.press("ControlOrMeta+k");
   const palette = page.getByRole("dialog").filter({ has: page.getByRole("combobox") });
-  await palette.waitFor();
+  // Type once the caret is in the field, as a user would.
+  await waitForFocus(palette.getByRole("combobox"), "the palette's field takes focus");
   await page.keyboard.type(query);
   const option = palette.getByRole("option", { name: row }).first();
   await option.waitFor();
@@ -258,6 +259,7 @@ describe("public pages, signed out", () => {
     await page.keyboard.press("/");
     const palette = page.getByRole("dialog", { name: "Search pages and docs" });
     await palette.waitFor();
+    await waitForFocus(palette.getByRole("combobox"), "the palette's field takes focus");
     await page.keyboard.type("sign in");
     await palette.getByRole("option", { name: "Sign in" }).waitFor();
     await page.keyboard.press("Enter");
@@ -491,6 +493,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     await page.keyboard.press("ControlOrMeta+k");
     const palette = page.getByRole("dialog", { name: "Search" });
     await palette.waitFor();
+    await waitForFocus(palette.getByRole("combobox"), "the palette's field takes focus");
     await page.keyboard.type("saved");
     const saved = palette.getByRole("option", { name: "Saved", exact: true });
     await saved.waitFor();
@@ -621,6 +624,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     await palette.waitFor();
     const tree = await palette.ariaSnapshot();
     assert.ok(tree.includes("combobox"), "the search field is a combobox");
+    await waitForFocus(palette.getByRole("combobox"), "the palette's field takes focus");
     await page.keyboard.type("pricing");
     await palette.getByRole("option", { name: "Search for “pricing”" }).waitFor();
     await page.keyboard.press("Enter");
@@ -769,6 +773,7 @@ describe("member: browse, search, view, save, contribute, settings", WRITES, () 
     await page.keyboard.press("ControlOrMeta+k");
     const palette = page.getByRole("dialog", { name: "Search" });
     await palette.waitFor();
+    await waitForFocus(palette.getByRole("combobox"), "the palette's field takes focus");
     await page.keyboard.type("review");
     await palette.getByRole("option").first().waitFor();
     assert.equal(await palette.getByRole("option", { name: /Review queue/u }).count(), 0);
