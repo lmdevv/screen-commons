@@ -117,12 +117,17 @@ export function shouldIgnoreKeyEvent(
   return false;
 }
 
-/** Open layers that own the keyboard: dialogs (Base UI popovers are dialogs too) and menus. */
+/**
+ * Open layers that own the keyboard: dialogs (Base UI popovers are dialogs too) and menus. A Base
+ * UI layer playing its exit animation is `data-closed` and already gives the keyboard back.
+ */
 const LAYER_SELECTOR = [
   "[role=dialog]:not([hidden]):not([aria-modal=false])",
   "[role=alertdialog]:not([hidden])",
   "[role=menu]:not([hidden])",
-].join(", ");
+]
+  .map((selector) => `${selector}:not([data-closed])`)
+  .join(", ");
 
 /** The topmost open dialog or menu (portals stack in document order), or null on the bare page. */
 export function topmostLayer(root: ParentNode = document): Element | null {

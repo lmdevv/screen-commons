@@ -95,13 +95,14 @@ describe("shouldIgnoreKeyEvent", () => {
 });
 
 describe("layers and scope", () => {
-  it("finds the topmost open dialog or menu, skipping hidden and non-modal ones", () => {
+  it("finds the topmost open dialog or menu, skipping hidden, non-modal and closing ones", () => {
     document.body.innerHTML = `
       <main id="page"></main>
       <div role="dialog" id="viewer"><span id="inside"></span></div>
       <div role="dialog" id="picker"></div>
       <div role="dialog" hidden></div>
-      <div role="dialog" aria-modal="false"></div>`;
+      <div role="dialog" aria-modal="false"></div>
+      <div role="dialog" data-closed></div>`;
     const viewer = document.getElementById("viewer")!;
     const picker = document.getElementById("picker")!;
     expect(topmostLayer()).toBe(picker);
