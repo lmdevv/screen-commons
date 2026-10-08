@@ -19,6 +19,7 @@ import { Route as AppContributeRouteImport } from './routes/_app/contribute'
 import { Route as AppReviewRouteImport } from './routes/_app/review'
 import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as ApiV1RouteRouteImport } from './routes/api/v1/route'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as DocsSlugRouteImport } from './routes/docs.$slug'
 import { Route as ExtensionConnectRouteImport } from './routes/extension.connect'
@@ -31,6 +32,24 @@ import { Route as AppSavedIdRouteImport } from './routes/_app/saved.$id'
 import { Route as AppScreensIdRouteImport } from './routes/_app/screens.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
+import { Route as ApiV1AppsRouteImport } from './routes/api/v1/apps'
+import { Route as ApiV1CapturesRouteImport } from './routes/api/v1/captures'
+import { Route as ApiV1CollectionsRouteImport } from './routes/api/v1/collections'
+import { Route as ApiV1FlowsRouteImport } from './routes/api/v1/flows'
+import { Route as ApiV1KeysRouteImport } from './routes/api/v1/keys'
+import { Route as ApiV1MeRouteImport } from './routes/api/v1/me'
+import { Route as ApiV1ReviewRouteImport } from './routes/api/v1/review'
+import { Route as ApiV1SavesRouteImport } from './routes/api/v1/saves'
+import { Route as ApiV1ScreensRouteImport } from './routes/api/v1/screens'
+import { Route as ApiV1SearchRouteImport } from './routes/api/v1/search'
+import { Route as ApiV1TaxonomyRouteImport } from './routes/api/v1/taxonomy'
+import { Route as ApiV1AppsSlugRouteImport } from './routes/api/v1/apps.$slug'
+import { Route as ApiV1CollectionsIdRouteImport } from './routes/api/v1/collections.$id'
+import { Route as ApiV1FlowsIdRouteImport } from './routes/api/v1/flows.$id'
+import { Route as ApiV1KeysIdRouteImport } from './routes/api/v1/keys.$id'
+import { Route as ApiV1ScreensIdRouteImport } from './routes/api/v1/screens.$id'
+import { Route as ApiV1CollectionsIdItemsRouteImport } from './routes/api/v1/collections.$id.items'
+import { Route as ApiV1ReviewKindIdRouteImport } from './routes/api/v1/review.$kind.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -80,6 +99,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiV1RouteRoute = ApiV1RouteRouteImport.update({
+  id: '/api/v1',
+  path: '/api/v1',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/',
@@ -137,9 +161,99 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV1SplatRoute = ApiV1SplatRouteImport.update({
-  id: '/api/v1/$',
-  path: '/api/v1/$',
-  getParentRoute: () => rootRouteImport,
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1AppsRoute = ApiV1AppsRouteImport.update({
+  id: '/apps',
+  path: '/apps',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1CapturesRoute = ApiV1CapturesRouteImport.update({
+  id: '/captures',
+  path: '/captures',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1CollectionsRoute = ApiV1CollectionsRouteImport.update({
+  id: '/collections',
+  path: '/collections',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1FlowsRoute = ApiV1FlowsRouteImport.update({
+  id: '/flows',
+  path: '/flows',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1KeysRoute = ApiV1KeysRouteImport.update({
+  id: '/keys',
+  path: '/keys',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1MeRoute = ApiV1MeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1ReviewRoute = ApiV1ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1SavesRoute = ApiV1SavesRouteImport.update({
+  id: '/saves',
+  path: '/saves',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1ScreensRoute = ApiV1ScreensRouteImport.update({
+  id: '/screens',
+  path: '/screens',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1SearchRoute = ApiV1SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1TaxonomyRoute = ApiV1TaxonomyRouteImport.update({
+  id: '/taxonomy',
+  path: '/taxonomy',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
+const ApiV1AppsSlugRoute = ApiV1AppsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ApiV1AppsRoute,
+} as any)
+const ApiV1CollectionsIdRoute = ApiV1CollectionsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiV1CollectionsRoute,
+} as any)
+const ApiV1FlowsIdRoute = ApiV1FlowsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiV1FlowsRoute,
+} as any)
+const ApiV1KeysIdRoute = ApiV1KeysIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiV1KeysRoute,
+} as any)
+const ApiV1ScreensIdRoute = ApiV1ScreensIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiV1ScreensRoute,
+} as any)
+const ApiV1CollectionsIdItemsRoute = ApiV1CollectionsIdItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
+  getParentRoute: () => ApiV1CollectionsIdRoute,
+} as any)
+const ApiV1ReviewKindIdRoute = ApiV1ReviewKindIdRouteImport.update({
+  id: '/$kind/$id',
+  path: '/$kind/$id',
+  getParentRoute: () => ApiV1ReviewRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -148,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/api/v1': typeof ApiV1RouteRouteWithChildren
   '/contribute': typeof AppContributeRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -163,13 +278,32 @@ export interface FileRoutesByFullPath {
   '/screens/$id': typeof AppScreensIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
+  '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
+  '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
+  '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
+  '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
+  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
+  '/api/v1/saves': typeof ApiV1SavesRoute
+  '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
+  '/api/v1/search': typeof ApiV1SearchRoute
+  '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/saved/': typeof AppSavedIndexRoute
+  '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
+  '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
+  '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
+  '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/api/v1': typeof ApiV1RouteRouteWithChildren
   '/contribute': typeof AppContributeRoute
   '/review': typeof AppReviewRoute
   '/search': typeof AppSearchRoute
@@ -185,7 +319,25 @@ export interface FileRoutesByTo {
   '/screens/$id': typeof AppScreensIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
+  '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
+  '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
+  '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
+  '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
+  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
+  '/api/v1/saves': typeof ApiV1SavesRoute
+  '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
+  '/api/v1/search': typeof ApiV1SearchRoute
+  '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/saved': typeof AppSavedIndexRoute
+  '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
+  '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
+  '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
+  '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -195,6 +347,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/api/v1': typeof ApiV1RouteRouteWithChildren
   '/_app/contribute': typeof AppContributeRoute
   '/_app/review': typeof AppReviewRoute
   '/_app/search': typeof AppSearchRoute
@@ -210,7 +363,25 @@ export interface FileRoutesById {
   '/_app/screens/$id': typeof AppScreensIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/v1/$': typeof ApiV1SplatRoute
+  '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
+  '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
+  '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
+  '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
+  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
+  '/api/v1/saves': typeof ApiV1SavesRoute
+  '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
+  '/api/v1/search': typeof ApiV1SearchRoute
+  '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/_app/saved/': typeof AppSavedIndexRoute
+  '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
+  '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
+  '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
+  '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -220,6 +391,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/sign-in'
     | '/sign-up'
+    | '/api/v1'
     | '/contribute'
     | '/review'
     | '/search'
@@ -235,13 +407,32 @@ export interface FileRouteTypes {
     | '/screens/$id'
     | '/api/auth/$'
     | '/api/v1/$'
+    | '/api/v1/apps'
+    | '/api/v1/captures'
+    | '/api/v1/collections'
+    | '/api/v1/flows'
+    | '/api/v1/keys'
+    | '/api/v1/me'
+    | '/api/v1/review'
+    | '/api/v1/saves'
+    | '/api/v1/screens'
+    | '/api/v1/search'
+    | '/api/v1/taxonomy'
     | '/saved/'
+    | '/api/v1/apps/$slug'
+    | '/api/v1/collections/$id'
+    | '/api/v1/flows/$id'
+    | '/api/v1/keys/$id'
+    | '/api/v1/screens/$id'
+    | '/api/v1/collections/$id/items'
+    | '/api/v1/review/$kind/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/mcp'
     | '/sign-in'
     | '/sign-up'
+    | '/api/v1'
     | '/contribute'
     | '/review'
     | '/search'
@@ -257,7 +448,25 @@ export interface FileRouteTypes {
     | '/screens/$id'
     | '/api/auth/$'
     | '/api/v1/$'
+    | '/api/v1/apps'
+    | '/api/v1/captures'
+    | '/api/v1/collections'
+    | '/api/v1/flows'
+    | '/api/v1/keys'
+    | '/api/v1/me'
+    | '/api/v1/review'
+    | '/api/v1/saves'
+    | '/api/v1/screens'
+    | '/api/v1/search'
+    | '/api/v1/taxonomy'
     | '/saved'
+    | '/api/v1/apps/$slug'
+    | '/api/v1/collections/$id'
+    | '/api/v1/flows/$id'
+    | '/api/v1/keys/$id'
+    | '/api/v1/screens/$id'
+    | '/api/v1/collections/$id/items'
+    | '/api/v1/review/$kind/$id'
   id:
     | '__root__'
     | '/'
@@ -266,6 +475,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/sign-in'
     | '/sign-up'
+    | '/api/v1'
     | '/_app/contribute'
     | '/_app/review'
     | '/_app/search'
@@ -281,7 +491,25 @@ export interface FileRouteTypes {
     | '/_app/screens/$id'
     | '/api/auth/$'
     | '/api/v1/$'
+    | '/api/v1/apps'
+    | '/api/v1/captures'
+    | '/api/v1/collections'
+    | '/api/v1/flows'
+    | '/api/v1/keys'
+    | '/api/v1/me'
+    | '/api/v1/review'
+    | '/api/v1/saves'
+    | '/api/v1/screens'
+    | '/api/v1/search'
+    | '/api/v1/taxonomy'
     | '/_app/saved/'
+    | '/api/v1/apps/$slug'
+    | '/api/v1/collections/$id'
+    | '/api/v1/flows/$id'
+    | '/api/v1/keys/$id'
+    | '/api/v1/screens/$id'
+    | '/api/v1/collections/$id/items'
+    | '/api/v1/review/$kind/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -291,10 +519,10 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  ApiV1RouteRoute: typeof ApiV1RouteRouteWithChildren
   ExtensionConnectRoute: typeof ExtensionConnectRoute
   MediaSplatRoute: typeof MediaSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiV1SplatRoute: typeof ApiV1SplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -368,6 +596,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/v1': {
+      id: '/api/v1'
+      path: '/api/v1'
+      fullPath: '/api/v1'
+      preLoaderRoute: typeof ApiV1RouteRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/docs/': {
       id: '/docs/'
@@ -448,10 +683,136 @@ declare module '@tanstack/react-router' {
     }
     '/api/v1/$': {
       id: '/api/v1/$'
-      path: '/api/v1/$'
+      path: '/$'
       fullPath: '/api/v1/$'
       preLoaderRoute: typeof ApiV1SplatRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/apps': {
+      id: '/api/v1/apps'
+      path: '/apps'
+      fullPath: '/api/v1/apps'
+      preLoaderRoute: typeof ApiV1AppsRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/captures': {
+      id: '/api/v1/captures'
+      path: '/captures'
+      fullPath: '/api/v1/captures'
+      preLoaderRoute: typeof ApiV1CapturesRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/collections': {
+      id: '/api/v1/collections'
+      path: '/collections'
+      fullPath: '/api/v1/collections'
+      preLoaderRoute: typeof ApiV1CollectionsRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/flows': {
+      id: '/api/v1/flows'
+      path: '/flows'
+      fullPath: '/api/v1/flows'
+      preLoaderRoute: typeof ApiV1FlowsRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/keys': {
+      id: '/api/v1/keys'
+      path: '/keys'
+      fullPath: '/api/v1/keys'
+      preLoaderRoute: typeof ApiV1KeysRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/me': {
+      id: '/api/v1/me'
+      path: '/me'
+      fullPath: '/api/v1/me'
+      preLoaderRoute: typeof ApiV1MeRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/review': {
+      id: '/api/v1/review'
+      path: '/review'
+      fullPath: '/api/v1/review'
+      preLoaderRoute: typeof ApiV1ReviewRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/saves': {
+      id: '/api/v1/saves'
+      path: '/saves'
+      fullPath: '/api/v1/saves'
+      preLoaderRoute: typeof ApiV1SavesRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/screens': {
+      id: '/api/v1/screens'
+      path: '/screens'
+      fullPath: '/api/v1/screens'
+      preLoaderRoute: typeof ApiV1ScreensRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/search': {
+      id: '/api/v1/search'
+      path: '/search'
+      fullPath: '/api/v1/search'
+      preLoaderRoute: typeof ApiV1SearchRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/taxonomy': {
+      id: '/api/v1/taxonomy'
+      path: '/taxonomy'
+      fullPath: '/api/v1/taxonomy'
+      preLoaderRoute: typeof ApiV1TaxonomyRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
+    '/api/v1/apps/$slug': {
+      id: '/api/v1/apps/$slug'
+      path: '/$slug'
+      fullPath: '/api/v1/apps/$slug'
+      preLoaderRoute: typeof ApiV1AppsSlugRouteImport
+      parentRoute: typeof ApiV1AppsRoute
+    }
+    '/api/v1/collections/$id': {
+      id: '/api/v1/collections/$id'
+      path: '/$id'
+      fullPath: '/api/v1/collections/$id'
+      preLoaderRoute: typeof ApiV1CollectionsIdRouteImport
+      parentRoute: typeof ApiV1CollectionsRoute
+    }
+    '/api/v1/flows/$id': {
+      id: '/api/v1/flows/$id'
+      path: '/$id'
+      fullPath: '/api/v1/flows/$id'
+      preLoaderRoute: typeof ApiV1FlowsIdRouteImport
+      parentRoute: typeof ApiV1FlowsRoute
+    }
+    '/api/v1/keys/$id': {
+      id: '/api/v1/keys/$id'
+      path: '/$id'
+      fullPath: '/api/v1/keys/$id'
+      preLoaderRoute: typeof ApiV1KeysIdRouteImport
+      parentRoute: typeof ApiV1KeysRoute
+    }
+    '/api/v1/screens/$id': {
+      id: '/api/v1/screens/$id'
+      path: '/$id'
+      fullPath: '/api/v1/screens/$id'
+      preLoaderRoute: typeof ApiV1ScreensIdRouteImport
+      parentRoute: typeof ApiV1ScreensRoute
+    }
+    '/api/v1/collections/$id/items': {
+      id: '/api/v1/collections/$id/items'
+      path: '/items'
+      fullPath: '/api/v1/collections/$id/items'
+      preLoaderRoute: typeof ApiV1CollectionsIdItemsRouteImport
+      parentRoute: typeof ApiV1CollectionsIdRoute
+    }
+    '/api/v1/review/$kind/$id': {
+      id: '/api/v1/review/$kind/$id'
+      path: '/$kind/$id'
+      fullPath: '/api/v1/review/$kind/$id'
+      preLoaderRoute: typeof ApiV1ReviewKindIdRouteImport
+      parentRoute: typeof ApiV1ReviewRoute
     }
   }
 }
@@ -496,6 +857,122 @@ const DocsRouteChildren: DocsRouteChildren = {
 
 const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
 
+interface ApiV1AppsRouteChildren {
+  ApiV1AppsSlugRoute: typeof ApiV1AppsSlugRoute
+}
+
+const ApiV1AppsRouteChildren: ApiV1AppsRouteChildren = {
+  ApiV1AppsSlugRoute: ApiV1AppsSlugRoute,
+}
+
+const ApiV1AppsRouteWithChildren = ApiV1AppsRoute._addFileChildren(
+  ApiV1AppsRouteChildren,
+)
+
+interface ApiV1CollectionsIdRouteChildren {
+  ApiV1CollectionsIdItemsRoute: typeof ApiV1CollectionsIdItemsRoute
+}
+
+const ApiV1CollectionsIdRouteChildren: ApiV1CollectionsIdRouteChildren = {
+  ApiV1CollectionsIdItemsRoute: ApiV1CollectionsIdItemsRoute,
+}
+
+const ApiV1CollectionsIdRouteWithChildren =
+  ApiV1CollectionsIdRoute._addFileChildren(ApiV1CollectionsIdRouteChildren)
+
+interface ApiV1CollectionsRouteChildren {
+  ApiV1CollectionsIdRoute: typeof ApiV1CollectionsIdRouteWithChildren
+}
+
+const ApiV1CollectionsRouteChildren: ApiV1CollectionsRouteChildren = {
+  ApiV1CollectionsIdRoute: ApiV1CollectionsIdRouteWithChildren,
+}
+
+const ApiV1CollectionsRouteWithChildren =
+  ApiV1CollectionsRoute._addFileChildren(ApiV1CollectionsRouteChildren)
+
+interface ApiV1FlowsRouteChildren {
+  ApiV1FlowsIdRoute: typeof ApiV1FlowsIdRoute
+}
+
+const ApiV1FlowsRouteChildren: ApiV1FlowsRouteChildren = {
+  ApiV1FlowsIdRoute: ApiV1FlowsIdRoute,
+}
+
+const ApiV1FlowsRouteWithChildren = ApiV1FlowsRoute._addFileChildren(
+  ApiV1FlowsRouteChildren,
+)
+
+interface ApiV1KeysRouteChildren {
+  ApiV1KeysIdRoute: typeof ApiV1KeysIdRoute
+}
+
+const ApiV1KeysRouteChildren: ApiV1KeysRouteChildren = {
+  ApiV1KeysIdRoute: ApiV1KeysIdRoute,
+}
+
+const ApiV1KeysRouteWithChildren = ApiV1KeysRoute._addFileChildren(
+  ApiV1KeysRouteChildren,
+)
+
+interface ApiV1ReviewRouteChildren {
+  ApiV1ReviewKindIdRoute: typeof ApiV1ReviewKindIdRoute
+}
+
+const ApiV1ReviewRouteChildren: ApiV1ReviewRouteChildren = {
+  ApiV1ReviewKindIdRoute: ApiV1ReviewKindIdRoute,
+}
+
+const ApiV1ReviewRouteWithChildren = ApiV1ReviewRoute._addFileChildren(
+  ApiV1ReviewRouteChildren,
+)
+
+interface ApiV1ScreensRouteChildren {
+  ApiV1ScreensIdRoute: typeof ApiV1ScreensIdRoute
+}
+
+const ApiV1ScreensRouteChildren: ApiV1ScreensRouteChildren = {
+  ApiV1ScreensIdRoute: ApiV1ScreensIdRoute,
+}
+
+const ApiV1ScreensRouteWithChildren = ApiV1ScreensRoute._addFileChildren(
+  ApiV1ScreensRouteChildren,
+)
+
+interface ApiV1RouteRouteChildren {
+  ApiV1SplatRoute: typeof ApiV1SplatRoute
+  ApiV1AppsRoute: typeof ApiV1AppsRouteWithChildren
+  ApiV1CapturesRoute: typeof ApiV1CapturesRoute
+  ApiV1CollectionsRoute: typeof ApiV1CollectionsRouteWithChildren
+  ApiV1FlowsRoute: typeof ApiV1FlowsRouteWithChildren
+  ApiV1KeysRoute: typeof ApiV1KeysRouteWithChildren
+  ApiV1MeRoute: typeof ApiV1MeRoute
+  ApiV1ReviewRoute: typeof ApiV1ReviewRouteWithChildren
+  ApiV1SavesRoute: typeof ApiV1SavesRoute
+  ApiV1ScreensRoute: typeof ApiV1ScreensRouteWithChildren
+  ApiV1SearchRoute: typeof ApiV1SearchRoute
+  ApiV1TaxonomyRoute: typeof ApiV1TaxonomyRoute
+}
+
+const ApiV1RouteRouteChildren: ApiV1RouteRouteChildren = {
+  ApiV1SplatRoute: ApiV1SplatRoute,
+  ApiV1AppsRoute: ApiV1AppsRouteWithChildren,
+  ApiV1CapturesRoute: ApiV1CapturesRoute,
+  ApiV1CollectionsRoute: ApiV1CollectionsRouteWithChildren,
+  ApiV1FlowsRoute: ApiV1FlowsRouteWithChildren,
+  ApiV1KeysRoute: ApiV1KeysRouteWithChildren,
+  ApiV1MeRoute: ApiV1MeRoute,
+  ApiV1ReviewRoute: ApiV1ReviewRouteWithChildren,
+  ApiV1SavesRoute: ApiV1SavesRoute,
+  ApiV1ScreensRoute: ApiV1ScreensRouteWithChildren,
+  ApiV1SearchRoute: ApiV1SearchRoute,
+  ApiV1TaxonomyRoute: ApiV1TaxonomyRoute,
+}
+
+const ApiV1RouteRouteWithChildren = ApiV1RouteRoute._addFileChildren(
+  ApiV1RouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -503,10 +980,10 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  ApiV1RouteRoute: ApiV1RouteRouteWithChildren,
   ExtensionConnectRoute: ExtensionConnectRoute,
   MediaSplatRoute: MediaSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiV1SplatRoute: ApiV1SplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

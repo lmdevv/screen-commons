@@ -15,9 +15,10 @@ import { appOrigin } from "../env";
 import { toServiceError, unauthorized } from "../errors";
 import { getPrincipal, type Principal } from "../principal";
 import * as services from "../services";
-import { CORS_PREFLIGHT_HEADERS, errorResponse } from "./api";
+import { ALLOW_ANY_ORIGIN, preflightResponse } from "./cors";
 import { bodyTooLarge, declaredTooLarge } from "./limits";
 import { readMedia } from "./media";
+import { errorResponse } from "./responses";
 
 type Args<N extends CatalogToolName> = z.output<(typeof catalogTools)[N]["input"]>;
 type Handler<N extends CatalogToolName> = (args: Args<N>) => Promise<CallToolResult>;
@@ -193,24 +194,24 @@ function createServer(principal: Principal, origin: string): McpServer {
  * fresh server + transport is created per request.
  */
 export async function handleMcp(request: Request): Promise<Response> {
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_PREFLIGHT_HEADERS });
-  }
-  const cors = { "access-control-allow-origin": "*" };
+  if (request.method === "OPTIONS") return preflightResponse();
   const principal = await getPrincipal(request, { allowCookies: false }).catch(() => null);
   if (!principal) {
     const response = errorResponse(
       unauthorized("Provide an API key: Authorization: Bearer sc_…"),
-      cors,
+      ALLOW_ANY_ORIGIN,
     );
     response.headers.set("www-authenticate", 'Bearer realm="screen-commons"');
     return response;
   }
   if (declaredTooLarge(request, LIMITS.maxRequestBytes)) {
-    return errorResponse(bodyTooLarge(LIMITS.maxRequestBytes), cors);
+    return errorResponse(bodyTooLarge(LIMITS.maxRequestBytes), ALLOW_ANY_ORIGIN);
   }
   if (request.method !== "POST") {
-    return new Response(null, { status: 405, headers: { allow: "POST, OPTIONS", ...cors } });
+    return new Response(null, {
+      status: 405,
+      headers: { allow: "POST, OPTIONS", ...ALLOW_ANY_ORIGIN },
+    });
   }
   const server = createServer(principal, appOrigin(request));
   const transport = new WebStandardStreamableHTTPServerTransport({
