@@ -149,8 +149,9 @@ export function LightboxBody({
   const mainRef = React.useRef<HTMLDivElement>(null);
 
   // Only while this overlay is the topmost layer (not under a stacked picker or the palette).
-  // Holding an arrow walks the list, so repeat is allowed.
-  const keys = { scope: mainRef, allowRepeat: true };
+  // Holding an arrow walks the list, so repeat is allowed. Capture phase: the dialog popup stops
+  // arrow keydowns from bubbling (see `HotkeyOptions.capture`).
+  const keys = { scope: mainRef, allowRepeat: true, capture: true };
   useHotkey(prevKeys, () => onPrev?.(), { ...keys, enabled: !!onPrev });
   useHotkey(nextKeys, () => onNext?.(), { ...keys, enabled: !!onNext });
 

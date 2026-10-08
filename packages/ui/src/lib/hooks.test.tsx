@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -59,6 +59,32 @@ describe("useHotkey", () => {
     fireEvent.keyDown(document.body, { key: "s" });
     expect(save).toHaveBeenCalledOnce(); // registered once, not twice
     view.unmount();
+    expect(live()).toBe(0);
+  });
+
+  it("reaches keys a dialog stops from bubbling with capture, on its own listener", () => {
+    const live = trackKeydownListeners();
+    const bubbled = vi.fn();
+    const captured = vi.fn();
+    function Bindings() {
+      useHotkey("arrowright", bubbled, { scope: "global" });
+      useHotkey("arrowleft", captured, { scope: "global", capture: true });
+      return null;
+    }
+    // Like Base UI's Dialog.Popup, which keeps composite keys (arrows) to itself.
+    render(
+      <div role="dialog" onKeyDown={(event) => event.stopPropagation()}>
+        <Bindings />
+        <button type="button">inside</button>
+      </div>,
+    );
+    expect(live()).toBe(2);
+    const inside = screen.getByRole("button", { name: "inside" });
+    fireEvent.keyDown(inside, { key: "ArrowRight" });
+    fireEvent.keyDown(inside, { key: "ArrowLeft" });
+    expect(bubbled).not.toHaveBeenCalled();
+    expect(captured).toHaveBeenCalledOnce();
+    cleanup();
     expect(live()).toBe(0);
   });
 

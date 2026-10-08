@@ -41,24 +41,51 @@ export interface HotkeyOptions extends KeyFilterOptions {
   focusWithin?: { readonly current: Element | null };
   /** Extra condition checked at key time. */
   when?: (event: KeyboardEvent) => boolean;
+  /**
+   * Listen in the capture phase, for keys a dialog keeps to itself: Base UI's Dialog.Popup stops
+   * arrow, Home and End keydowns from bubbling (they belong to composite widgets inside it), so a
+   * viewer's ←/→ never reach the bubbling listener. Default false.
+   */
+  capture?: boolean;
   enabled?: boolean;
 }
 
 const pendingListeners = new Set<() => void>();
-let shortcuts: ShortcutDispatcher | null = null;
-let registered = 0;
-const onKeyDown = (event: KeyboardEvent) => shortcuts?.handle(event);
 
-/** The app-wide dispatcher behind `useHotkey`: one bubbling keydown listener on the document. */
-function getShortcuts(): ShortcutDispatcher {
-  shortcuts ??= createShortcutDispatcher({
-    singleKeys: readSingleKeys,
-    onPendingChange: () => {
-      for (const listener of pendingListeners) listener();
+/**
+ * The app-wide dispatchers behind `useHotkey`: one keydown listener on the document per phase,
+ * added with the first binding and removed with the last. Sequences ("g s") live in the bubbling
+ * one, which also sees whether a field or widget already handled the key.
+ */
+function createPhase(capture: boolean) {
+  const phase = {
+    dispatcher: null as ShortcutDispatcher | null,
+    registered: 0,
+    onKeyDown: (event: KeyboardEvent) => phase.dispatcher?.handle(event),
+    add(): ShortcutDispatcher {
+      phase.dispatcher ??= createShortcutDispatcher({
+        singleKeys: readSingleKeys,
+        onPendingChange: capture
+          ? undefined
+          : () => {
+              for (const listener of pendingListeners) listener();
+            },
+      });
+      if (phase.registered++ === 0) {
+        document.addEventListener("keydown", phase.onKeyDown, { capture });
+      }
+      return phase.dispatcher;
     },
-  });
-  return shortcuts;
+    remove() {
+      if (--phase.registered === 0) {
+        document.removeEventListener("keydown", phase.onKeyDown, { capture });
+      }
+    },
+  };
+  return phase;
 }
+const bubbling = createPhase(false);
+const capturing = createPhase(true);
 
 // "Use single-key shortcuts", per device (localStorage), shared by every tab.
 const singleKeyListeners = new Set<() => void>();
@@ -130,6 +157,7 @@ export function useHotkey(
     focusWithin,
     allowInInputs = false,
     allowRepeat = false,
+    capture = false,
     enabled = true,
   } = options;
   const handlerRef = React.useRef(handler);
@@ -139,9 +167,8 @@ export function useHotkey(
 
   React.useEffect(() => {
     if (!enabled) return;
-    const dispatcher = getShortcuts();
-    if (registered++ === 0) document.addEventListener("keydown", onKeyDown);
-    const unregister = dispatcher.register({
+    const phase = capture ? capturing : bubbling;
+    const unregister = phase.add().register({
       shortcut,
       scope,
       focusWithin,
@@ -152,9 +179,9 @@ export function useHotkey(
     });
     return () => {
       unregister();
-      if (--registered === 0) document.removeEventListener("keydown", onKeyDown);
+      phase.remove();
     };
-  }, [shortcut, scope, focusWithin, allowInInputs, allowRepeat, enabled]);
+  }, [shortcut, scope, focusWithin, allowInInputs, allowRepeat, capture, enabled]);
 }
 
 /** Chords typed so far of an unfinished sequence (`["g"]` after pressing G), for a hint. */
@@ -164,7 +191,7 @@ export function usePendingShortcut(): readonly string[] {
       pendingListeners.add(listener);
       return () => pendingListeners.delete(listener);
     },
-    () => shortcuts?.pending() ?? NO_CHORDS,
+    () => bubbling.dispatcher?.pending() ?? NO_CHORDS,
     () => NO_CHORDS,
   );
 }
