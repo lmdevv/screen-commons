@@ -17,10 +17,14 @@ src/server/
     collections.ts listCollections, getCollection, create/rename/deleteCollection, save, unsave
     review.ts      reviewQueue, review
     shared.ts      visibility rules, cursor pagination, row → API mapping
-  http/
-    api.ts         REST API (Hono) mounted at /api/v1/* (src/routes/api/v1/$.ts)
-    media.ts       /media/<key> R2 streaming with visibility checks (src/routes/media/$.ts)
+  http/            framework-independent HTTP helpers + the transports built on them
+    cors.ts        preflight headers/response, isCrossOrigin
+    auth.ts        requestPrincipal (cookies same-origin only), requireUser
+    responses.ts   errorResponse ({ error: { code, message } } envelope), noContent
     limits.ts      streamed request-body limits (also applied for every route in src/server.ts)
+    body.ts        readJson / readForm, bounded by the path's body limit
+    api.ts         REST middleware (src/routes/api/v1/route.ts) + noSuchEndpoint, query helpers
+    media.ts       /media/<key> R2 streaming with visibility checks (src/routes/media/$.ts)
     mcp.ts         remote MCP at /mcp (src/routes/mcp.ts)
   functions.ts     TanStack Start server functions for the UI (below)
 ```
@@ -124,6 +128,17 @@ Matches `packages/core/src/client.ts` exactly (use `createScreenCommonsClient`).
 never credentials). `/taxonomy` is public. Extra aliases from the spec:
 `POST/DELETE /collections/:id/items`, `GET /apps/:slug?platform=`. Errors are
 `{ error: { code, message } }` with HTTP status per code.
+
+Each resource is a TanStack Start server route in `src/routes/api/v1/` (`apps.ts`,
+`apps.$slug.ts`, `collections.$id.items.ts`, …). The `route.ts` layout attaches `apiMiddleware`
+to all of them, and handlers read `context.principal`. Every route also sets `caseSensitive: true`
+and an `ANY: noSuchEndpoint` handler. Unsupported methods, unknown paths (`$.ts`) and
+trailing-slash or wrong-case variants therefore all get the same JSON `404 not_found` ("No such
+endpoint"). `OPTIONS` on any `/api/v1` path is a `204` preflight. `HEAD` runs the `GET` handler
+without a body. Params arrive `decodeURIComponent`-ed (`%2F` included) and encoded static segments
+still match, as with the old Hono router; Start answers malformed escapes (`%E0`) with an empty
+`400` before routing. `tests/routes.test.ts` enumerates the route table. When adding an endpoint, add a
+route file and a row there.
 
 ## MCP (`/mcp`)
 

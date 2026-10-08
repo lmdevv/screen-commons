@@ -16,7 +16,7 @@ const cacheDir = process.env.SCREEN_COMMONS_VITE_CACHE_DIR;
 
 export default defineConfig({
   ...(cacheDir ? { cacheDir } : {}),
-  // CORS is handled by the Worker (src/server/http/api.ts), not by the dev server.
+  // CORS is handled by the Worker (src/server/http/cors.ts), not by the dev server.
   server: { port, strictPort: true, host: "localhost", cors: false },
   preview: { port, strictPort: true, host: "localhost", cors: false },
   plugins: [
