@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { cn } from "../lib/cn";
-import { Kbd } from "./kbd";
+import { useShortcutHint } from "./kbd";
 
 /*
  * Lightweight tooltip — deliberately not built on a floating-position engine (that costs ~25 KB
@@ -38,7 +38,10 @@ const fallbackWarm = { current: 0 };
 export interface TooltipProps {
   /** Tooltip text. Keep it to a few words. */
   content: React.ReactNode;
-  /** Optional shortcut hint shown after the text, e.g. `"S"` or `"⌘K"`. */
+  /**
+   * Shortcut in `useHotkey` notation (`"z"`, `"mod+c"`, `"g s"`), shown after the text and exposed
+   * on the trigger (`aria-keyshortcuts`, or a description for a sequence).
+   */
   shortcut?: string;
   /** A single focusable element (usually an icon Button). */
   children: React.ReactElement<React.HTMLAttributes<HTMLElement>>;
@@ -64,6 +67,7 @@ export function Tooltip({
   const warmUntil = config?.warmUntil ?? fallbackWarm;
   const [open, setOpen] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hint = useShortcutHint(shortcut, { tone: "chrome" });
 
   React.useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -83,6 +87,7 @@ export function Tooltip({
 
   const childProps = children.props;
   const trigger = React.cloneElement(children, {
+    ...hint.props,
     onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
       childProps.onPointerEnter?.(event);
       if (event.pointerType === "mouse") show(false);
@@ -129,8 +134,9 @@ export function Tooltip({
         )}
       >
         {content}
-        {shortcut ? <Kbd tone="chrome">{shortcut}</Kbd> : null}
+        {hint.hint}
       </span>
+      {hint.description}
     </span>
   );
 }

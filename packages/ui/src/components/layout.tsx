@@ -2,7 +2,7 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 
-export interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface ContainerProps extends React.ComponentProps<"div"> {
   /** `page` (full width with gutters, max 1760px), `narrow` (960px) or `prose` (720px). */
   size?: "page" | "narrow" | "prose";
 }

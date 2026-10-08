@@ -327,7 +327,7 @@ export function ComponentsPage() {
               <Ellipsis />
             </Button>
           </Tooltip>
-          <Tooltip content="Copy image" shortcut="C">
+          <Tooltip content="Copy image" shortcut="mod+c">
             <Button variant="secondary" icon aria-label="Copy image">
               <Copy />
             </Button>

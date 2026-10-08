@@ -53,7 +53,8 @@ export function StepScreens({
       <div>
         <h2 className="text-lg font-semibold text-fg">Describe the screens</h2>
         <p className="mt-1 text-base text-fg-muted">
-          Titles and patterns make screens findable. Drag to change the order.
+          Titles and patterns make screens findable. Drag a handle to change the order, or focus it
+          and press Space, then the arrow keys.
         </p>
       </div>
 

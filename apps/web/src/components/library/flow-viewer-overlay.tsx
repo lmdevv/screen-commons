@@ -1,11 +1,20 @@
 /*
  * Flow viewer overlay (`?flow=<id>`, lazy chunk): the ordered strip of steps. Clicking a step
  * stacks the screen viewer on top (`?flow=…&screen=…`), whose ←/→ then walk the flow's steps.
+ * "Open as a page" leads to the standalone /flows/$id page.
  */
-import { Lightbox, LightboxHeader, LightboxTitle, Skeleton } from "@screen-commons/ui";
+import {
+  Button,
+  Lightbox,
+  LightboxHeader,
+  LightboxTitle,
+  Skeleton,
+  Tooltip,
+} from "@screen-commons/ui";
 import { FlowViewer, type ViewerFlow } from "@screen-commons/ui/components/flow-viewer";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { queries } from "../../lib/queries";
@@ -95,6 +104,18 @@ export default function FlowViewerOverlay({
           notify.error(errorMessage(error));
         }
       }}
+      actions={
+        <Tooltip content="Open page">
+          <Button
+            variant="secondary"
+            icon
+            aria-label="Open as a page"
+            render={<Link to="/flows/$id" params={{ id: flow.id }} />}
+          >
+            <ExternalLink />
+          </Button>
+        </Tooltip>
+      }
     />
   );
 }

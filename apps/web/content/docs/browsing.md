@@ -48,15 +48,7 @@ Flows open the same way with `?flow=<id>` (standalone at `/flows/<id>`). Steps a
 
 ### Keyboard shortcuts
 
-| Shortcut        | Action                                   |
-| --------------- | ---------------------------------------- |
-| `⌘K` / `Ctrl+K` | Open search from anywhere.               |
-| `←` / `→`       | Previous or next screen.                 |
-| `Esc`           | Close the viewer or palette.             |
-| `S`             | Save the current screen to **Saved**.    |
-| `⌘C` / `Ctrl+C` | Copy the current image to the clipboard. |
-| `Shift` + click | Select several items in a grid.          |
-| `?`             | Show all shortcuts.                      |
+In the viewer, `←` and `→` move between screens, `S` saves, `⌘C` (`Ctrl+C`) copies the image, `Z` toggles fit and `Esc` closes it. `G` then `S` goes to **Saved** from any page. Press `?` anywhere for the shortcuts that apply to you, or see [Keyboard shortcuts](/docs/keyboard-shortcuts) for the full map.
 
 ## Collections
 

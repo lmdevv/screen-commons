@@ -1,71 +1,54 @@
-/* Keyboard shortcuts reference (`?`). Lazy chunk. */
+/* Keyboard shortcuts reference (`?`), rendered from the shortcut registry. Lazy chunk. */
 import {
   Dialog,
   DialogBody,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  Kbd,
-  KbdGroup,
-  useIsMac,
+  Shortcut,
+  useSingleKeyShortcuts,
 } from "@screen-commons/ui";
 
+import { helpSections, type Audience } from "../../lib/shortcuts";
+import { SingleKeyShortcutsSwitch } from "./single-key-shortcuts";
+
 export default function ShortcutsDialog({
+  audience,
+  finalFocus,
   open,
   onOpenChange,
 }: {
+  audience: Audience;
+  finalFocus: () => boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const mod = useIsMac() ? "⌘" : "Ctrl";
-  const groups: { title: string; items: { keys: string[]; label: string }[] }[] = [
-    {
-      title: "Anywhere",
-      items: [
-        { keys: [mod, "K"], label: "Search" },
-        { keys: ["?"], label: "Keyboard shortcuts" },
-        { keys: ["Esc"], label: "Close overlay or clear selection" },
-      ],
-    },
-    {
-      title: "Grids",
-      items: [
-        { keys: ["Tab"], label: "Move between tiles" },
-        { keys: ["Enter"], label: "Open the focused tile" },
-        { keys: ["Shift", "Click"], label: "Select a range of screens" },
-        { keys: [mod, "Click"], label: "Add a screen to the selection" },
-      ],
-    },
-    {
-      title: "Screen viewer",
-      items: [
-        { keys: ["←", "→"], label: "Previous / next screen" },
-        { keys: ["S"], label: "Save" },
-        { keys: [mod, "C"], label: "Copy image" },
-        { keys: ["Z"], label: "Toggle fit / actual size" },
-      ],
-    },
-  ];
+  const [singleKeys] = useSingleKeyShortcuts();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="sm" finalFocus={finalFocus}>
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogDescription>
+            {singleKeys
+              ? "Letter shortcuts pause while you type in a field or a dialog is open."
+              : "Single-key shortcuts are off on this device: only keys with a modifier, Esc and arrows work."}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-6 pb-6">
-          {groups.map((group) => (
-            <section key={group.title} className="flex flex-col gap-1">
-              <h3 className="mb-1 text-sm font-medium text-fg-muted">{group.title}</h3>
-              {group.items.map((item) => (
-                <div key={item.label} className="flex h-8 items-center justify-between gap-4">
-                  <span className="text-base text-fg">{item.label}</span>
-                  <KbdGroup>
-                    {item.keys.map((key) => (
-                      <Kbd key={key}>{key}</Kbd>
-                    ))}
-                  </KbdGroup>
-                </div>
-              ))}
+          <SingleKeyShortcutsSwitch className="rounded-card border border-border p-4" />
+          {helpSections(audience).map((section) => (
+            <section key={section.title} aria-label={section.title}>
+              <h3 className="mb-1 text-sm font-medium text-fg-muted">{section.title}</h3>
+              <ul className="flex flex-col">
+                {section.items.map((item) => (
+                  <li key={item.label} className="flex min-h-8 items-center justify-between gap-4">
+                    <span className="text-base text-fg">{item.label}</span>
+                    <Shortcut keys={item.keys} also={item.also} className="shrink-0" />
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
         </DialogBody>

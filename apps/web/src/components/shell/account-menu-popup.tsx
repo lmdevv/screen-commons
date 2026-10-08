@@ -9,18 +9,20 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { BookOpen, Bookmark, Code, Inbox, Keyboard, Plus, Settings } from "lucide-react";
 
 import { authClient } from "../../lib/auth-client";
+import { commandShortcut, SHORTCUTS } from "../../lib/shortcuts";
 import type { AccountMenuProps } from "./account-menu";
+import { useShowShortcuts } from "./keyboard-shortcuts";
 
 export const REPOSITORY_URL = "https://github.com/lmdevv/screen-commons";
 
 export default function AccountMenuPopup({
   user,
-  onShowShortcuts,
   defaultOpen,
   focusTrigger,
 }: AccountMenuProps & { defaultOpen: boolean; focusTrigger: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const showShortcuts = useShowShortcuts();
 
   async function signOut() {
     await authClient.signOut();
@@ -37,14 +39,20 @@ export default function AccountMenuPopup({
       onSignOut={() => void signOut()}
       footer={
         <>
-          <DropdownMenuLinkItem icon={<BookOpen />} render={<Link to="/docs" />}>
+          <DropdownMenuLinkItem
+            icon={<BookOpen />}
+            shortcut={commandShortcut("docs")}
+            render={<Link to="/docs" />}
+          >
             Docs
           </DropdownMenuLinkItem>
-          {onShowShortcuts ? (
-            <DropdownMenuItem icon={<Keyboard />} hint="?" onClick={onShowShortcuts}>
-              Keyboard shortcuts
-            </DropdownMenuItem>
-          ) : null}
+          <DropdownMenuItem
+            icon={<Keyboard />}
+            shortcut={SHORTCUTS.help.keys}
+            onClick={showShortcuts}
+          >
+            Keyboard shortcuts
+          </DropdownMenuItem>
           <DropdownMenuLinkItem
             icon={<Code />}
             external
@@ -55,18 +63,34 @@ export default function AccountMenuPopup({
         </>
       }
     >
-      <DropdownMenuLinkItem icon={<Bookmark />} render={<Link to="/saved" />}>
+      <DropdownMenuLinkItem
+        icon={<Bookmark />}
+        shortcut={commandShortcut("saved")}
+        render={<Link to="/saved" />}
+      >
         Saved
       </DropdownMenuLinkItem>
-      <DropdownMenuLinkItem icon={<Plus />} render={<Link to="/contribute" />}>
+      <DropdownMenuLinkItem
+        icon={<Plus />}
+        shortcut={commandShortcut("contribute")}
+        render={<Link to="/contribute" />}
+      >
         Contribute
       </DropdownMenuLinkItem>
       {user.role === "admin" ? (
-        <DropdownMenuLinkItem icon={<Inbox />} render={<Link to="/review" />}>
+        <DropdownMenuLinkItem
+          icon={<Inbox />}
+          shortcut={commandShortcut("review")}
+          render={<Link to="/review" />}
+        >
           Review queue
         </DropdownMenuLinkItem>
       ) : null}
-      <DropdownMenuLinkItem icon={<Settings />} render={<Link to="/settings" />}>
+      <DropdownMenuLinkItem
+        icon={<Settings />}
+        shortcut={commandShortcut("settings")}
+        render={<Link to="/settings" />}
+      >
         Settings
       </DropdownMenuLinkItem>
     </AccountMenuPopupBase>

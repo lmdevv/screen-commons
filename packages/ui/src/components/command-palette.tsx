@@ -5,7 +5,7 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 import { backdropClassName } from "./dialog";
-import { Kbd, KbdGroup } from "./kbd";
+import { Kbd, KbdGroup, useShortcutHint } from "./kbd";
 import { Skeleton } from "./skeleton";
 import { Spinner } from "./spinner";
 
@@ -13,7 +13,7 @@ import { Spinner } from "./spinner";
  * ⌘K command palette: search apps, screens, flows, taxonomy and actions from anywhere.
  *
  * const [open, setOpen] = useState(false);
- * useHotkey("k", () => setOpen((o) => !o));
+ * useHotkey("mod+k", () => setOpen((o) => !o), { scope: "global", allowInInputs: true });
  *
  * <CommandPalette open={open} onOpenChange={setOpen} search={q} onSearchChange={setQ}
  *   loading={isFetching} shouldFilter={false}>   // false: results already filtered by the API
@@ -44,6 +44,8 @@ export interface CommandPaletteProps {
   rail?: React.ReactNode;
   /** Replaces the default keyboard-hint footer. Pass `null` to hide it. */
   footer?: React.ReactNode;
+  /** Where focus goes on close (see `useReturnFocus`). Default: back to the opener. */
+  finalFocus?: React.ComponentProps<typeof BaseDialog.Popup>["finalFocus"];
   className?: string;
 }
 
@@ -60,6 +62,7 @@ export function CommandPalette({
   label = "Search",
   rail,
   footer,
+  finalFocus,
   className,
 }: CommandPaletteProps) {
   return (
@@ -69,6 +72,7 @@ export function CommandPalette({
         <BaseDialog.Viewport className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-3 sm:pt-[12vh]">
           <BaseDialog.Popup
             aria-label={label}
+            finalFocus={finalFocus}
             className={cn(
               "flex max-h-[min(640px,calc(100dvh-24px))] w-[720px] max-w-full flex-col overflow-hidden rounded-overlay bg-surface text-fg shadow-overlay outline-none sm:max-h-[min(640px,76vh)]",
               "transition-[opacity,scale] duration-150 ease-out data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0",
@@ -80,6 +84,8 @@ export function CommandPalette({
               label={label}
               shouldFilter={shouldFilter}
               loop
+              // Ctrl+J/K would move the selection and swallow Ctrl+K, which closes the palette.
+              vimBindings={false}
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-5">
@@ -179,8 +185,8 @@ export interface CommandItemProps extends React.ComponentProps<typeof Command.It
   icon?: React.ReactNode;
   /** Secondary text after the label (category, app name, count). */
   hint?: React.ReactNode;
-  /** Right-aligned shortcut, e.g. `["⌘", "U"]`. */
-  shortcut?: string[];
+  /** Right-aligned shortcut in `useHotkey` notation, e.g. `"g s"`. */
+  shortcut?: string;
 }
 
 export function CommandItem({
@@ -191,8 +197,10 @@ export function CommandItem({
   children,
   ...props
 }: CommandItemProps) {
+  const shortcutHint = useShortcutHint(shortcut);
   return (
     <Command.Item
+      {...shortcutHint.props}
       className={cn(
         "group flex min-h-11 cursor-default items-center gap-3 rounded-[10px] px-3 text-base text-fg outline-none select-none",
         "data-[selected=true]:bg-muted data-[disabled=true]:opacity-40",
@@ -209,13 +217,8 @@ export function CommandItem({
       <span className="max-w-[70%] min-w-0 shrink-0 truncate">{children}</span>
       {hint ? <span className="min-w-0 flex-1 truncate text-sm text-fg-subtle">{hint}</span> : null}
       <span className="ml-auto flex shrink-0 items-center gap-2">
-        {shortcut ? (
-          <KbdGroup>
-            {shortcut.map((key) => (
-              <Kbd key={key}>{key}</Kbd>
-            ))}
-          </KbdGroup>
-        ) : null}
+        {shortcutHint.hint}
+        {shortcutHint.description}
         <CornerDownLeft
           aria-hidden
           className="size-3.5 text-fg-subtle opacity-0 group-data-[selected=true]:opacity-100"

@@ -53,7 +53,9 @@ export function DocsLayout({
             <DocsNav sections={sections} current={current} />
           </div>
         </aside>
-        <div className="min-w-0">{children}</div>
+        <main id="main" className="min-w-0">
+          {children}
+        </main>
       </Container>
       <SiteFooter />
       {menuLoaded ? (

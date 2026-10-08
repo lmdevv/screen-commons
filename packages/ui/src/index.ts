@@ -13,10 +13,26 @@ export {
   useControllableState,
   useHotkey,
   useIsMac,
+  usePendingShortcut,
+  useReturnFocus,
   useScrolled,
   useScrollEdges,
+  useSingleKeyShortcuts,
   type HotkeyOptions,
 } from "./lib/hooks";
+export {
+  ariaKeyShortcuts,
+  formatShortcut,
+  isCharacterShortcut,
+  isEditableTarget,
+  isImeKeyEvent,
+  shouldIgnoreKeyEvent,
+  spokenShortcut,
+  topmostLayer,
+  SEQUENCE_TIMEOUT_MS,
+  SINGLE_KEY_SHORTCUTS_STORAGE_KEY,
+  type HotkeyScope,
+} from "./lib/keyboard";
 export * from "./lib/screen";
 export * from "./lib/theme";
 

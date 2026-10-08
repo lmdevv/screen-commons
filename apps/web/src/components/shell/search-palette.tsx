@@ -1,13 +1,16 @@
 /*
  * ⌘K search palette (lazy chunk). Empty query → Trending (popular apps, patterns with thumbs,
- * categories, UI elements, flow types) scoped by the left rail; typing → live grouped results from
- * the `search` server function (debounced). Enter on the first row opens /search?q=….
+ * categories, UI elements, flow types) scoped by the left rail; typing → matching page commands
+ * and docs, then live grouped results from the `search` server function (debounced). Enter on the
+ * first row opens /search?q=…. The Pages scope lists every command from the shortcut registry.
+ * Signed out there is no library to search: commands and docs only.
  */
 import {
   CATEGORIES,
   ELEMENTS,
   FLOW_TYPES,
   PATTERNS,
+  PLATFORMS,
   labelFor,
 } from "@screen-commons/core/taxonomy";
 import {
@@ -20,9 +23,14 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowRight,
+  BookOpen,
   Clock,
+  Compass,
   Flame,
+  Keyboard,
   LayoutGrid,
+  MonitorSmartphone,
   Search,
   Shapes,
   SquareStack,
@@ -32,6 +40,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { docsNavQuery } from "../docs/queries";
 import { displayTitle } from "../../lib/display-title";
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
@@ -40,9 +49,18 @@ import {
   clearRecentSearches,
   readRecentSearches,
 } from "../../lib/recent-searches";
+import {
+  commandsFor,
+  matchesCommand,
+  SHORTCUTS,
+  type Audience,
+  type CommandGroup as CommandGroupName,
+  type NavCommand,
+} from "../../lib/shortcuts";
 import { useDebouncedValue } from "../../lib/use-debounced-value";
+import { usePlatformChange } from "./platform-switch";
 
-type Scope = "trending" | "apps" | "screens" | "elements" | "flows";
+type Scope = "trending" | "apps" | "screens" | "elements" | "flows" | "pages";
 
 const SCOPES: { value: Scope; label: string; icon: React.ReactNode }[] = [
   { value: "trending", label: "Trending", icon: <Flame /> },
@@ -50,13 +68,19 @@ const SCOPES: { value: Scope; label: string; icon: React.ReactNode }[] = [
   { value: "screens", label: "Screens", icon: <SquareStack /> },
   { value: "elements", label: "UI Elements", icon: <Shapes /> },
   { value: "flows", label: "Flows", icon: <Workflow /> },
+  { value: "pages", label: "Pages", icon: <Compass /> },
 ];
+
+const GROUPS: CommandGroupName[] = ["Go to", "Browse", "Settings"];
 
 export interface SearchPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialQuery: string;
   platform: Platform;
+  audience: Audience;
+  onShowShortcuts: () => void;
+  finalFocus: () => boolean;
 }
 
 export default function SearchPalette({
@@ -64,8 +88,13 @@ export default function SearchPalette({
   onOpenChange,
   initialQuery,
   platform,
+  audience,
+  onShowShortcuts,
+  finalFocus,
 }: SearchPaletteProps) {
   const navigate = useNavigate();
+  const changePlatform = usePlatformChange();
+  const library = audience !== "signedOut";
   const [query, setQuery] = useState(initialQuery);
   const [scope, setScope] = useState<Scope>("trending");
   const [recent, setRecent] = useState<string[]>([]);
@@ -74,9 +103,9 @@ export default function SearchPalette({
   useEffect(() => {
     if (!open) return;
     setQuery(initialQuery);
-    setScope("trending");
+    setScope(library ? "trending" : "pages");
     setRecent(readRecentSearches());
-  }, [open, initialQuery]);
+  }, [open, initialQuery, library]);
 
   const trimmed = query.trim();
   const debounced = useDebouncedValue(trimmed, 150);
@@ -84,13 +113,17 @@ export default function SearchPalette({
 
   const popularApps = useQuery({
     ...queries.apps({ platform, sort: "popular", limit: 6 }),
-    enabled: open,
+    enabled: open && library,
   });
-  const facets = useQuery({ ...queries.facets(platform), enabled: open });
+  const facets = useQuery({ ...queries.facets(platform), enabled: open && library });
   const results = useQuery({
     ...queries.search({ q: debounced, platform, limit: 6 }),
-    enabled: open && debounced.length > 0,
+    enabled: open && library && debounced.length > 0,
     placeholderData: keepPreviousData,
+  });
+  const docs = useQuery({
+    ...docsNavQuery(),
+    enabled: open && (searching || scope === "pages"),
   });
 
   const counts = useMemo(() => {
@@ -138,6 +171,136 @@ export default function SearchPalette({
     });
   };
 
+  const go = (command: NavCommand) => {
+    close();
+    void navigate(command.to({ platform }));
+  };
+  const commands = commandsFor(audience).filter(
+    (command) => !searching || matchesCommand(command, trimmed),
+  );
+  const platforms = library
+    ? PLATFORMS.filter(
+        (item) =>
+          item.slug !== platform &&
+          (!searching ||
+            matchesCommand(
+              { label: `Switch to ${item.label}`, group: "Browse", keywords: "platform" },
+              trimmed,
+            )),
+      )
+    : [];
+  const docPages = (docs.data ?? [])
+    .flatMap((section) => section.items)
+    .filter(
+      (doc) =>
+        !searching ||
+        matchesCommand({ label: doc.title, group: "Docs", keywords: doc.description }, trimmed),
+    );
+  const showHelp =
+    !searching ||
+    matchesCommand(
+      { label: SHORTCUTS.help.label, group: "Help", keywords: "keys hotkeys" },
+      trimmed,
+    );
+  // While searching the library, page rows only lead when the query names a page.
+  const pageLimit = searching && library ? 4 : undefined;
+
+  const pageRows = (
+    <>
+      {GROUPS.map((group) => {
+        const rows = commands.filter((command) => command.group === group);
+        const extra =
+          group === "Browse"
+            ? platforms.map((item) => (
+                <CommandItem
+                  key={item.slug}
+                  value={`platform:${item.slug}`}
+                  icon={<MonitorSmartphone />}
+                  onSelect={() => {
+                    close();
+                    changePlatform(item.slug);
+                  }}
+                >
+                  Switch to {item.label}
+                </CommandItem>
+              ))
+            : [];
+        if (rows.length + extra.length === 0) return null;
+        return (
+          <CommandGroup key={group} heading={group}>
+            {rows.slice(0, pageLimit).map((command) => (
+              <CommandItem
+                key={command.id}
+                value={`command:${command.id}`}
+                icon={<ArrowRight />}
+                shortcut={command.shortcut}
+                onSelect={() => go(command)}
+              >
+                {command.label}
+              </CommandItem>
+            ))}
+            {extra.slice(0, pageLimit)}
+          </CommandGroup>
+        );
+      })}
+      {docPages.length > 0 ? (
+        <CommandGroup heading="Docs">
+          {docPages.slice(0, pageLimit).map((doc) => (
+            <CommandItem
+              key={doc.slug}
+              value={`doc:${doc.slug}`}
+              icon={<BookOpen />}
+              hint={searching ? doc.description : undefined}
+              onSelect={() => {
+                close();
+                void navigate(
+                  doc.slug === "index"
+                    ? { to: "/docs" }
+                    : { to: "/docs/$slug", params: { slug: doc.slug } },
+                );
+              }}
+            >
+              {doc.title}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+      {showHelp ? (
+        <CommandGroup heading="Help">
+          <CommandItem
+            value="action:shortcuts"
+            icon={<Keyboard />}
+            shortcut={SHORTCUTS.help.keys}
+            onSelect={() => {
+              close();
+              onShowShortcuts();
+            }}
+          >
+            {SHORTCUTS.help.label}
+          </CommandItem>
+        </CommandGroup>
+      ) : null}
+    </>
+  );
+
+  if (!library) {
+    return (
+      <CommandPalette
+        open={open}
+        onOpenChange={onOpenChange}
+        finalFocus={finalFocus}
+        search={query}
+        onSearchChange={setQuery}
+        shouldFilter={false}
+        label="Search pages and docs"
+        placeholder="Go to a page or doc…"
+        emptyText={`No pages match “${trimmed}”`}
+      >
+        {pageRows}
+      </CommandPalette>
+    );
+  }
+
   const show = (target: Scope) => scope === "trending" || scope === target;
   const withCounts = <T extends { slug: string }>(terms: readonly T[]) => {
     if (counts.size === 0) return terms;
@@ -159,6 +322,7 @@ export default function SearchPalette({
     <CommandPalette
       open={open}
       onOpenChange={onOpenChange}
+      finalFocus={finalFocus}
       search={query}
       onSearchChange={setQuery}
       shouldFilter={false}
@@ -176,7 +340,9 @@ export default function SearchPalette({
         </CommandRailItem>
       ))}
     >
-      {searching ? (
+      {scope === "pages" && !searching ? (
+        pageRows
+      ) : searching ? (
         <>
           <CommandGroup>
             <CommandItem
@@ -187,6 +353,7 @@ export default function SearchPalette({
               Search for “{trimmed}”
             </CommandItem>
           </CommandGroup>
+          {pageRows}
           {data && show("apps") && data.apps.length > 0 ? (
             <CommandGroup heading="Apps">
               {data.apps.map((app) => (
@@ -262,7 +429,7 @@ export default function SearchPalette({
           ) : null}
           {data && !hasResults && !results.isFetching ? (
             <p className="px-4 py-10 text-center text-base text-fg-muted">
-              No matches for “{trimmed}”. Press Enter to search screenshot text.
+              No apps, screens or flows match “{trimmed}”. Press Enter to search screenshot text.
             </p>
           ) : null}
         </>

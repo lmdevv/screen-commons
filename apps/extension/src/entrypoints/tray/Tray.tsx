@@ -604,7 +604,11 @@ function ShotCard({
             disabled={disabled}
             placeholder="Untitled screen"
             onChange={(e) => onEdit({ title: e.target.value })}
-            onKeyDown={(e) => e.key === "Enter" && titleRef.current?.blur()}
+            onKeyDown={(e) => {
+              // Not the Enter that commits an IME composition (Safari: keyCode 229, not composing).
+              const ime = e.nativeEvent.isComposing || e.keyCode === 229;
+              if (e.key === "Enter" && !ime) titleRef.current?.blur();
+            }}
             className="-mx-1.5 h-7 w-[calc(100%+12px)] truncate rounded-md border border-transparent bg-transparent px-1.5 font-medium text-fg placeholder:text-subtle hover:border-line focus:border-line focus:bg-field focus:outline-none"
           />
           <p className="truncate text-[12px] text-muted" title={shot.url}>

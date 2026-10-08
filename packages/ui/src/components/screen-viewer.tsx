@@ -189,6 +189,9 @@ export interface ScreenViewerProps extends Omit<ScreenDetailsProps, "className">
   /** Previous/next within the current grid. Pass `null` at the ends to show a disabled arrow. */
   onPrev?: (() => void) | null;
   onNext?: (() => void) | null;
+  /** Keys for onPrev / onNext in `useHotkey` notation. Default ← / →. */
+  prevKeys?: string;
+  nextKeys?: string;
   /** "12 of 48" */
   position?: { index: number; total: number };
   onSaveToggle?: (screen: ViewerScreen, saved: boolean) => void;
@@ -203,6 +206,8 @@ export interface ScreenViewerProps extends Omit<ScreenDetailsProps, "className">
   zoom?: "fill" | "fit";
   /** Shows the fit / fill toggle in the header. */
   onZoomChange?: (zoom: "fill" | "fit") => void;
+  /** The overlay element, e.g. to scope `useHotkey` to it. */
+  ref?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -215,6 +220,8 @@ export function ScreenViewer({
   onOpenChange,
   onPrev,
   onNext,
+  prevKeys,
+  nextKeys,
   position,
   onSaveToggle,
   onCopyImage,
@@ -222,18 +229,19 @@ export function ScreenViewer({
   actions,
   zoom = "fill",
   onZoomChange,
+  ref,
   ...detailsProps
 }: ScreenViewerProps) {
   const mobile = frameKind(screen.app.platform) === "mobile";
   const fit = zoom === "fit";
   return (
-    <Lightbox open={open} onOpenChange={onOpenChange}>
+    <Lightbox ref={ref} open={open} onOpenChange={onOpenChange}>
       <LightboxHeader
         actions={
           <>
             {actions}
             {onZoomChange ? (
-              <Tooltip content={fit ? "Actual width" : "Fit to screen"} shortcut="Z">
+              <Tooltip content={fit ? "Actual width" : "Fit to screen"} shortcut="z">
                 <Button
                   variant="ghost"
                   icon
@@ -304,6 +312,8 @@ export function ScreenViewer({
         resetKey={screen.id}
         onPrev={onPrev}
         onNext={onNext}
+        prevKeys={prevKeys}
+        nextKeys={nextKeys}
         prevLabel="Previous screen"
         nextLabel="Next screen"
         aside={<ScreenDetails screen={screen} {...detailsProps} />}

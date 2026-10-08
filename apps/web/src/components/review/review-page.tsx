@@ -10,17 +10,21 @@ import {
   DetailRow,
   EmptyState,
   FlowStrip,
-  Kbd,
   PageHeader,
   ScreenImage,
+  Shortcut,
   Skeleton,
   TabNav,
   TabNavItem,
   Textarea,
+  ariaKeyShortcuts,
   cn,
+  isImeKeyEvent,
   formatBytes,
   formatDimensions,
   pluralize,
+  useHotkey,
+  useSingleKeyShortcuts,
 } from "@screen-commons/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -28,6 +32,7 @@ import { Check, CheckCheck, ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { queries } from "../../lib/queries";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { reviewItem } from "../../server/functions";
 import { patternLabel } from "../contribute/model";
@@ -60,9 +65,12 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
     items.findIndex((entry) => entry.item.id === selectedId),
   );
   const selected = items[index] ?? null;
-  const [rejecting, setRejecting] = useState(false);
-
-  useEffect(() => setRejecting(false), [selected?.item.id]);
+  // Tied to the item: moving on (J/K, a decision) closes the reason form in the same render, so the
+  // next item's detail never mounts mid-rejection and steals focus.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const rejecting = !!selected && rejectingId === selected.item.id;
+  const setRejecting = (value: boolean) =>
+    setRejectingId(value && selected ? selected.item.id : null);
 
   const decide = useMutation({
     mutationFn: (input: { entry: Item; decision: "approve" | "reject"; reason?: string }) =>
@@ -118,49 +126,47 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
   const reject = (reason?: string) =>
     selected && decide.mutate({ entry: selected, decision: "reject", reason });
 
-  // J/K move, A approve, R reject. Ignored while typing.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
-      const key = event.key.toLowerCase();
-      if (key === "j" || key === "k") {
-        event.preventDefault();
-        const next = items[key === "j" ? index + 1 : index - 1];
-        if (next) setSelectedId(next.item.id);
-      } else if (key === "a" && selected) {
-        event.preventDefault();
-        approve();
-      } else if (key === "r" && selected) {
-        event.preventDefault();
-        setRejecting(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+  // J/K move (hold to keep moving), A approves, R rejects. Page scope: paused while typing (the
+  // reject reason) or with a dialog open; never on auto-repeat for A/R. Only while focus is in the
+  // review page itself (or on no control at all): a stray A typed at the top bar, the account menu
+  // or the skip link must never publish anything.
+  const pageRef = useRef<HTMLDivElement>(null);
+  const keys = { focusWithin: pageRef };
+  const move = (step: 1 | -1) => {
+    const next = items[index + step];
+    if (next) setSelectedId(next.item.id);
+  };
+  useHotkey(SHORTCUTS.reviewNext.keys, () => move(1), { ...keys, allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewPrevious.keys, () => move(-1), { ...keys, allowRepeat: true });
+  useHotkey(SHORTCUTS.reviewApprove.keys, approve, { ...keys, enabled: !!selected });
+  useHotkey(SHORTCUTS.reviewReject.keys, () => setRejecting(true), {
+    ...keys,
+    enabled: !!selected,
   });
+  const [singleKeys] = useSingleKeyShortcuts();
 
   const counts = { screens: data?.screens.length ?? 0, flows: data?.flows.length ?? 0 };
 
   return (
-    <Container className="pt-10 pb-24 sm:pt-12">
+    <Container ref={pageRef} className="pt-10 pb-24 sm:pt-12">
       <PageHeader
         title="Review"
         description="Contributions from members wait here. Approved items publish immediately."
         actions={
-          <p className="hidden items-center gap-3 text-sm text-fg-muted lg:flex">
-            <span className="flex items-center gap-1.5">
-              <Kbd>J</Kbd>
-              <Kbd>K</Kbd> move
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Kbd>A</Kbd> approve
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Kbd>R</Kbd> reject
-            </span>
-          </p>
+          singleKeys ? (
+            <p className="hidden items-center gap-3 text-sm text-fg-muted lg:flex">
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewNext.keys} also={[SHORTCUTS.reviewPrevious.keys]} />{" "}
+                move
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewApprove.keys} /> approve
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Shortcut keys={SHORTCUTS.reviewReject.keys} /> reject
+              </span>
+            </p>
+          ) : null
         }
       />
       <TabNav aria-label="Review queue" className="mt-5">
@@ -269,8 +275,15 @@ function QueueRow({
   const ref = useRef<HTMLButtonElement>(null);
   const wasActive = useRef(active);
   useEffect(() => {
-    // Follow keyboard navigation (J/K) without scrolling the page on first render.
-    if (active && !wasActive.current) ref.current?.scrollIntoView({ block: "nearest" });
+    // Follow keyboard navigation (J/K) without scrolling the page on first render. Focus follows
+    // too when it was in the list or was dropped (the decided item's row or detail unmounted).
+    if (active && !wasActive.current) {
+      const focused = document.activeElement;
+      if (!focused || focused === document.body || ref.current?.closest("ul")?.contains(focused)) {
+        ref.current?.focus({ preventScroll: true });
+      }
+      ref.current?.scrollIntoView({ block: "nearest" });
+    }
     wasActive.current = active;
   }, [active]);
   const thumb = entry.kind === "screen" ? entry.item : entry.item.previews[0];
@@ -331,10 +344,18 @@ function ItemDetail({
   onReject: (reason?: string) => void;
 }) {
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const rejectRef = useRef<HTMLButtonElement>(null);
+  const [singleKeys] = useSingleKeyShortcuts();
+  const keyHint = (keys: string) => (singleKeys ? ariaKeyShortcuts(keys) : undefined);
   const [reason, setReason] = useState("");
   useEffect(() => {
     if (rejecting) reasonRef.current?.focus();
   }, [rejecting]);
+  // Back to the Reject button, not the page, when the reason form closes.
+  const cancelRejecting = () => {
+    onRejectingChange(false);
+    rejectRef.current?.focus();
+  };
 
   const { item } = entry;
   const title = entry.kind === "screen" ? (entry.item.title ?? "Untitled screen") : entry.item.name;
@@ -355,11 +376,16 @@ function ItemDetail({
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button variant="outline" onClick={() => onRejectingChange(true)} aria-keyshortcuts="R">
+          <Button
+            ref={rejectRef}
+            variant="outline"
+            onClick={() => onRejectingChange(true)}
+            aria-keyshortcuts={keyHint(SHORTCUTS.reviewReject.keys)}
+          >
             <X />
             Reject
           </Button>
-          <Button onClick={onApprove} aria-keyshortcuts="A">
+          <Button onClick={onApprove} aria-keyshortcuts={keyHint(SHORTCUTS.reviewApprove.keys)}>
             <Check />
             Approve
           </Button>
@@ -376,9 +402,10 @@ function ItemDetail({
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();
-              onRejectingChange(false);
+              cancelRejecting();
             }
-            if (event.key === "Enter" && !event.shiftKey) {
+            // Not while an IME is composing: Enter there commits the composition.
+            if (event.key === "Enter" && !event.shiftKey && !isImeKeyEvent(event.nativeEvent)) {
               event.preventDefault();
               onReject(reason.trim());
             }
@@ -398,7 +425,7 @@ function ItemDetail({
             placeholder="e.g. Duplicate of an existing screen, or contains personal data"
           />
           <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onRejectingChange(false)}>
+            <Button variant="ghost" size="sm" onClick={cancelRejecting}>
               Cancel
             </Button>
             <Button type="submit" variant="danger" size="sm">

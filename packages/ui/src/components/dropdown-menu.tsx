@@ -4,6 +4,7 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 import type { Theme } from "../lib/theme";
+import { useShortcutHint } from "./kbd";
 import { popupSurfaceClassName } from "./popover";
 import { THEME_OPTIONS, useTheme } from "./theme";
 
@@ -64,8 +65,10 @@ const itemClassName =
 
 export interface DropdownMenuItemProps extends React.ComponentProps<typeof Menu.Item> {
   icon?: React.ReactNode;
-  /** Right-aligned hint, e.g. a shortcut. */
+  /** Right-aligned hint text. */
   hint?: React.ReactNode;
+  /** Shortcut in `useHotkey` notation, shown right-aligned and kept out of the item's name. */
+  shortcut?: string;
   /** Shows an ↗ to signal an external destination. */
   external?: boolean;
   destructive?: boolean;
@@ -74,20 +77,25 @@ export interface DropdownMenuItemProps extends React.ComponentProps<typeof Menu.
 export function DropdownMenuItem({
   icon,
   hint,
+  shortcut,
   external,
   destructive,
   className,
   children,
   ...props
 }: DropdownMenuItemProps) {
+  const shortcutHint = useShortcutHint(shortcut);
   return (
     <Menu.Item
+      {...shortcutHint.props}
       className={cn(itemClassName, destructive && "text-danger [&>svg]:text-danger", className)}
       {...props}
     >
       {icon}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {hint ? <span className="text-sm text-fg-subtle">{hint}</span> : null}
+      {shortcutHint.hint}
+      {shortcutHint.description}
       {external ? <ArrowUpRight aria-hidden className="text-fg-subtle" /> : null}
     </Menu.Item>
   );
@@ -95,21 +103,31 @@ export function DropdownMenuItem({
 
 export interface DropdownMenuLinkItemProps extends React.ComponentProps<typeof Menu.LinkItem> {
   icon?: React.ReactNode;
+  /** Right-aligned hint text. */
+  hint?: React.ReactNode;
+  /** Shortcut in `useHotkey` notation, shown right-aligned and kept out of the item's name. */
+  shortcut?: string;
   external?: boolean;
 }
 
 /** Menu item that is a link. Use `render={<Link to=… />}` for router links. */
 export function DropdownMenuLinkItem({
   icon,
+  hint,
+  shortcut,
   external,
   className,
   children,
   ...props
 }: DropdownMenuLinkItemProps) {
+  const shortcutHint = useShortcutHint(shortcut);
   return (
-    <Menu.LinkItem className={cn(itemClassName, className)} {...props}>
+    <Menu.LinkItem {...shortcutHint.props} className={cn(itemClassName, className)} {...props}>
       {icon}
       <span className="min-w-0 flex-1 truncate">{children}</span>
+      {hint ? <span className="text-sm text-fg-subtle">{hint}</span> : null}
+      {shortcutHint.hint}
+      {shortcutHint.description}
       {external ? <ArrowUpRight aria-hidden className="text-fg-subtle" /> : null}
     </Menu.LinkItem>
   );

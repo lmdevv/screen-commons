@@ -33,7 +33,7 @@ export function LandingPage({ data }: { data: LandingData }) {
   return (
     <>
       <SiteHeader />
-      <main>
+      <main id="main">
         <Hero counts={data.counts} />
         <LiveGrid screens={data.screens} />
         <div className="mt-28 flex flex-col gap-24 sm:mt-36 sm:gap-32">

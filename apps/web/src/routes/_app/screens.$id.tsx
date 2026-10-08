@@ -22,7 +22,7 @@ import {
   Download,
   Link2,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import {
   copyImageToClipboard,
@@ -32,6 +32,7 @@ import {
 import { useSaveToggle } from "../../components/library/saving";
 import { withDisplayTitle } from "../../lib/display-title";
 import { queries } from "../../lib/queries";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { usePagePlatform } from "../../lib/use-current-platform";
 import { errorMessage, notify } from "../../lib/toast";
 
@@ -54,17 +55,17 @@ function ScreenPage() {
   usePagePlatform(screen.app.platform);
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
-  const overlayOpen = Route.useSearch({ select: (s) => !!s.screen || !!s.flow });
   const mobile = frameKind(screen.app.platform) === "mobile";
 
   const go = (target: string | null) =>
     target && void navigate({ to: "/screens/$id", params: { id: target } });
-  useHotkey("ArrowLeft", () => go(screen.previousId), { mod: false, enabled: !overlayOpen });
-  useHotkey("ArrowRight", () => go(screen.nextId), { mod: false, enabled: !overlayOpen });
-  useHotkey("s", () => void toggleSave({ kind: "screen", id: screen.id }, !screen.saved), {
-    mod: false,
-    enabled: !overlayOpen,
-  });
+  // Page scope: these pause while an overlay (viewer, picker, palette) is open on top.
+  useHotkey(SHORTCUTS.viewerPrevious.keys, () => go(screen.previousId), { allowRepeat: true });
+  useHotkey(SHORTCUTS.viewerNext.keys, () => go(screen.nextId), { allowRepeat: true });
+  useHotkey(
+    SHORTCUTS.viewerSave.keys,
+    () => void toggleSave({ kind: "screen", id: screen.id }, !screen.saved),
+  );
 
   const copyImage = async () => {
     try {
@@ -74,7 +75,10 @@ function ScreenPage() {
       notify.error(errorMessage(error));
     }
   };
-  useCopyShortcut(copyImage, !overlayOpen);
+  // ⌘C copies the image unless the user is copying selected text.
+  useHotkey(SHORTCUTS.viewerCopy.keys, () => void copyImage(), {
+    when: () => !window.getSelection()?.toString(),
+  });
 
   return (
     <Container className="pt-8 pb-24 sm:pt-10">
@@ -104,7 +108,7 @@ function ScreenPage() {
           <NeighbourButton id={screen.previousId} direction="prev" />
           <NeighbourButton id={screen.nextId} direction="next" />
           <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-          <Tooltip content="Copy image" shortcut="⌘C">
+          <Tooltip content="Copy image" shortcut={SHORTCUTS.viewerCopy.keys}>
             <Button variant="ghost" icon aria-label="Copy image" onClick={() => void copyImage()}>
               <Copy />
             </Button>
@@ -199,7 +203,10 @@ function NeighbourButton({ id, direction }: { id: string | null; direction: "pre
     );
   }
   return (
-    <Tooltip content={label} shortcut={direction === "prev" ? "←" : "→"}>
+    <Tooltip
+      content={label}
+      shortcut={(direction === "prev" ? SHORTCUTS.viewerPrevious : SHORTCUTS.viewerNext).keys}
+    >
       <Button
         variant="ghost"
         icon
@@ -210,23 +217,4 @@ function NeighbourButton({ id, direction }: { id: string | null; direction: "pre
       </Button>
     </Tooltip>
   );
-}
-
-/** ⌘/Ctrl+C copies the image unless text is selected or focus is in a field. */
-function useCopyShortcut(copy: () => void, enabled: boolean) {
-  useEffect(() => {
-    if (!enabled) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "c" || !(event.metaKey || event.ctrlKey) || event.shiftKey) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable=true]")) return;
-      if (window.getSelection()?.toString()) return;
-      event.preventDefault();
-      copy();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [copy, enabled]);
 }
