@@ -1,11 +1,12 @@
-import { LIMITS } from "@screen-commons/core/schemas";
+import { WEBP_MAX_DIMENSION } from "@screen-commons/core/image-policy";
+import { LIMITS } from "@screen-commons/core/limits";
 
 /**
  * Largest bitmap we produce. Chromium's compositor reliably captures up to 16384px per side;
- * the server accepts up to 4096 x 20000.
+ * stopping at WebP's 16,383px limit means full-height captures are encoded without a resample.
  */
 export const MAX_OUTPUT_WIDTH = LIMITS.maxImageWidth;
-export const MAX_OUTPUT_HEIGHT = 16_384;
+export const MAX_OUTPUT_HEIGHT = WEBP_MAX_DIMENSION;
 
 export type ShotKind = "desktop" | "mobile";
 
@@ -93,41 +94,6 @@ export function tilePlacement(
   const destY = Math.round(actualScrollY * pixelRatio);
   if (destY >= canvasHeightPx) return null;
   return { destY, srcHeight: Math.min(tileHeightPx, canvasHeightPx - destY) };
-}
-
-export interface ThumbnailPlan {
-  /** Source crop (top-anchored), in source pixels. */
-  sx: number;
-  sy: number;
-  sw: number;
-  sh: number;
-  /** Output size. */
-  width: number;
-  height: number;
-}
-
-/** Max height/width ratio of a thumbnail: 16:10 for desktop, 9:19.5 for mobile. */
-export const THUMBNAIL_MAX_RATIO: Record<ShotKind, number> = {
-  desktop: 10 / 16,
-  mobile: 19.5 / 9,
-};
-
-/**
- * Thumbnail geometry: 640px wide (never upscaled), cropped from the top so its aspect is at most
- * 16:10 (desktop) or 9:19.5 (mobile). Short images keep their own aspect.
- */
-export function planThumbnail(
-  sourceWidth: number,
-  sourceHeight: number,
-  kind: ShotKind,
-  targetWidth: number = LIMITS.thumbnailWidth,
-): ThumbnailPlan {
-  const sw = Math.max(1, Math.round(sourceWidth));
-  const fullHeight = Math.max(1, Math.round(sourceHeight));
-  const sh = Math.min(fullHeight, Math.round(sw * THUMBNAIL_MAX_RATIO[kind]));
-  const width = Math.min(targetWidth, sw);
-  const height = Math.max(1, Math.round((sh * width) / sw));
-  return { sx: 0, sy: 0, sw, sh, width, height };
 }
 
 /** Desktop vs mobile from the CSS viewport width a shot was taken at. */

@@ -1,3 +1,4 @@
+import { encodeDisplayImage, encodeThumbnail, readEncoded } from "@screen-commons/core/canvas";
 import { appNameFromUrl, hostnameOf, suggestPatterns } from "@screen-commons/core/utils";
 
 import { kindForViewport } from "../lib/geometry";
@@ -12,14 +13,17 @@ import {
 import { listShots, putShots } from "../lib/tray-db";
 import { CaptureError, runInPage } from "./browser-utils";
 import { captureElement, captureFullPage, captureVisible, type RawCapture } from "./capture";
-import { decode, dominantColorOf, ensureUploadable, makeThumbnail } from "./image";
+import { decode, dominantColorOf } from "./image";
 import { extractMetadata, pickElement } from "./page-scripts";
 
 function newId(): string {
   return crypto.randomUUID();
 }
 
-/** Turn a raw capture into a tray shot (thumbnail, colour, size limits, suggested tags). */
+/**
+ * Turn a raw capture into a tray shot: display image and thumbnail per the shared display policy
+ * (WebP, both derived from the lossless capture), colour and suggested tags.
+ */
 export async function processCapture(raw: RawCapture, mode: CaptureMode): Promise<Shot> {
   const tabId = raw.tab.id!;
   const meta = await runInPage(tabId, extractMetadata).catch(() => null);
@@ -28,8 +32,10 @@ export async function processCapture(raw: RawCapture, mode: CaptureMode): Promis
   const bitmap = await decode(raw.image.blob);
   try {
     const kind = kindForViewport(raw.viewportWidth);
-    const image = await ensureUploadable(raw.image, bitmap);
-    const thumbnail = await makeThumbnail(bitmap, kind);
+    const [image, thumbnail] = await Promise.all([
+      readEncoded(raw.image.blob).then((original) => encodeDisplayImage(bitmap, original)),
+      encodeThumbnail(bitmap, kind),
+    ]);
     return {
       id: newId(),
       order: 0,
@@ -41,7 +47,7 @@ export async function processCapture(raw: RawCapture, mode: CaptureMode): Promis
       patterns: suggestPatterns(url, pageTitle),
       width: image.width,
       height: image.height,
-      bytes: image.blob.size,
+      bytes: image.bytes,
       imageType: image.type,
       image: image.blob,
       thumbnail: thumbnail.blob,

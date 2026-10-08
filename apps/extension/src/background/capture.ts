@@ -1,7 +1,13 @@
 import { base64ToBytes, readImageHeader } from "@screen-commons/core/utils";
 import { browser, type Browser } from "wxt/browser";
 
-import { planCapture, planStitchTiles, tilePlacement, type Rect } from "../lib/geometry";
+import {
+  MAX_OUTPUT_HEIGHT,
+  planCapture,
+  planStitchTiles,
+  tilePlacement,
+  type Rect,
+} from "../lib/geometry";
 import type { FullPageMethod } from "../lib/settings";
 import {
   CaptureError,
@@ -217,9 +223,7 @@ async function fullPageStitched(tab: Browser.tabs.Tab, metrics: PageMetrics) {
         const plan = planCapture(
           { x: 0, y: 0, width: metrics.viewportWidth, height: metrics.height },
           ratio,
-          {
-            maxHeight: 16_384,
-          },
+          { maxHeight: MAX_OUTPUT_HEIGHT },
         );
         canvasWidth = bitmap.width;
         canvasHeight = Math.min(
