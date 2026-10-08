@@ -26,13 +26,6 @@ export async function imageSize(input: Buffer): Promise<{ width: number; height:
   return { width: meta.width ?? 0, height: meta.height ?? 0 };
 }
 
-/**
- * Try lossless WebP when the lossy result is above this share of the source: flat UI (docs,
- * forms, text on solid colour) is often smaller lossless than at q90 and loses nothing, while
- * photos and gradients never are. In the corpus, every page where lossless won was above 0.45.
- */
-const LOSSLESS_TRY_RATIO = 0.4;
-
 const SOURCE_TYPES: Record<string, ImageType> = {
   png: "image/png",
   jpeg: "image/jpeg",
@@ -89,7 +82,7 @@ export async function encodeDisplay(input: Buffer): Promise<EncodedImage> {
     ),
     "The display image",
   );
-  if (best.bytes > source.bytes * LOSSLESS_TRY_RATIO) {
+  if (best.bytes > source.bytes * DISPLAY_POLICY.full.losslessTryRatio) {
     const lossless = await encoded(await pipeline().webp({ lossless: true, effort: 4 }).toBuffer());
     if (lossless.bytes < best.bytes) best = lossless;
   }

@@ -8,6 +8,7 @@ import {
   displaySize,
   encodeWithinBudget,
   isDisplayReady,
+  isThumbnailOf,
   keepSource,
   sniffImage,
   thumbnailBox,
@@ -75,6 +76,22 @@ describe("thumbnailBox", () => {
   it("uses 9:19.5 for mobile", () => {
     expect(thumbnailBox(900, 3000, "mobile")).toMatchObject({ width: 640, height: 1387 });
     expect(thumbnailBox(1170, 2000, "mobile")).toMatchObject({ width: 640, height: 1094 });
+  });
+});
+
+describe("isThumbnailOf", () => {
+  it("accepts top crops at 1x or 2x and either kind's ratio", () => {
+    expect(isThumbnailOf({ width: 640, height: 400 }, { width: 2880, height: 9000 })).toBe(true);
+    expect(isThumbnailOf({ width: 1280, height: 800 }, { width: 2880, height: 1800 })).toBe(true);
+    expect(isThumbnailOf({ width: 640, height: 1387 }, { width: 1280, height: 9000 })).toBe(true);
+    expect(isThumbnailOf({ width: 320, height: 200 }, { width: 320, height: 200 })).toBe(true);
+  });
+
+  it("rejects full pages, upscales and stretched images", () => {
+    // a 1000x9000 page sent as its own "thumbnail"
+    expect(isThumbnailOf({ width: 1000, height: 9000 }, { width: 1000, height: 9000 })).toBe(false);
+    expect(isThumbnailOf({ width: 640, height: 400 }, { width: 320, height: 200 })).toBe(false);
+    expect(isThumbnailOf({ width: 640, height: 600 }, { width: 2880, height: 1800 })).toBe(false);
   });
 });
 

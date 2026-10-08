@@ -35,6 +35,11 @@ export const DISPLAY_POLICY = {
     maxWidth: LIMITS.maxImageWidth,
     /** Taller images are scaled down to this height (aspect kept), never tiled or cropped. */
     maxHeight: WEBP_MAX_DIMENSION,
+    /**
+     * Also try lossless WebP when the lossy result is above this share of a PNG source: flat UI
+     * (docs, forms, text on solid colour) is often smaller lossless than at q0.9 and loses nothing.
+     */
+    losslessTryRatio: 0.4,
   },
   thumbnail: {
     width: LIMITS.thumbnailWidth,
@@ -56,6 +61,19 @@ export const THUMBNAIL_MAX_RATIO: Record<ThumbnailKind, number> = {
 /** Web apps get desktop thumbnails; iOS and Android get the taller mobile crop. */
 export const thumbnailKindFor = (platform: string): ThumbnailKind =>
   platform === "web" ? "desktop" : "mobile";
+
+/**
+ * Whether `thumb` can be a thumbnail of `source`: no wider than the source (never upscaled) or 2x
+ * the thumbnail width (HiDPI encoders), and a top crop no taller than the source's aspect or the
+ * mobile ratio (the extension picks desktop/mobile by viewport, not platform). Rejects a full
+ * page sent as its own thumbnail.
+ */
+export function isThumbnailOf(thumb: ImageSize, source: ImageSize): boolean {
+  if (thumb.width > Math.min(source.width, DISPLAY_POLICY.thumbnail.width * 2)) return false;
+  const ratio = Math.min(source.height / source.width, THUMBNAIL_MAX_RATIO.mobile);
+  // Encoders round the height to whole pixels.
+  return thumb.height <= Math.round(thumb.width * ratio) + 1;
+}
 
 export interface ImageSize {
   width: number;
@@ -150,19 +168,24 @@ export interface EncodeBudget {
 /**
  * Run a WebP quality ladder: encode at each quality until the result is within `targetBytes`;
  * the final attempt is accepted up to `maxBytes`. Every attempt's actual type and dimensions are
- * checked against `expected`, and the hard limit is enforced after the final attempt, so a caller
- * can never mistake an oversized or relabelled result for a display image.
+ * checked against `expected` (± `tolerance` px, for resizers that round differently), and the hard
+ * limit is enforced after the final attempt, so a caller can never mistake an oversized or
+ * relabelled result for a display image.
  */
 export async function encodeWithinBudget<T extends EncodedResult>(
   encode: (quality: number) => Promise<T>,
   expected: ImageSize,
   budget: EncodeBudget,
+  tolerance = 0,
 ): Promise<EncodeOutcome<T>> {
   let last: { image: T; quality: number } | undefined;
   for (const quality of budget.qualities) {
     const image = await encode(quality);
     if (image.type !== DISPLAY_POLICY.type) return { status: "unsupported", type: image.type };
-    if (image.width !== expected.width || image.height !== expected.height) {
+    if (
+      Math.abs(image.width - expected.width) > tolerance ||
+      Math.abs(image.height - expected.height) > tolerance
+    ) {
       return {
         status: "invalid",
         message: `encoder produced ${image.width}x${image.height}, expected ${expected.width}x${expected.height}`,
