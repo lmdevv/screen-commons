@@ -5,8 +5,10 @@
  * thumbnail, both WebP-first. Retained originals live under their own keys and are never used for
  * display.
  *
- * Targets were measured on light, dark, text-heavy, photo-heavy and tall (up to 2880×20000)
- * screenshots; see "Display images" in apps/web/content/docs/architecture.md.
+ * Targets were measured on the 156 seed captures (2880×1800: light, dark, text-heavy,
+ * photo/gradient) and tall pages up to 2880×20000, with libwebp (sharp) and Chromium's canvas
+ * encoder; see "Display images" in apps/web/content/docs/architecture.md. SSIM figures are luma
+ * SSIM of the worst 128×128 tile, the small-text proxy.
  *
  * Zod-free so browser bundles (uploader worker, extension) can import it cheaply.
  */
@@ -24,12 +26,17 @@ export const DISPLAY_POLICY = {
   type: "image/webp",
   full: {
     /**
-     * WebP qualities (0–1) tried in order until the image fits `maxBytes`. 0.9 keeps small text
-     * crisp (worst 128px tile SSIM ≥ 0.95 across the corpus); 0.8 visibly softens text, so it's only
-     * a fallback for images that would otherwise not fit.
+     * WebP qualities (0–1) tried in order until the image fits `targetBytes`. q0.9 is
+     * indistinguishable on text (SSIM ≥ 0.977 on text pages, ≥ 0.93 on photo heroes; median
+     * 138 KiB at 2880×1800). q0.8 (~0.78x the bytes) still keeps text sharp; q0.7 (~0.68x) softens
+     * gradients and 1x dark text, so it's the last resort.
      */
     qualities: [0.9, 0.8, 0.7],
-    /** Lower qualities are only tried above this (2x the largest q0.9 result in the corpus). */
+    /**
+     * Lower qualities are only tried above this. No 2880×1800 capture comes near it (max 0.7 MiB
+     * at q0.9); only tall, dense pages do (a 2359×16,383 page as dense as the densest capture is
+     * ~5.2 MiB at q0.9, ~4.1 MiB at q0.8).
+     */
     targetBytes: 4 * 1024 * 1024,
     maxBytes: LIMITS.maxImageBytes,
     maxWidth: LIMITS.maxImageWidth,
@@ -37,13 +44,15 @@ export const DISPLAY_POLICY = {
     maxHeight: WEBP_MAX_DIMENSION,
     /**
      * Also try lossless WebP when the lossy result is above this share of a PNG source: flat UI
-     * (docs, forms, text on solid colour) is often smaller lossless than at q0.9 and loses nothing.
+     * (auth pages, sparse docs, plain pricing) is often smaller lossless than at q0.9 and loses
+     * nothing. Lossless won on 54 of 156 captures, every one at or above this ratio, and on none
+     * of the 92 below it (where it is ~3x larger and costs ~1 s per capture to try).
      */
     losslessTryRatio: 0.4,
   },
   thumbnail: {
     width: LIMITS.thumbnailWidth,
-    /** q0.82: 13–30 KB at 640×400 with worst-tile SSIM ≥ 0.96; q0.9 costs ~30% more bytes. */
+    /** q0.82: median 16 KiB (max 41) at 640×400, SSIM ≥ 0.97; q0.9 costs ~35% more bytes. */
     qualities: [0.82, 0.7, 0.55],
     targetBytes: 256 * 1024,
     maxBytes: LIMITS.maxThumbnailBytes,

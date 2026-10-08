@@ -53,16 +53,16 @@ The UI calls server functions. Everything other clients call is a plain HTTP end
 
 ## Data model
 
-| Table                                        | Holds                                                                                                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `user`, `session`, `account`, `verification` | Better Auth tables. `user.role` is `admin` or `member`.                                                                                                |
-| `app`                                        | Products: slug (unique per platform), name, website and host, platform, category, logo key, status.                                                    |
-| `screen`                                     | One image each: image and thumbnail keys, dimensions, title, source URL, patterns, elements, tags, version, visible text, status, source, contributor. |
-| `flow`, `flow_step`                          | Ordered screens of one app, with a label per step.                                                                                                     |
-| `collection`, `collection_item`              | Users' saved screens, flows and apps. Triggers keep each item's `save_count` current.                                                                  |
-| `api_key`                                    | Key name, 8-character prefix, SHA-256 hash, last used and revoked timestamps.                                                                          |
-| `instance_bootstrap`                         | A single row claimed by the first user, who becomes admin.                                                                                             |
-| `screen_fts`, `app_fts`, `flow_fts`          | FTS5 search indexes, maintained by triggers.                                                                                                           |
+| Table                                        | Holds                                                                                                                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user`, `session`, `account`, `verification` | Better Auth tables. `user.role` is `admin` or `member`.                                                                                                                                                       |
+| `app`                                        | Products: slug (unique per platform), name, website and host, platform, category, logo key, status.                                                                                                           |
+| `screen`                                     | One image each: display image and thumbnail keys, dimensions, retained original key, display policy version, title, source URL, patterns, elements, tags, version, visible text, status, source, contributor. |
+| `flow`, `flow_step`                          | Ordered screens of one app, with a label per step.                                                                                                                                                            |
+| `collection`, `collection_item`              | Users' saved screens, flows and apps. Triggers keep each item's `save_count` current.                                                                                                                         |
+| `api_key`                                    | Key name, 8-character prefix, SHA-256 hash, last used and revoked timestamps.                                                                                                                                 |
+| `instance_bootstrap`                         | A single row claimed by the first user, who becomes admin.                                                                                                                                                    |
+| `screen_fts`, `app_fts`, `flow_fts`          | FTS5 search indexes, maintained by triggers.                                                                                                                                                                  |
 
 D1 has no interactive transactions, so multi-statement writes use `db.batch([...])`, which runs atomically.
 
@@ -78,7 +78,18 @@ Every app, screen and flow has a status: `published`, `pending` or `rejected`.
 
 ## Storage and caching
 
-Images are stored in R2 under content-addressed keys: `img/<sha256>.<ext>`, `thumb/<sha256>.<ext>` and `logo/<sha256>.<ext>`. The same bytes always map to the same key, so retries never duplicate objects and URLs never change meaning.
+Images are stored in R2 under content-addressed keys, so retries never duplicate objects and URLs never change meaning:
+
+| Key                              | Holds                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `img/<sha256>.<ext>`             | A display image stored as uploaded (keyed by its own bytes).                               |
+| `img/<sha256>.v1.webp`           | A display image the server derived from the source with that hash, under policy version 1. |
+| `thumb/<sha256>.<ext>`           | A thumbnail stored as uploaded.                                                            |
+| `thumb/<sha256>.v1-desktop.webp` | A thumbnail derived from the source with that hash (`-mobile` for iOS and Android apps).   |
+| `orig/<sha256>.<ext>`            | The retained source of a derived display image. Never served.                              |
+| `logo/<sha256>.<ext>`            | App logos.                                                                                 |
+
+Derivative keys carry the policy version, so changing the policy produces new URLs instead of new bytes at an old URL, and a source is never derived twice under the same version.
 
 `/media/<key>` checks who may read a key with one indexed lookup:
 
@@ -105,17 +116,45 @@ Search uses SQLite FTS5 in D1. Triggers on `app`, `screen` and `flow` keep the i
 - **Key management** requires a session; keys can't mint or revoke keys.
 - **First admin.** A database trigger promotes the first user atomically by claiming the `instance_bootstrap` row, so two simultaneous sign-ups can't both become admin.
 
-## Why the Worker doesn't process images
+## Display images
 
-Workers have tight CPU and memory budgets, and image codecs are large. Instead, every client does the work it's already positioned to do:
+Viewers and grids only load display images: the full image and its thumbnail. One policy, `DISPLAY_POLICY` in `packages/core/src/image-policy.ts`, defines them for every intake path:
 
-| Client           | Makes thumbnails with |
-| ---------------- | --------------------- |
-| Website uploader | `<canvas>`            |
-| Extension        | `OffscreenCanvas`     |
-| Node (MCP, seed) | `sharp`               |
+- **Full image.** WebP within 4096 × 16,383 px (aspect kept, never upscaled, alpha kept). Encoded at q0.9, then q0.8, then q0.7 while the result is over 4 MiB, and rejected if the final attempt is still over 15 MiB. Lossless WebP is also tried when the q0.9 result is at least 0.4× a PNG source, and kept when it is smaller.
+- **Thumbnail.** At most 640 px wide WebP, never upscaled, cropped from the top to at most 16:10 (desktop) or 9:19.5 (mobile). Encoded at q0.82, then q0.7, then q0.55 while over 256 KiB, and never over 1 MiB.
+- **No needless lossy passes.** WebP that is already display-ready is stored as sent. A PNG or JPEG source is kept as the display image when it needs no resize and WebP wouldn't be smaller. Both images are derived from the source, never from each other.
+- **Validated, never relabelled.** Every result, client or server side, is read back from its bytes: type, dimensions and completeness (RIFF length, PNG `IEND`). The server rejects truncated files, declared types the bytes don't have, and thumbnails that aren't a top crop of their image.
 
-Each upload carries the full image and a 640 px WebP thumbnail (top-anchored crop, at most 16:10 for desktop and 9:19.5 for mobile). The server only reads file headers to check type, size and dimensions, hashes the bytes, and stores them. Byte budgets are checked before anything is decoded, and images are decoded and stored one at a time to stay within Worker memory.
+| Intake path                                        | Encodes with                         | Notes                                                                        |
+| -------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------- |
+| Website uploader                                   | `<canvas>` in a Web Worker           | `@screen-commons/core/canvas`.                                               |
+| Extension                                          | `OffscreenCanvas`                    | Same module. Very tall pages are captured at a lower scale to fit 16,383 px. |
+| Seed, local MCP (`upload_screen`, `capture_pages`) | `sharp`                              | `packages/capture/src/image.ts`.                                             |
+| Remote API and MCP, other clients                  | Cloudflare Images binding (`IMAGES`) | Server-side normalization of whatever a client couldn't encode.              |
+
+**Browsers without a WebP encoder** (Safari's canvas returns PNG when asked for WebP) send the source when the server accepts it, or a PNG or JPEG of the display size, plus a JPEG thumbnail. The server then derives the WebP display image and thumbnail.
+
+**Very tall pages.** The server accepts pages up to 20,000 px tall, but WebP stops at 16,383 px, and Chromium's canvas silently crops taller canvases instead of failing. Taller pages are scaled down to 16,383 px with the aspect kept, rather than tiled (which would need a tiled viewer) or kept as multi-megabyte PNGs. A 2880 × 20,000 capture becomes 2359 × 16,383 (0.82×), which keeps 2x text readable. The extension avoids even that resample by capturing such pages at a lower device scale.
+
+**The Worker never runs codecs itself.** It only parses headers, hashes and stores. Server-side derivatives come from the Images binding:
+
+- **Display image.** When it isn't display-ready, the server stores a WebP derivative and retains the source as `orig/<sha256>.<ext>`. If the binding is missing or fails, the source is displayed as uploaded (it is within the upload limits) and `screen.display_version` stays null. This is the one documented exception.
+- **Thumbnail.** A client's WebP thumbnail is used as sent; otherwise one is derived. A client JPEG or PNG thumbnail is only a fallback when derivation fails. With neither, the upload fails with a retryable `503 unavailable`. The full image is never displayed as a thumbnail.
+
+**Backfill.** `screen.display_version` records the policy version a screen's media was checked against. `pnpm media:backfill --url … --key sc_…` (admin key; `--dry-run` lists what it would do) pages through `POST /api/v1/admin/media/backfill`. For each screen whose version is missing or older, it re-resolves the media from the retained original (or the current image) exactly like a new upload, then updates the keys, size and version. Old objects are left in place: a replaced image becomes `original_key` and is no longer served. Because published media is cached as immutable, clients that cached an old URL keep their copy, while new page loads use the new keys. Bumping `DISPLAY_POLICY.version` and rerunning the command migrates everything to the new policy.
+
+### Measurements
+
+These targets were chosen from all 156 seed captures (2880 × 1800, DPR 2) plus tall pages up to 2880 × 20,000, encoded with libwebp (sharp) and Chromium's canvas encoder. Quality is luma SSIM against the lossless source, reported for the worst 128 × 128 tile, which is a proxy for small text.
+
+| Setting                 | Light          | Dark            | Text-heavy      | Photo/gradient  |
+| ----------------------- | -------------- | --------------- | --------------- | --------------- |
+| PNG → WebP q0.9         | 106 KiB, 0.990 | 86 KiB, 0.989   | 200 KiB, 0.997  | 432 KiB, 0.949  |
+| WebP q0.8               | 70 KiB, 0.988  | 67 KiB, 0.986   | 157 KiB, 0.992  | 235 KiB, 0.902  |
+| WebP q0.7               | 59 KiB, 0.979  | 58 KiB, 0.976   | 136 KiB, 0.991  | 169 KiB, 0.876  |
+| Thumbnail 640×400 q0.82 | 8.7 KiB, 0.991 | 10.2 KiB, 0.985 | 21.9 KiB, 0.992 | 25.3 KiB, 0.975 |
+
+The values are medians per category (sharp; the canvas encoder is within 2% on bytes and SSIM). Across all 156 captures, q0.9 has a median of 138 KiB and a max of 717 KiB, 0.31× the PNG. Tall pages scaled to 16,383 px are 1.0 to 3.3 MiB at q0.9 (worst-tile SSIM ≥ 0.983). Text is indistinguishable from the source at q0.9 and q0.8 at 2× zoom. q0.7 visibly softens gradients and 1x dark text, which is why it is the last resort. Re-encoding a JPEG q92 as WebP q0.9 saves 29 to 58% and costs at most 0.026 worst-tile SSIM, so JPEG sources are converted when that is smaller.
 
 ## Capture: extension, bridge and MCP
 

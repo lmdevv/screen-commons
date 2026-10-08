@@ -63,9 +63,10 @@ Errors use HTTP status codes and a JSON body:
 | `not_found`              | 404    | The item doesn't exist or you can't see it.                                      |
 | `conflict`               | 409    | Reserved. Not returned by the current release.                                   |
 | `payload_too_large`      | 413    | Request body or an image is over its limit.                                      |
-| `unsupported_media_type` | 415    | An image isn't PNG, JPEG or WebP.                                                |
+| `unsupported_media_type` | 415    | An image isn't a complete PNG, JPEG or WebP, or isn't the type it's declared as. |
 | `rate_limited`           | 429    | Reserved. The current release has no rate limits.                                |
 | `internal`               | 500    | Something went wrong on the server.                                              |
+| `unavailable`            | 503    | A dependency failed, e.g. a thumbnail couldn't be generated. Retry later.        |
 
 Hidden items return `404`, not `403`, so the API doesn't reveal what exists.
 
@@ -315,6 +316,8 @@ Content-Type: multipart/form-data
 | `image`     | file | Full-size PNG, JPEG or WebP.                       |
 | `thumbnail` | file | 640 px wide thumbnail you generated, ideally WebP. |
 | `meta`      | JSON | Screen metadata and the app (below).               |
+
+Images are typed and sized from their bytes, never from file names or declared types. The thumbnail must be a top crop of the image: no wider than the image (or 1280 px), and no taller than the image's own aspect or 9:19.5. The server stores the display image as WebP (see [Media](#media)): send WebP if you can, otherwise the server converts PNG and JPEG for you.
 
 `meta` fields:
 
@@ -713,17 +716,50 @@ curl -X POST http://localhost:5173/api/v1/review/screen/01m4a8ae3z0000yfr7j15phk
 
 Returns `204`. See [Review](/docs/contributing#review) for what each decision changes.
 
+### Backfill display media
+
+```http
+POST /api/v1/admin/media/backfill
+```
+
+Admin only. Processes one page of screens whose display media predates the current [display policy](/docs/architecture#display-images), oldest id first. Run `pnpm media:backfill --url … --key sc_…` to page through all of them.
+
+| Field    | Type    | Required | Notes                                                   |
+| -------- | ------- | -------- | ------------------------------------------------------- |
+| `limit`  | number  | No       | 1–50, default 10.                                       |
+| `cursor` | string  | No       | `nextCursor` from the previous page.                    |
+| `dryRun` | boolean | No       | List what would be processed without changing anything. |
+
+```json
+{
+  "items": [
+    {
+      "screenId": "01m4a8ae3z0000yfr7j15phk4b",
+      "action": "updated",
+      "imageKey": "img/9c1f….v1.webp",
+      "thumbKey": "thumb/9c1f….v1-desktop.webp"
+    }
+  ],
+  "nextCursor": null,
+  "remaining": 0
+}
+```
+
+`action` is `updated`, `current` (already met the policy, only marked), `failed` (left for the next run, with a `reason`) or `pending` (dry run).
+
 ## Media
 
 `imageUrl`, `thumbUrl`, `logoUrl` and preview URLs are relative paths on your instance:
 
 ```text
-/media/img/<sha256>.png
+/media/img/<sha256>.webp
+/media/img/<sha256>.v1.webp
 /media/thumb/<sha256>.webp
+/media/thumb/<sha256>.v1-desktop.webp
 /media/logo/<sha256>.png
 ```
 
-Prefix them with the instance origin. Keys are SHA-256 hashes of the file contents, so a URL never changes meaning.
+Prefix them with the instance origin. Keys are SHA-256 hashes of the file contents, so a URL never changes meaning. `.v1` keys are display images the server derived from an upload under display policy version 1. They are addressed by the hash of the uploaded source, so the same upload always maps to the same derivative. A policy change produces new keys, never new bytes at an old URL. Display images are WebP except in two cases: when WebP wouldn't be smaller than the uploaded PNG or JPEG, or when the server couldn't convert the upload yet. Retained originals are never served.
 
 | Media referenced by              | Who can fetch it                                  | Caching                                                 |
 | -------------------------------- | ------------------------------------------------- | ------------------------------------------------------- |
@@ -735,17 +771,17 @@ Prefix them with the instance origin. Keys are SHA-256 hashes of the file conten
 
 ## Limits
 
-| Limit                                                                      | Value                     |
-| -------------------------------------------------------------------------- | ------------------------- |
-| Request body, upload endpoints (`POST /screens`, `POST /captures`, `/mcp`) | 40 MiB                    |
-| Request body, everything else                                              | 1 MiB                     |
-| Full-size image                                                            | 15 MiB, 4096 × 20,000 px  |
-| Thumbnail                                                                  | 1 MiB, up to 1280 px wide |
-| Logo                                                                       | 512 KiB, 1024 × 1024 px   |
-| Decoded images per request                                                 | 28 MiB                    |
-| Screens per batch                                                          | 50                        |
-| Steps per flow                                                             | 2–60                      |
-| Page size                                                                  | default 30, max 100       |
+| Limit                                                                      | Value                                                                      |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Request body, upload endpoints (`POST /screens`, `POST /captures`, `/mcp`) | 40 MiB                                                                     |
+| Request body, everything else                                              | 1 MiB                                                                      |
+| Full-size image                                                            | 15 MiB, 4096 × 20,000 px; displayed at up to 16,383 px tall (WebP's limit) |
+| Thumbnail                                                                  | 1 MiB, up to 1280 px wide                                                  |
+| Logo                                                                       | 512 KiB, 1024 × 1024 px                                                    |
+| Decoded images per request                                                 | 28 MiB                                                                     |
+| Screens per batch                                                          | 50                                                                         |
+| Steps per flow                                                             | 2–60                                                                       |
+| Page size                                                                  | default 30, max 100                                                        |
 
 Bodies are measured as they stream in; `Content-Length` isn't trusted.
 

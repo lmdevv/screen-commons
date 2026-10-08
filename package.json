@@ -10,6 +10,7 @@
     "check-types": "turbo run check-types",
     "test": "turbo run test",
     "seed": "pnpm --filter @screen-commons/capture seed",
+    "media:backfill": "pnpm --filter @screen-commons/capture media:backfill",
     "lint": "oxlint",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
