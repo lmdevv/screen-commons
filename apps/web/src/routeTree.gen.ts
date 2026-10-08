@@ -48,6 +48,7 @@ import { Route as ApiV1CollectionsIdRouteImport } from './routes/api/v1/collecti
 import { Route as ApiV1FlowsIdRouteImport } from './routes/api/v1/flows.$id'
 import { Route as ApiV1KeysIdRouteImport } from './routes/api/v1/keys.$id'
 import { Route as ApiV1ScreensIdRouteImport } from './routes/api/v1/screens.$id'
+import { Route as ApiV1AdminMediaBackfillRouteImport } from './routes/api/v1/admin.media.backfill'
 import { Route as ApiV1CollectionsIdItemsRouteImport } from './routes/api/v1/collections.$id.items'
 import { Route as ApiV1ReviewKindIdRouteImport } from './routes/api/v1/review.$kind.$id'
 
@@ -245,6 +246,11 @@ const ApiV1ScreensIdRoute = ApiV1ScreensIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiV1ScreensRoute,
 } as any)
+const ApiV1AdminMediaBackfillRoute = ApiV1AdminMediaBackfillRouteImport.update({
+  id: '/admin/media/backfill',
+  path: '/admin/media/backfill',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
 const ApiV1CollectionsIdItemsRoute = ApiV1CollectionsIdItemsRouteImport.update({
   id: '/items',
   path: '/items',
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
   '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
   '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
@@ -380,6 +388,7 @@ export interface FileRoutesById {
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
+  '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
   '/api/v1/review/$kind/$id': typeof ApiV1ReviewKindIdRoute
 }
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
     | '/api/v1/screens/$id'
+    | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
     | '/api/v1/review/$kind/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -465,6 +475,7 @@ export interface FileRouteTypes {
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
     | '/api/v1/screens/$id'
+    | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
     | '/api/v1/review/$kind/$id'
   id:
@@ -508,6 +519,7 @@ export interface FileRouteTypes {
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
     | '/api/v1/screens/$id'
+    | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
     | '/api/v1/review/$kind/$id'
   fileRoutesById: FileRoutesById
@@ -800,6 +812,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1ScreensIdRouteImport
       parentRoute: typeof ApiV1ScreensRoute
     }
+    '/api/v1/admin/media/backfill': {
+      id: '/api/v1/admin/media/backfill'
+      path: '/admin/media/backfill'
+      fullPath: '/api/v1/admin/media/backfill'
+      preLoaderRoute: typeof ApiV1AdminMediaBackfillRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
     '/api/v1/collections/$id/items': {
       id: '/api/v1/collections/$id/items'
       path: '/items'
@@ -952,6 +971,7 @@ interface ApiV1RouteRouteChildren {
   ApiV1ScreensRoute: typeof ApiV1ScreensRouteWithChildren
   ApiV1SearchRoute: typeof ApiV1SearchRoute
   ApiV1TaxonomyRoute: typeof ApiV1TaxonomyRoute
+  ApiV1AdminMediaBackfillRoute: typeof ApiV1AdminMediaBackfillRoute
 }
 
 const ApiV1RouteRouteChildren: ApiV1RouteRouteChildren = {
@@ -967,6 +987,7 @@ const ApiV1RouteRouteChildren: ApiV1RouteRouteChildren = {
   ApiV1ScreensRoute: ApiV1ScreensRouteWithChildren,
   ApiV1SearchRoute: ApiV1SearchRoute,
   ApiV1TaxonomyRoute: ApiV1TaxonomyRoute,
+  ApiV1AdminMediaBackfillRoute: ApiV1AdminMediaBackfillRoute,
 }
 
 const ApiV1RouteRouteWithChildren = ApiV1RouteRoute._addFileChildren(

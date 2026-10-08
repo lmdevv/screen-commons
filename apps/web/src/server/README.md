@@ -6,6 +6,7 @@ dev via `@cloudflare/vite-plugin`).
 ```
 src/server/
   env.ts           cloudflare:workers env, getDb() (Drizzle over D1), getMedia() (R2), appOrigin()
+  display.ts       display image + thumbnail derivatives via the Images binding (display policy)
   auth.ts          Better Auth (email+password, GitHub when env set; first user → admin via DB trigger)
   keys.ts          API keys: sc_ + 32 random bytes, SHA-256 at rest, throttled last_used_at
   principal.ts     getPrincipal(request): bearer key OR session cookie (same-origin only)
@@ -16,6 +17,7 @@ src/server/
     ingest.ts      captures, createScreen, createFlow, uploadScreenFromTool (MCP)
     collections.ts listCollections, getCollection, create/rename/deleteCollection, save, unsave
     review.ts      reviewQueue, review
+    media.ts       content-addressed storage, resolveScreenMedia (display policy), backfillDisplay
     shared.ts      visibility rules, cursor pagination, row → API mapping
   http/            framework-independent HTTP helpers + the transports built on them
     cors.ts        preflight headers/response, isCrossOrigin
@@ -57,7 +59,7 @@ src/server/
 - **Search.** FTS5 with prefix matching; all terms must match (AND). When the viewer has no AND
   results under the same filters and visibility, terms are OR-ed instead.
 - **Media.** Entity media URLs (`imageUrl` / `thumbUrl` / `logoUrl` on apps, screens, flows,
-  collections — REST, server functions) are always relative `/media/<kind>/<sha256>.<ext>` paths.
+  collections — REST, server functions) are always relative `/media/<kind>/<sha256>[.v<n>[-kind]].<ext>` paths.
   The one exception is the `POST /api/v1/captures` response (`submitCaptures`), where every URL
   (`screens[].url`, `flow.url`, `app.logoUrl`) is absolute, as are URLs in MCP tool output.
   Keys referenced by published content are public + immutable; keys only referenced by
@@ -67,10 +69,25 @@ src/server/
 - **Views/saves.** `getScreen`, `getFlow`, `getApp` increment `view_count`. `save_count` is
   maintained by database triggers on `collection_item` (cascades included). `saved` on
   screens/flows means "in any of my collections".
-- **Thumbnails.** Clients send a 640px WebP thumbnail. When one is missing (remote MCP
-  `upload_screen`), the server generates it with the Cloudflare Images binding (`IMAGES`): ≤640px
-  wide (never upscaled), top-anchored crop to max 16:10 (web) or 9:19.5 (ios/android), WebP q80
-  (lower quality retried to stay ≤1 MiB). Without the binding, the full image is reused (logged).
+- **Display images** (`services/media.ts`, `display.ts`; policy in `@screen-commons/core`
+  `image-policy.ts`, documented in `content/docs/architecture.md#display-images`). Uploads are
+  typed from their complete bytes; declared types that don't match, truncated files and
+  thumbnails that aren't a top crop of their image are rejected. Display-ready WebP is stored as
+  sent; anything else gets a WebP derivative from the Images binding (`IMAGES`) under
+  `img/<sha>.v<policy>.webp`, with the source kept as `orig/<sha>.<ext>` (never served), unless
+  WebP isn't smaller. Client WebP thumbnails are stored as sent; otherwise the server derives
+  `thumb/<sha>.v<policy>-desktop|mobile.webp` (≤640px and no wider than the display image, top
+  crop to 16:10 or 9:19.5). PNG/JPEG sources outside the binding's input limits
+  (`IMAGES_BINDING_LIMITS`: 12,000px a side, 100 MP, 20 MB) are never sent to it. Without a
+  derivative the full image is displayed as uploaded: with `display_version` null when the
+  binding call failed (the backfill retries), or at the current version with a
+  `display_exception` (`binding_limits`, `no_binding`, `unconvertible`) when retrying can't help.
+  A thumbnail falls back to a client PNG/JPEG one, else `503 unavailable` + `Retry-After`
+  (retryable) or `422 unprocessable` (send a thumbnail), never the full image. Duplicates are
+  found before any derivative is made. `POST /api/v1/admin/media/backfill`
+  (`pnpm media:backfill`) re-resolves screens below the current policy version; a converted
+  screen keeps its derivative when a rerun makes none. Test servers honour an
+  `x-test-images: fail | missing` header (`SCREEN_COMMONS_TEST_FAULTS=1`, see `env.ts`).
 - **App slugs are globally unique** (routes are `/apps/$slug`). A new app whose slug is taken on
   any platform gets a platform suffix (`linear-ios`, then `linear-ios-2`). Upserts always match the
   requested platform, by `slug` or `slug-<platform>`, then website host, then name.

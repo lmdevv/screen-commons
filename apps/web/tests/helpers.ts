@@ -1,7 +1,11 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
 import { createScreenCommonsClient, type CaptureBatchInput } from "@screen-commons/core";
 import { inject } from "vitest";
 
 import { makePng, makeWebp } from "./images";
+import { webDir } from "./wrangler-config";
 
 export const baseUrl = () => inject("baseUrl");
 
@@ -72,8 +76,16 @@ export class Session {
   }
 }
 
-export const keyClient = (apiKey: string) =>
-  createScreenCommonsClient({ baseUrl: baseUrl(), apiKey });
+/**
+ * API client for a key. `images` simulates a failing or missing Images binding for its requests
+ * (`x-test-images`, honoured by test servers only).
+ */
+export const keyClient = (apiKey: string, options: { images?: "fail" | "missing" } = {}) =>
+  createScreenCommonsClient({
+    baseUrl: baseUrl(),
+    apiKey,
+    headers: options.images ? { "x-test-images": options.images } : undefined,
+  });
 
 export const b64 = (buffer: Buffer) => buffer.toString("base64");
 
@@ -98,3 +110,33 @@ export function captureScreen(
 }
 
 export const uniqueSuffix = () => Math.random().toString(36).slice(2, 8);
+
+/**
+ * Run a wrangler command against the test server's local state, e.g.
+ * `wranglerLocal(["d1", "execute", "DB", "--command", sql])`, to set up states the API can't
+ * produce (rows from before a migration). Async, so the test process stays responsive while
+ * wrangler starts.
+ */
+export async function wranglerLocal(args: string[]): Promise<string> {
+  const { stdout } = await promisify(execFile)(
+    "pnpm",
+    [
+      "exec",
+      "wrangler",
+      ...args,
+      "--local",
+      "--config",
+      inject("wranglerConfig"),
+      "--persist-to",
+      inject("stateDir"),
+    ],
+    { cwd: webDir, env: { ...process.env, CI: "1" }, maxBuffer: 16 * 1024 * 1024 },
+  );
+  return stdout;
+}
+
+/** Run SQL against the test server's local D1. */
+export async function d1(sql: string): Promise<unknown[]> {
+  const output = await wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
+  return (JSON.parse(output) as { results: unknown[] }[])[0]?.results ?? [];
+}

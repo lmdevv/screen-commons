@@ -38,6 +38,9 @@ declare module "vitest" {
     admin: { name: string; email: string; password: string };
     /** `user.role` in the first account's sign-up response. */
     adminSignUpRole: string;
+    /** The test server's local D1/R2 state and wrangler config, for `wranglerLocal`. */
+    stateDir: string;
+    wranglerConfig: string;
   }
 }
 
@@ -67,7 +70,12 @@ export default async function setup(project: TestProject) {
   const configDir = join(stateDir, "config");
   await mkdir(configDir);
   const configPath = writeTestWranglerConfig(configDir, {
-    devVars: { APP_URL: BASE_URL, BETTER_AUTH_SECRET: randomBytes(32).toString("base64url") },
+    devVars: {
+      APP_URL: BASE_URL,
+      BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"),
+      // honour `x-test-images: fail | missing` (simulated Images binding failures)
+      SCREEN_COMMONS_TEST_FAULTS: "1",
+    },
   });
   const env = {
     ...process.env,
@@ -148,5 +156,7 @@ export default async function setup(project: TestProject) {
   project.provide("baseUrl", BASE_URL);
   project.provide("admin", ADMIN);
   project.provide("adminSignUpRole", adminSignUpRole);
+  project.provide("stateDir", stateDir);
+  project.provide("wranglerConfig", configPath);
   return stop;
 }

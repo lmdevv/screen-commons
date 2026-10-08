@@ -229,15 +229,15 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
       try {
         const screen = await uploadScreen(
           {
-            image: draft.file,
+            image: draft.processed.image,
             thumbnail: draft.processed.thumbnail,
             meta: {
               app: appInput,
               title: draft.title.trim() || undefined,
               patterns: draft.patterns,
               elements: draft.elements,
-              width: draft.processed.width,
-              height: draft.processed.height,
+              width: draft.processed.imageWidth,
+              height: draft.processed.imageHeight,
               dominantColor: draft.processed.dominantColor,
               source: "upload",
             },

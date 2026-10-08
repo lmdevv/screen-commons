@@ -65,7 +65,7 @@ APP_URL=http://localhost:5173
 > **Warning**
 > Don't deploy with `APP_URL` still set to `http://localhost:5173`. Sign-in won't work on your real domain and returned URLs will point to localhost. When `APP_URL` is not localhost, a missing `BETTER_AUTH_SECRET` is a configuration error (the public development secret is only accepted for localhost).
 
-If you named the database or bucket differently, update `database_name` and `bucket_name` to match. Keep the `DB`, `MEDIA` and `IMAGES` binding names. `IMAGES` (Cloudflare Images) generates thumbnails for uploads that don't include one, such as remote MCP `upload_screen`; without it those screens reuse the full image as their thumbnail.
+If you named the database or bucket differently, update `database_name` and `bucket_name` to match. Keep the `DB`, `MEDIA` and `IMAGES` binding names. `IMAGES` (Cloudflare Images) converts uploads that clients couldn't encode as WebP (remote API and MCP `upload_screen`, Safari) and generates thumbnails for uploads that don't include one. Without it, those images are displayed as uploaded (marked with the `no_binding` exception, so nothing retries them in a loop), and uploads without a thumbnail, i.e. MCP `upload_screen`, are refused with `422 unprocessable` asking for one. While the binding fails, images are displayed as uploaded too, and uploads without a thumbnail get a `503` with `Retry-After`. Once a binding works, run `pnpm media:backfill --url https://… --key sc_…` with an admin key to convert what it missed, including `no_binding` screens. Run the same command after upgrading to a release that changes the display policy (see [Display images](/docs/architecture#display-images)).
 
 ## 3. Set secrets
 

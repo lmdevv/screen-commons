@@ -7,6 +7,7 @@ export * from "./catalog";
 export * from "./collections";
 export * from "./ingest";
 export * from "./library";
+export { backfillDisplay } from "./media";
 export * from "./review";
 export { type Viewer } from "./shared";
 export { createKey, listKeys, revokeKey } from "../keys";

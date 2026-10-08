@@ -2,7 +2,6 @@ import { readImageHeader } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { DEV_AUTH_SECRET, resolveAuthSecret } from "../src/server/auth-config";
-import { generateThumbnail, thumbnailBox } from "../src/server/thumbnails";
 import { makePng } from "./images";
 import { Session, b64, baseUrl, captureScreen, keyClient, uniqueSuffix } from "./helpers";
 
@@ -46,24 +45,6 @@ describe("sign-up responses report the real role", () => {
 });
 
 describe("server-side thumbnails", () => {
-  it("sizes thumbnails to 640px wide with a top-anchored max aspect per platform", () => {
-    expect(thumbnailBox(1280, 2400, "web")).toEqual({ width: 640, height: 400, cropped: true });
-    expect(thumbnailBox(1440, 900, "web")).toEqual({ width: 640, height: 400, cropped: false });
-    expect(thumbnailBox(900, 3000, "ios")).toEqual({ width: 640, height: 1387, cropped: true });
-    expect(thumbnailBox(1170, 2000, "android")).toEqual({
-      width: 640,
-      height: 1094,
-      cropped: false,
-    });
-    expect(thumbnailBox(320, 200, "web")).toEqual({ width: 320, height: 200, cropped: false });
-  });
-
-  it("falls back (null) when the Images binding is unavailable", async () => {
-    expect(
-      await generateThumbnail(undefined, new Uint8Array(8), { width: 1, height: 1 }, "web"),
-    ).toBeNull();
-  });
-
   async function uploadAndFetchThumb(platform: "web" | "ios", width: number, height: number) {
     const response = await fetch(`${baseUrl()}/mcp`, {
       method: "POST",

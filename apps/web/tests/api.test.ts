@@ -204,7 +204,8 @@ describe("captures + media", () => {
   it("serves media with immutable caching and ETags", async () => {
     const screen = await adminApi.getScreen(batch.screens[0]!.id);
     expect(screen.thumbUrl).toMatch(/^\/media\/thumb\/[0-9a-f]{64}\.webp$/u);
-    expect(screen.imageUrl).toMatch(/^\/media\/img\/[0-9a-f]{64}\.png$/u);
+    // PNG uploads are displayed as a versioned WebP derivative (display policy)
+    expect(screen.imageUrl).toMatch(/^\/media\/img\/[0-9a-f]{64}\.v1\.webp$/u);
 
     const response = await fetch(`${baseUrl()}${screen.thumbUrl}`);
     expect(response.status).toBe(200);
@@ -223,7 +224,7 @@ describe("captures + media", () => {
 
     const full = await fetch(`${baseUrl()}${screen.imageUrl}`, { method: "HEAD" });
     expect(full.status).toBe(200);
-    expect(full.headers.get("content-type")).toBe("image/png");
+    expect(full.headers.get("content-type")).toBe("image/webp");
     expect(Number(full.headers.get("content-length"))).toBe(screen.bytes);
 
     expect((await fetch(`${baseUrl()}/media/img/${"0".repeat(64)}.png`)).status).toBe(404);

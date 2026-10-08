@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { DisplayException } from "./image-policy";
 import {
   LIMITS,
   categorySchema,
@@ -36,8 +37,12 @@ export const ERROR_CODES = [
   "conflict",
   "payload_too_large",
   "unsupported_media_type",
+  /** Valid input the server can't process as sent (e.g. a page too tall to make a thumbnail of). */
+  "unprocessable",
   "rate_limited",
   "internal",
+  /** A dependency (e.g. the Images binding) failed; retrying later (`Retry-After`) may succeed. */
+  "unavailable",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -108,6 +113,35 @@ export interface ReviewQueue {
   flows: FlowSummary[];
 }
 
+/** POST /admin/media/backfill: one page of the display-media backfill (admin only). */
+export const backfillDisplayInputSchema = z.object({
+  limit: z.number().int().min(1).max(50).default(10),
+  /** `nextCursor` from the previous page. */
+  cursor: z.string().max(100).optional(),
+  /** List what would be processed without deriving or writing anything. */
+  dryRun: z.boolean().default(false),
+});
+export type BackfillDisplayInput = z.input<typeof backfillDisplayInputSchema>;
+
+export interface BackfillDisplayResult {
+  items: {
+    screenId: string;
+    /**
+     * `updated`: new display image and/or thumbnail; `current`: already met the policy, only
+     * marked; `exception`: displayed as uploaded under a documented exception (`exception`), not
+     * retried; `failed`: left for a later run; `pending`: dry run.
+     */
+    action: "updated" | "current" | "exception" | "failed" | "pending";
+    imageKey: string;
+    thumbKey: string;
+    exception?: DisplayException;
+    reason?: string;
+  }[];
+  nextCursor: string | null;
+  /** Screens still below the current policy version after this page. */
+  remaining: number;
+}
+
 /** Response shapes, keyed by endpoint, so clients and handlers agree. */
 export interface ApiResponses {
   me: User;
@@ -134,4 +168,5 @@ export interface ApiResponses {
   /** `token` is only ever returned once, at creation. */
   createKey: { key: ApiKey; token: string };
   reviewQueue: ReviewQueue;
+  backfillDisplay: BackfillDisplayResult;
 }

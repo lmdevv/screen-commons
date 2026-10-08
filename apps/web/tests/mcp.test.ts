@@ -124,7 +124,7 @@ describe("remote MCP (/mcp)", () => {
 
     const full = await call("get_screen", { id: batch.screens[0]!.id, full: true });
     const header = readImageHeader(Buffer.from(full.content![1]!.data!, "base64"));
-    expect(header).toEqual({ type: "image/png", width: 320, height: 200 });
+    expect(header).toEqual({ type: "image/webp", width: 320, height: 200 });
 
     const missing = await call("get_screen", { id: "nope" });
     expect(missing.isError).toBe(true);
@@ -170,7 +170,7 @@ describe("remote MCP (/mcp)", () => {
     const screen = await keyClient(token).getScreen(upload.screen.id);
     expect(screen.source).toBe("mcp");
     // no thumbnail was sent: the server generated a WebP one (200px wide image → not upscaled)
-    expect(screen.thumbUrl).toMatch(/^\/media\/thumb\/[0-9a-f]{64}\.webp$/u);
+    expect(screen.thumbUrl).toMatch(/^\/media\/thumb\/[0-9a-f]{64}\.v1-desktop\.webp$/u);
     const thumb = Buffer.from(await (await fetch(`${baseUrl()}${screen.thumbUrl}`)).arrayBuffer());
     expect(readImageHeader(thumb)).toEqual({ type: "image/webp", width: 200, height: 120 });
 
