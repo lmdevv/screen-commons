@@ -9,8 +9,17 @@
  * Env: E2E_BASE_URL (default http://localhost:5173), E2E_EMAIL / E2E_PASSWORD (default: the seed
  * admin), CHROME_PATH (default: the system Chromium).
  *
- * Data: signs up a fresh member each run. Their collection is deleted, their contributed screens
- * are rejected at the end; the "E2E Keyboard Test" app row is reused across runs.
+ * Data: the member journeys sign up e2e-keyboard@example.com, contribute three screens to a new
+ * "E2E Keyboard Test" app, and the admin approves one (which publishes the app). Before and after
+ * the run, `purgeE2EData` deletes that account, the app, its screens and their media from the dev
+ * server's local D1 and R2 (local-data.ts), so a run leaves nothing published behind. Those
+ * journeys need a local dev server and are skipped against any other E2E_BASE_URL; the signed-out
+ * journeys only read.
+ *
+ * Negative checks ("this key did nothing") never sleep: they press a key with a visible effect
+ * right after, wait for that, then assert — keys are handled in order, and a handled shortcut
+ * updates state or the URL before the next key arrives. Client navigations are logged by an init
+ * script (`navigations`), so "didn't navigate" is checked against every URL the page visited.
  */
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
@@ -22,6 +31,8 @@ import playwright, {
   type Page,
 } from "playwright-core";
 
+import { isLocalBase, purgeE2EData } from "./local-data.ts";
+
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:5173";
 const ADMIN_EMAIL = process.env.E2E_EMAIL ?? "admin@screencommons.dev";
 const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "screencommons-admin-2026";
@@ -29,15 +40,82 @@ const CHROME = process.env.CHROME_PATH ?? "/run/current-system/sw/bin/chromium";
 const STAMP = Date.now().toString(36);
 const MEMBER = {
   name: "E2E Keyboard",
-  email: `e2e-kb-${STAMP}@example.com`,
-  password: `pw-${STAMP}-e2e`,
+  email: "e2e-keyboard@example.com",
+  password: "e2e-keyboard-password",
 };
 const APP_NAME = "E2E Keyboard Test";
 const COLLECTION = `Keys ${STAMP}`;
 const TITLES = ["Alpha", "Beta", "Gamma"].map((title) => `${title} ${STAMP}`);
+const DATA = { emails: [MEMBER.email], appNames: [APP_NAME] };
+/** Journeys that write data run only where `purgeE2EData` can clean up after them. */
+const WRITES = isLocalBase(BASE)
+  ? {}
+  : { skip: "writes data; cleanup needs a local dev server (see the file comment)" };
 
 let browser: Browser;
 const problems: string[] = [];
+
+/** Every client-side navigation (pushState / replaceState), as pathnames, since the last load. */
+const NAVIGATION_LOG = `(() => {
+  window.__navigations = [];
+  for (const method of ["pushState", "replaceState"]) {
+    const original = history[method];
+    history[method] = function (...args) {
+      window.__navigations.push(new URL(String(args[2] ?? location.href), location.href).pathname);
+      return original.apply(this, args);
+    };
+  }
+})();`;
+
+async function newContext(): Promise<BrowserContext> {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(NAVIGATION_LOG);
+  return context;
+}
+
+/** Starts a fresh navigation log, before keys that must not navigate. */
+async function forgetNavigations(page: Page) {
+  await page.evaluate(() => {
+    (window as unknown as { __navigations: string[] }).__navigations.length = 0;
+  });
+}
+
+/** Asserts no client navigation since `forgetNavigations` went to `path`. */
+async function neverVisited(page: Page, path: string, message: string) {
+  const visited = await page.evaluate(
+    () => (window as unknown as { __navigations: string[] }).__navigations,
+  );
+  assert.ok(!visited.includes(path), `${message} (visited ${visited.join(", ") || "nothing"})`);
+}
+
+/**
+ * The accessible name and description Chromium computes for an element (what a screen reader
+ * announces), read through the DevTools accessibility domain.
+ */
+async function accessible(locator: Locator): Promise<{ name: string; description: string }> {
+  const page = locator.page();
+  const cdp = await page.context().newCDPSession(page);
+  await locator.evaluate((element) => element.setAttribute("data-e2e-probe", ""));
+  try {
+    const { root } = await cdp.send("DOM.getDocument", { depth: 0 });
+    const { nodeId } = await cdp.send("DOM.querySelector", {
+      nodeId: root.nodeId,
+      selector: "[data-e2e-probe]",
+    });
+    const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
+      nodeId,
+      fetchRelatives: false,
+    });
+    const node = nodes[0]!;
+    return {
+      name: String(node.name?.value ?? ""),
+      description: String(node.description?.value ?? ""),
+    };
+  } finally {
+    await locator.evaluate((element) => element.removeAttribute("data-e2e-probe"));
+    await cdp.detach();
+  }
+}
 
 async function newPage(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
@@ -132,10 +210,13 @@ async function makeScreenshots() {
 
 before(async () => {
   browser = await playwright.chromium.launch({ executablePath: CHROME });
+  // A crashed earlier run may have left its member and app behind.
+  if (!WRITES.skip) await purgeE2EData(BASE, DATA);
 });
 
 after(async () => {
   await browser?.close();
+  if (!WRITES.skip) await purgeE2EData(BASE, DATA);
 });
 
 describe("public pages, signed out", () => {
@@ -143,7 +224,7 @@ describe("public pages, signed out", () => {
   let page: Page;
 
   before(async () => {
-    context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    context = await newContext();
     page = await newPage(context);
   });
 
@@ -201,8 +282,43 @@ describe("public pages, signed out", () => {
     await page.waitForURL(`${BASE}/`);
   });
 
+  test("a stray G never swallows ⌘K, / or ?", async () => {
+    // Did the page take ⌘K? Otherwise Chrome and Firefox on Linux/Windows focus their own search.
+    await page.evaluate(() =>
+      window.addEventListener("keydown", (event) => {
+        if (event.key.toLowerCase() === "k")
+          document.body.dataset.e2eTookK = `${event.defaultPrevented}`;
+      }),
+    );
+    const hint = page.getByRole("status").filter({ hasText: "Go to" });
+    const palette = page.getByRole("dialog", { name: "Search pages and docs" });
+
+    await page.keyboard.press("g");
+    await hint.waitFor();
+    await page.keyboard.press("ControlOrMeta+k");
+    await palette.waitFor();
+    assert.equal(await page.evaluate(() => document.body.dataset.e2eTookK), "true");
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
+
+    await page.keyboard.press("g");
+    await hint.waitFor();
+    await page.keyboard.press("/");
+    await palette.waitFor();
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
+
+    await page.keyboard.press("g");
+    await hint.waitFor();
+    await page.keyboard.press("?");
+    const help = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await help.waitFor();
+    await page.keyboard.press("Escape");
+    await help.waitFor({ state: "detached" });
+  });
+
   test("? opens the shortcut help, announced with its sections", async () => {
-    await page.locator("body").press("?");
+    await page.keyboard.press("?");
     const help = page.getByRole("dialog", { name: "Keyboard shortcuts" });
     await help.waitFor();
     const tree = await help.ariaSnapshot();
@@ -232,6 +348,53 @@ describe("public pages, signed out", () => {
     await waitForFocus(button, "focus returns to the header button");
   });
 
+  test("single-key shortcuts turn off from the help dialog; ⌘K and the button still work", async () => {
+    await page.keyboard.press("?");
+    const help = page.getByRole("dialog", { name: "Keyboard shortcuts" });
+    await help.waitFor();
+    const toggle = help.getByRole("switch", { name: "Use single-key shortcuts" });
+    const { name, description } = await accessible(toggle);
+    assert.equal(name, "Use single-key shortcuts", "the description stays out of the name");
+    assert.match(description, /speech input/u);
+    await tabTo(page, toggle);
+    await page.keyboard.press("Space");
+    assert.equal(await toggle.getAttribute("aria-checked"), "false");
+    await page.keyboard.press("Escape");
+    await help.waitFor({ state: "detached" });
+    assert.equal(
+      await page.evaluate(() => localStorage.getItem("screen-commons-single-key-shortcuts")),
+      "false",
+    );
+
+    // ? and G D do nothing now; ⌘K, pressed right after, proves the keys were handled.
+    await forgetNavigations(page);
+    await page.keyboard.press("?");
+    await shortcut(page, "g d");
+    const palette = page.getByRole("dialog", { name: "Search pages and docs" });
+    await page.keyboard.press("ControlOrMeta+k");
+    await palette.waitFor();
+    assert.equal(await help.count(), 0, "? is off");
+    await neverVisited(page, "/docs", "G D is off");
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
+
+    // The header button still opens the help, where the switch turns them back on.
+    const button = page.getByRole("button", { name: "Keyboard shortcuts" });
+    assert.equal(await button.getAttribute("aria-keyshortcuts"), null, "no ? to announce");
+    await tabTo(page, button);
+    await page.keyboard.press("Enter");
+    await help.waitFor();
+    await tabTo(page, toggle);
+    await page.keyboard.press("Space");
+    assert.equal(await toggle.getAttribute("aria-checked"), "true");
+    await page.keyboard.press("Escape");
+    await help.waitFor({ state: "detached" });
+    await page.keyboard.press("?");
+    await help.waitFor();
+    await page.keyboard.press("Escape");
+    await help.waitFor({ state: "detached" });
+  });
+
   test("library commands are absent and library routes stay protected", async () => {
     await page.keyboard.press("ControlOrMeta+k");
     const palette = page.getByRole("dialog", { name: "Search pages and docs" });
@@ -243,9 +406,12 @@ describe("public pages, signed out", () => {
     await page.keyboard.press("Escape");
     await palette.waitFor({ state: "detached" });
 
+    await forgetNavigations(page);
     await shortcut(page, "g s");
-    await page.waitForTimeout(300);
-    assert.equal(page.url(), `${BASE}/`, "g s is not bound signed out");
+    await shortcut(page, "g d");
+    await page.waitForURL(`${BASE}/docs`);
+    await neverVisited(page, "/saved", "g s is not bound signed out");
+    await neverVisited(page, "/sign-in", "g s is not bound signed out");
 
     for (const path of ["/saved", "/review"]) {
       await page.goto(`${BASE}${path}`);
@@ -254,13 +420,13 @@ describe("public pages, signed out", () => {
   });
 });
 
-describe("member: browse, search, view, save, contribute, settings", () => {
+describe("member: browse, search, view, save, contribute, settings", WRITES, () => {
   let context: BrowserContext;
   let page: Page;
   let viewedScreen = "";
 
   before(async () => {
-    context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    context = await newContext();
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
     page = await newPage(context);
   });
@@ -282,7 +448,7 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     await page.getByRole("heading", { name: "Discover" }).waitFor();
   });
 
-  test("the shell is announced with landmarks, names and shortcut hints", async () => {
+  test("the shell is announced with landmarks, clean names and shortcut hints", async () => {
     const tree = await page.locator("body").ariaSnapshot();
     for (const expected of [
       'link "Skip to content"',
@@ -295,6 +461,42 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     }
     const search = page.getByRole("button", { name: /^Search Web/u });
     assert.match((await search.getAttribute("aria-keyshortcuts")) ?? "", /^(Control|Meta)\+K \/$/u);
+    // Hints are visual: the name stays "Saved", the sequence is the description.
+    assert.deepEqual(await accessible(page.getByRole("link", { name: "Saved" })), {
+      name: "Saved",
+      description: "G then S",
+    });
+
+    // Account menu items, by keyboard.
+    await tabTo(page, page.getByRole("button", { name: "Account menu for E2E Keyboard" }));
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu");
+    await menu.waitFor();
+    for (const [label, description] of [
+      ["Saved", "G then S"],
+      ["Contribute", "G then C"],
+      ["Settings", "G then Comma"],
+      ["Docs", "G then D"],
+    ] as const) {
+      const item = menu.getByRole("menuitem", { name: label, exact: true });
+      assert.deepEqual(await accessible(item), { name: label, description }, label);
+    }
+    const help = menu.getByRole("menuitem", { name: "Keyboard shortcuts", exact: true });
+    assert.deepEqual(await accessible(help), { name: "Keyboard shortcuts", description: "" });
+    assert.equal(await help.getAttribute("aria-keyshortcuts"), "?");
+    await page.keyboard.press("Escape");
+    await menu.waitFor({ state: "detached" });
+
+    // Palette rows.
+    await page.keyboard.press("ControlOrMeta+k");
+    const palette = page.getByRole("dialog", { name: "Search" });
+    await palette.waitFor();
+    await page.keyboard.type("saved");
+    const saved = palette.getByRole("option", { name: "Saved", exact: true });
+    await saved.waitFor();
+    assert.deepEqual(await accessible(saved), { name: "Saved", description: "G then S" });
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
   });
 
   test("palette commands keep the platform; tabs and filters work by keyboard", async () => {
@@ -336,32 +538,49 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     viewedScreen = firstId!;
 
     const save = viewer.getByRole("button", { name: /^Save(d)?$/u });
+    const pressed = async (value: "true" | "false") =>
+      page.waitForFunction(
+        ([element, expected]) => element?.getAttribute("aria-pressed") === expected,
+        [await save.elementHandle(), value] as const,
+      );
     assert.equal(
       await save.getAttribute("aria-pressed"),
       "false",
       "a new member has nothing saved",
     );
     await page.keyboard.press("s");
-    await page.waitForFunction(
-      (element) => element?.getAttribute("aria-pressed") === "true",
-      await save.elementHandle(),
-    );
+    await pressed("true");
+
+    // The arrows keep working while a toast or a tooltip shows.
+    await page.getByText("Screen saved").waitFor();
+    await page.keyboard.press("ArrowRight");
+    await page.waitForURL((url) => url.searchParams.get("screen") === secondId);
+    await tabTo(page, viewer.getByRole("button", { name: "Copy link" }));
+    const tooltip = viewer.locator("[role=tooltip][data-open]").filter({ hasText: "Copy link" });
+    await tooltip.waitFor();
+    await page.keyboard.press("ArrowLeft");
+    await page.waitForURL((url) => url.searchParams.get("screen") === firstId);
+    // Escape dismisses the tooltip first (WCAG 1.4.13); the viewer stays open.
+    await page.keyboard.press("Escape");
+    await tooltip.waitFor({ state: "detached" });
+    assert.equal(await viewer.count(), 1, "only the tooltip closed");
+    await pressed("true");
+
     await page.keyboard.press("z");
     await viewer.getByRole("button", { name: "Show at full width" }).waitFor();
     await page.keyboard.press("z");
     await viewer.getByRole("button", { name: "Fit to screen" }).waitFor();
 
-    // A held key doesn't toggle the save back and forth.
+    // A held key doesn't toggle the save back and forth. Saving updates the button in the same
+    // task, so once the Z after it has taken effect, a repeat that got through would show.
     await page.keyboard.down("s");
     await page.keyboard.down("s"); // auto-repeat
     await page.keyboard.up("s");
-    await page.waitForTimeout(300);
+    await page.keyboard.press("z");
+    await viewer.getByRole("button", { name: "Show at full width" }).waitFor();
     assert.equal(await save.getAttribute("aria-pressed"), "false", "one press, one toggle");
     await page.keyboard.press("s");
-    await page.waitForFunction(
-      (element) => element?.getAttribute("aria-pressed") === "true",
-      await save.elementHandle(),
-    );
+    await pressed("true");
 
     await page.keyboard.press("Escape");
     await viewer.waitFor({ state: "detached" });
@@ -380,16 +599,18 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     const save = page
       .locator("[role=dialog]:has(aside) button[aria-pressed]")
       .filter({ hasText: /^Saved?$/u });
+    // Neither S nor a page shortcut reaches past the help. Escape closing it is the sync point.
+    await forgetNavigations(page);
     await page.keyboard.press("s");
-    await page.waitForTimeout(300);
-    assert.equal(await save.getAttribute("aria-pressed"), "true", "S under the help is ignored");
-    // Nor do page shortcuts run while dialogs are open.
     await shortcut(page, "g c");
-    await page.waitForTimeout(300);
-    assert.ok(!page.url().includes("/contribute"), "g c is paused while a dialog is open");
-
     await page.keyboard.press("Escape");
     await help.waitFor({ state: "detached" });
+    assert.equal(await save.getAttribute("aria-pressed"), "true", "S under the help is ignored");
+    await neverVisited(page, "/contribute", "g c is paused while a dialog is open");
+    // With the help gone the viewer's keys are back.
+    await page.keyboard.press("z");
+    await viewer.getByRole("button", { name: "Fit to screen" }).waitFor();
+
     await page.keyboard.press("Escape");
     await viewer.waitFor({ state: "detached" });
   });
@@ -459,26 +680,22 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     const search = page.getByRole("combobox", { name: "Search apps" });
     await tabTo(page, search);
     await page.keyboard.type(APP_NAME);
-    await page.waitForTimeout(400); // debounced search…
-    await page.waitForLoadState("networkidle"); // …and its results, before reading the rows
-    const existing = page.getByRole("option", { name: new RegExp(`^${APP_NAME}`, "u") });
-    const create = page.getByRole("option", { name: /Create/u });
+    // The app was purged before the run: once the (debounced) search for it has answered, the
+    // list offers to create it by name.
+    const create = page.getByRole("option", { name: `Create “${APP_NAME}”` });
     await create.waitFor();
-    const reuse = (await existing.count()) > 0;
-    // Arrow until the wanted row is the combobox's active descendant, then Enter picks it.
-    const wanted = await (reuse ? existing.first() : create).getAttribute("id");
+    // Arrow until it is the combobox's active descendant, then Enter picks it.
+    const wanted = await create.getAttribute("id");
     for (let presses = 0; presses < 20; presses++) {
       if ((await search.getAttribute("aria-activedescendant")) === wanted) break;
       await page.keyboard.press("ArrowDown");
     }
     assert.equal(await search.getAttribute("aria-activedescendant"), wanted);
     await page.keyboard.press("Enter");
-    if (!reuse) {
-      await tabTo(page, page.getByLabel("Name"));
-      await page.keyboard.type(APP_NAME);
-      await tabTo(page, page.getByLabel("Website"));
-      await page.keyboard.type("https://keyboard.e2e.example.com");
-    }
+    await tabTo(page, page.getByLabel("Name"));
+    assert.equal(await page.getByLabel("Name").inputValue(), APP_NAME, "the query names the app");
+    await tabTo(page, page.getByLabel("Website"));
+    await page.keyboard.type("https://keyboard.e2e.example.com");
     await tabTo(page, page.getByRole("button", { name: "Continue" }));
     await page.keyboard.press("Enter");
 
@@ -511,10 +728,32 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     await page.getByRole("heading", { name: "Submitted for review" }).waitFor({ timeout: 30_000 });
   });
 
-  test("settings tabs and the extension connection by keyboard", async () => {
+  test("settings tabs, the single-key switch and the extension connection by keyboard", async () => {
     await shortcut(page, "g ,");
     await page.waitForURL(`${BASE}/settings`);
-    await tabTo(page, page.getByRole("link", { name: "API keys" }));
+
+    const toggle = page.getByRole("switch", { name: "Use single-key shortcuts" });
+    await tabTo(page, toggle);
+    await page.keyboard.press("Space");
+    assert.equal(await toggle.getAttribute("aria-checked"), "false");
+    // Off: G S does nothing and the Saved hint goes; ⌘K right after proves the keys were handled.
+    await forgetNavigations(page);
+    await shortcut(page, "g s");
+    const palette = page.getByRole("dialog", { name: "Search" });
+    await page.keyboard.press("ControlOrMeta+k");
+    await palette.waitFor();
+    await page.keyboard.press("Escape");
+    await palette.waitFor({ state: "detached" });
+    await neverVisited(page, "/saved", "G S is off");
+    assert.deepEqual(await accessible(page.getByRole("link", { name: "Saved" })), {
+      name: "Saved",
+      description: "",
+    });
+    await waitForFocus(toggle, "the palette hands focus back to the switch");
+    await page.keyboard.press("Space");
+    assert.equal(await toggle.getAttribute("aria-checked"), "true");
+
+    await tabTo(page, page.getByRole("link", { name: "API keys" }), { back: true });
     await page.keyboard.press("Enter");
     await page.waitForURL(/tab=keys/u);
     await runCommand(page, "extension mcp", "Extension & MCP");
@@ -536,10 +775,11 @@ describe("member: browse, search, view, save, contribute, settings", () => {
     await page.keyboard.press("Escape");
     await palette.waitFor({ state: "detached" });
 
-    const before = page.url();
+    await forgetNavigations(page);
     await shortcut(page, "g r");
-    await page.waitForTimeout(300);
-    assert.equal(page.url(), before, "g r is not bound for members");
+    await shortcut(page, "g s");
+    await page.waitForURL(`${BASE}/saved`);
+    await neverVisited(page, "/review", "g r is not bound for members");
     assert.equal((await context.request.get(`${BASE}/review`)).status(), 404);
   });
 
@@ -553,23 +793,18 @@ describe("member: browse, search, view, save, contribute, settings", () => {
   });
 });
 
-describe("admin review", () => {
+describe("admin review", WRITES, () => {
   let context: BrowserContext;
   let page: Page;
   const contributed: string[] = [];
 
   before(async () => {
-    context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    context = await newContext();
     page = await newPage(context);
   });
 
   after(async () => {
-    // Leave the library as we found it: reject whatever this run contributed.
-    for (const id of contributed)
-      await context.request.post(`${BASE}/api/v1/review/screen/${id}`, {
-        data: { decision: "reject", reason: "E2E cleanup" },
-        headers: { origin: BASE },
-      });
+    // The approved screen and its app go with the purge after the run.
     await context.close();
   });
 
@@ -588,9 +823,16 @@ describe("admin review", () => {
     const reviewing = (title: string) =>
       page.getByRole("article", { name: `Reviewing ${title}` }).waitFor();
 
+    // Review keys only listen on the review page: A typed at the top bar's search does nothing.
+    // Selecting a row right after is the sync point; an approval would have dropped a row.
+    await row(TITLES[1]!).waitFor();
+    const pending = await list.getByRole("button").count();
+    await tabTo(page, page.getByRole("button", { name: /^Search Web/u }), { back: true });
+    await page.keyboard.press("a");
     await tabTo(page, row(TITLES[1]!));
     await page.keyboard.press("Enter");
     await reviewing(TITLES[1]!);
+    assert.equal(await list.getByRole("button").count(), pending, "A was ignored");
 
     // J/K move the cursor, and focus follows it through the queue.
     await page.keyboard.press("j");
