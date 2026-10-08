@@ -37,3 +37,9 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261006.0-alpha
   - vite@8.3.3
   - wrangler@4.148.0
+# Security floors for transitive dependencies (Dependabot alerts).
+overrides:
+  sharp@<0.35.5: ^0.35.5
+  source-map-js@<1.2.2: ^1.2.2
+  tinypool@<2.1.2: ^2.1.2
+  esbuild@>=0.27.3 <0.28.1: ^0.28.1
