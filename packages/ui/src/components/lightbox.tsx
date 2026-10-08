@@ -3,7 +3,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
-import { shouldIgnoreKeyEvent, topmostLayer } from "../lib/keyboard";
+import { useHotkey } from "../lib/hooks";
+import { ariaKeyShortcuts } from "../lib/keyboard";
 import { backdropClassName, CloseButton } from "./dialog";
 
 /*
@@ -14,7 +15,8 @@ import { backdropClassName, CloseButton } from "./dialog";
  * │  ‹                 › │ (panel) │
  * └ footer (optional) ─────────────┘
  *
- * ←/→ call onPrev/onNext (ignored while typing), Esc closes, focus is trapped and returned.
+ * ←/→ (or `prevKeys`/`nextKeys`) call onPrev/onNext while the lightbox is the topmost layer, Esc
+ * closes, focus is trapped and returned.
  * Deep-linking (`?screen=id`) is the router's job: derive `open` from the URL and update it in
  * `onOpenChange` / `onPrev` / `onNext`.
  */
@@ -120,6 +122,9 @@ export interface LightboxBodyProps extends React.HTMLAttributes<HTMLDivElement> 
   onNext?: (() => void) | null;
   prevLabel?: string;
   nextLabel?: string;
+  /** Keys for onPrev / onNext in `useHotkey` notation. Default ← / →. */
+  prevKeys?: string;
+  nextKeys?: string;
   /** Class for the scrolling main area. */
   mainClassName?: string;
   /** When this changes (e.g. the screen id), the main area scrolls back to the top. */
@@ -133,6 +138,8 @@ export function LightboxBody({
   onNext,
   prevLabel = "Previous",
   nextLabel = "Next",
+  prevKeys = "arrowleft",
+  nextKeys = "arrowright",
   className,
   mainClassName,
   resetKey,
@@ -141,26 +148,11 @@ export function LightboxBody({
 }: LightboxBodyProps) {
   const mainRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      // Holding an arrow walks the list, so repeat is allowed.
-      if (shouldIgnoreKeyEvent(event, { allowRepeat: true })) return;
-      // Only while this overlay is the topmost layer (not under a stacked picker or the palette).
-      const dialog = mainRef.current?.closest("[role=dialog]");
-      if (dialog && topmostLayer() !== dialog) return;
-      if (event.key === "ArrowLeft" && onPrev) {
-        event.preventDefault();
-        onPrev();
-      } else if (event.key === "ArrowRight" && onNext) {
-        event.preventDefault();
-        onNext();
-      }
-    };
-    // Capture phase: the dialog's focus management stops keydown propagation before it bubbles.
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onPrev, onNext]);
+  // Only while this overlay is the topmost layer (not under a stacked picker or the palette).
+  // Holding an arrow walks the list, so repeat is allowed.
+  const keys = { scope: mainRef, allowRepeat: true };
+  useHotkey(prevKeys, () => onPrev?.(), { ...keys, enabled: !!onPrev });
+  useHotkey(nextKeys, () => onNext?.(), { ...keys, enabled: !!onNext });
 
   // New item → scroll the image back to the top.
   React.useEffect(() => {
@@ -187,10 +179,20 @@ export function LightboxBody({
           {children}
         </div>
         {onPrev !== undefined ? (
-          <LightboxNavButton direction="prev" label={prevLabel} onClick={onPrev ?? undefined} />
+          <LightboxNavButton
+            direction="prev"
+            label={prevLabel}
+            keys={prevKeys}
+            onClick={onPrev ?? undefined}
+          />
         ) : null}
         {onNext !== undefined ? (
-          <LightboxNavButton direction="next" label={nextLabel} onClick={onNext ?? undefined} />
+          <LightboxNavButton
+            direction="next"
+            label={nextLabel}
+            keys={nextKeys}
+            onClick={onNext ?? undefined}
+          />
         ) : null}
       </div>
       {aside ? (
@@ -208,10 +210,12 @@ export function LightboxBody({
 function LightboxNavButton({
   direction,
   label,
+  keys,
   onClick,
 }: {
   direction: "prev" | "next";
   label: string;
+  keys: string;
   onClick?: () => void;
 }) {
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
@@ -219,7 +223,7 @@ function LightboxNavButton({
     <button
       type="button"
       aria-label={label}
-      aria-keyshortcuts={direction === "prev" ? "ArrowLeft" : "ArrowRight"}
+      aria-keyshortcuts={ariaKeyShortcuts(keys)}
       disabled={!onClick}
       onClick={onClick}
       className={cn(

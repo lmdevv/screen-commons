@@ -189,6 +189,9 @@ export interface ScreenViewerProps extends Omit<ScreenDetailsProps, "className">
   /** Previous/next within the current grid. Pass `null` at the ends to show a disabled arrow. */
   onPrev?: (() => void) | null;
   onNext?: (() => void) | null;
+  /** Keys for onPrev / onNext in `useHotkey` notation. Default ← / →. */
+  prevKeys?: string;
+  nextKeys?: string;
   /** "12 of 48" */
   position?: { index: number; total: number };
   onSaveToggle?: (screen: ViewerScreen, saved: boolean) => void;
@@ -217,6 +220,8 @@ export function ScreenViewer({
   onOpenChange,
   onPrev,
   onNext,
+  prevKeys,
+  nextKeys,
   position,
   onSaveToggle,
   onCopyImage,
@@ -236,7 +241,7 @@ export function ScreenViewer({
           <>
             {actions}
             {onZoomChange ? (
-              <Tooltip content={fit ? "Actual width" : "Fit to screen"} shortcut="Z">
+              <Tooltip content={fit ? "Actual width" : "Fit to screen"} shortcut="z">
                 <Button
                   variant="ghost"
                   icon
@@ -307,6 +312,8 @@ export function ScreenViewer({
         resetKey={screen.id}
         onPrev={onPrev}
         onNext={onNext}
+        prevKeys={prevKeys}
+        nextKeys={nextKeys}
         prevLabel="Previous screen"
         nextLabel="Next screen"
         aside={<ScreenDetails screen={screen} {...detailsProps} />}

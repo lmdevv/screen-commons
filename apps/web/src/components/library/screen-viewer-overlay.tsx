@@ -171,6 +171,8 @@ export default function ScreenViewerOverlay({
       position={inList && !list?.hasMore ? { index, total: ids.length } : undefined}
       onPrev={previousId ? () => go(previousId) : null}
       onNext={nextId ? () => go(nextId) : canLoadMore ? loadMoreAndAdvance : null}
+      prevKeys={SHORTCUTS.viewerPrevious.keys}
+      nextKeys={SHORTCUTS.viewerNext.keys}
       onSaveToggle={save}
       onCopyImage={(target) => void copyImage(target)}
       onDownload={(target) => void download(target)}
