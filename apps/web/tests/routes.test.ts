@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
-import { baseUrl } from "./helpers";
+import { Session, baseUrl } from "./helpers";
 
 /**
  * The REST route table: every method + path the API serves (`:param` segments). Each endpoint is a
@@ -151,6 +151,35 @@ describe("REST route table", () => {
     }
     const shouting = await fetch(`${baseUrl()}/API/V1/apps`);
     await expectNoSuchEndpoint(shouting);
+  });
+
+  it("decodes paths and params like the Hono router did", async () => {
+    const credentials = inject("admin");
+    const admin = await Session.signIn(credentials.email, credentials.password);
+    const {
+      collection: { id },
+    } = await admin.json<{ collection: { id: string } }>("/api/v1/collections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Decoding" }),
+    });
+    const percentEncoded = [...id].map((char) => `%${char.charCodeAt(0).toString(16)}`).join("");
+    try {
+      // params arrive decodeURIComponent-ed, %2F included
+      expect((await admin.fetch(`/api/v1/collections/${percentEncoded}`)).status).toBe(200);
+      const slashed = await admin.fetch("/api/v1/collections/a%2Fb");
+      expect(await slashed.json()).toEqual({
+        error: { code: "not_found", message: "Collection not found" },
+      });
+      // static segments are matched after decoding, as Hono's decodeURI'd path was
+      expect((await admin.fetch("/api/v1/%61pps")).status).toBe(200);
+      // malformed escapes never reach a route: Start answers an empty 400, as it did before
+      const malformed = await admin.fetch("/api/v1/collections/%E0%A4%A");
+      expect(malformed.status).toBe(400);
+      expect(await malformed.text()).toBe("");
+    } finally {
+      await admin.fetch(`/api/v1/collections/${id}`, { method: "DELETE" });
+    }
   });
 
   it("applies the 1 MiB body cap to JSON endpoints and the upload cap to upload endpoints", async () => {
