@@ -260,8 +260,15 @@ function QueueRow({
   const ref = useRef<HTMLButtonElement>(null);
   const wasActive = useRef(active);
   useEffect(() => {
-    // Follow keyboard navigation (J/K) without scrolling the page on first render.
-    if (active && !wasActive.current) ref.current?.scrollIntoView({ block: "nearest" });
+    // Follow keyboard navigation (J/K) without scrolling the page on first render. Focus follows
+    // too when it was in the list or was dropped (the decided item's row or detail unmounted).
+    if (active && !wasActive.current) {
+      const focused = document.activeElement;
+      if (!focused || focused === document.body || ref.current?.closest("ul")?.contains(focused)) {
+        ref.current?.focus({ preventScroll: true });
+      }
+      ref.current?.scrollIntoView({ block: "nearest" });
+    }
     wasActive.current = active;
   }, [active]);
   const thumb = entry.kind === "screen" ? entry.item : entry.item.previews[0];
@@ -322,10 +329,16 @@ function ItemDetail({
   onReject: (reason?: string) => void;
 }) {
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const rejectRef = useRef<HTMLButtonElement>(null);
   const [reason, setReason] = useState("");
   useEffect(() => {
     if (rejecting) reasonRef.current?.focus();
   }, [rejecting]);
+  // Back to the Reject button, not the page, when the reason form closes.
+  const cancelRejecting = () => {
+    onRejectingChange(false);
+    rejectRef.current?.focus();
+  };
 
   const { item } = entry;
   const title = entry.kind === "screen" ? (entry.item.title ?? "Untitled screen") : entry.item.name;
@@ -347,6 +360,7 @@ function ItemDetail({
         </div>
         <div className="flex shrink-0 gap-2">
           <Button
+            ref={rejectRef}
             variant="outline"
             onClick={() => onRejectingChange(true)}
             aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.reviewReject.keys)}
@@ -374,9 +388,10 @@ function ItemDetail({
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();
-              onRejectingChange(false);
+              cancelRejecting();
             }
-            if (event.key === "Enter" && !event.shiftKey) {
+            // Not while an IME is composing: Enter there commits the composition.
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
               onReject(reason.trim());
             }
@@ -396,7 +411,7 @@ function ItemDetail({
             placeholder="e.g. Duplicate of an existing screen, or contains personal data"
           />
           <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onRejectingChange(false)}>
+            <Button variant="ghost" size="sm" onClick={cancelRejecting}>
               Cancel
             </Button>
             <Button type="submit" variant="danger" size="sm">
