@@ -336,7 +336,7 @@ async function backfillAll(input: BackfillDisplayInput = {}) {
 async function putLegacy(key: string, data: Uint8Array, type: string) {
   const file = join(await mkdtemp(join(tmpdir(), "screen-commons-legacy-")), "object");
   await writeFile(file, data);
-  wranglerLocal([
+  await wranglerLocal([
     "r2",
     "object",
     "put",
@@ -360,10 +360,10 @@ describe("display backfill", () => {
     await putLegacy(`img/${shaA}.png`, pngA, "image/png");
     await putLegacy(`img/${shaB}.png`, pngB, "image/png");
     const reset = "original_key = NULL, display_version = NULL";
-    d1(
+    await d1(
       `UPDATE screen SET image_key = 'img/${shaA}.png', thumb_key = 'img/${shaA}.png', thumb_width = 1280, thumb_height = 800, ${reset} WHERE id = '${a.id}'`,
     );
-    d1(`UPDATE screen SET image_key = 'img/${shaB}.png', ${reset} WHERE id = '${b.id}'`);
+    await d1(`UPDATE screen SET image_key = 'img/${shaB}.png', ${reset} WHERE id = '${b.id}'`);
     const bThumb = (await keyClient(adminKey).getScreen(b.id)).thumbUrl;
 
     const error = await apiError(keyClient(memberKey).backfillDisplay());
@@ -401,9 +401,9 @@ describe("display backfill", () => {
     });
     // b's valid client thumbnail is kept; the replaced PNGs are retained but no longer served
     expect((await keyClient(adminKey).getScreen(b.id)).thumbUrl).toBe(bThumb);
-    expect(d1(`SELECT original_key, display_version FROM screen WHERE id = '${a.id}'`)).toEqual([
-      { original_key: `img/${shaA}.png`, display_version: DISPLAY_POLICY.version },
-    ]);
+    expect(
+      await d1(`SELECT original_key, display_version FROM screen WHERE id = '${a.id}'`),
+    ).toEqual([{ original_key: `img/${shaA}.png`, display_version: DISPLAY_POLICY.version }]);
     expect((await fetch(`${baseUrl()}/media/img/${shaA}.png`)).status).toBe(404);
 
     expect(ours((await backfillAll()).items)).toEqual([]);

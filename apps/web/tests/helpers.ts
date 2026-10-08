@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import { createScreenCommonsClient, type CaptureBatchInput } from "@screen-commons/core";
 import { inject } from "vitest";
@@ -105,10 +106,11 @@ export const uniqueSuffix = () => Math.random().toString(36).slice(2, 8);
 /**
  * Run a wrangler command against the test server's local state, e.g.
  * `wranglerLocal(["d1", "execute", "DB", "--command", sql])`, to set up states the API can't
- * produce (rows from before a migration).
+ * produce (rows from before a migration). Async on purpose: blocking the event loop for seconds
+ * lets the dev server's keep-alive timeout close pooled sockets unnoticed ("other side closed").
  */
-export function wranglerLocal(args: string[]): string {
-  return execFileSync(
+export async function wranglerLocal(args: string[]): Promise<string> {
+  const { stdout } = await promisify(execFile)(
     "pnpm",
     [
       "exec",
@@ -120,12 +122,13 @@ export function wranglerLocal(args: string[]): string {
       "--persist-to",
       inject("stateDir"),
     ],
-    { cwd: webDir, env: { ...process.env, CI: "1" }, stdio: "pipe" },
-  ).toString();
+    { cwd: webDir, env: { ...process.env, CI: "1" }, maxBuffer: 16 * 1024 * 1024 },
+  );
+  return stdout;
 }
 
 /** Run SQL against the test server's local D1. */
-export function d1(sql: string): unknown[] {
-  const output = wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
+export async function d1(sql: string): Promise<unknown[]> {
+  const output = await wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
   return (JSON.parse(output) as { results: unknown[] }[])[0]?.results ?? [];
 }
