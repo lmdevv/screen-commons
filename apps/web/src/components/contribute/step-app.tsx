@@ -16,6 +16,7 @@ import {
   Skeleton,
   Textarea,
   cn,
+  isImeKeyEvent,
   pluralize,
 } from "@screen-commons/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
@@ -63,7 +64,7 @@ export function StepApp({
   };
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.nativeEvent.isComposing) return; // Enter commits the IME composition instead
+    if (isImeKeyEvent(event.nativeEvent)) return; // Enter commits the IME composition instead
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActive((i) => Math.min(optionCount - 1, i + 1));
