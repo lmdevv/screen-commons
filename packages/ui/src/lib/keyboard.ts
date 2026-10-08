@@ -15,6 +15,10 @@
  * widget (unless `allowInInputs`), or with a modifier the binding doesn't name (so ⌘S or Alt+S
  * never trigger "s"). Bindings are scoped: `global`, `page` (only while no dialog or menu is open)
  * or a ref inside a dialog (only while that dialog is the topmost layer).
+ *
+ * Character-key shortcuts — a letter, digit or symbol without ⌘/Ctrl/Alt, including sequences that
+ * start with one ("g s") — can be turned off per device (WCAG 2.1.4); modifier chords and named
+ * keys (⌘K, Escape, arrows) always work.
  */
 
 /** How long the second key of a sequence such as "g s" may follow the first. */
@@ -104,14 +108,22 @@ export interface KeyFilterOptions {
   allowRepeat?: boolean;
 }
 
+/**
+ * True for a keystroke that belongs to an IME composition. Safari fires the Enter that commits a
+ * composition after `compositionend`, with `isComposing` false but keyCode 229 — check both before
+ * treating Enter as "submit". React: pass `event.nativeEvent`.
+ */
+export function isImeKeyEvent(event: Pick<KeyboardEvent, "isComposing" | "keyCode">): boolean {
+  return event.isComposing || event.keyCode === 229;
+}
+
 /** True when a shortcut must not react to this event (see the file comment). */
 export function shouldIgnoreKeyEvent(
   event: KeyboardEvent,
   options: KeyFilterOptions = {},
 ): boolean {
   if (event.defaultPrevented) return true;
-  // keyCode 229: Chrome/Safari report IME keystrokes this way, sometimes without isComposing.
-  if (event.isComposing || event.keyCode === 229) return true;
+  if (isImeKeyEvent(event)) return true;
   if (event.repeat && !options.allowRepeat) return true;
   if (!options.allowInInputs && isEditableTarget(event.target)) return true;
   return false;
@@ -151,11 +163,33 @@ export function isInScope(scope: HotkeyScope, layer: Element | null): boolean {
   return layer === null || layer.contains(host);
 }
 
+/**
+ * True when focus is on the page itself (nothing focused, or the `<main>` a skip link moved to) or
+ * inside `region`: keys meant for one part of a page don't fire from unrelated controls.
+ */
+export function isFocusWithin(region: Element | null, target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return true;
+  if (target === target.ownerDocument.body || target.matches("main")) return true;
+  return !!region?.contains(target);
+}
+
+/**
+ * A character-key chord (`"s"`, `"?"`, `"shift+a"`): one printable character without ⌘/Ctrl/Alt.
+ * Speech input and screen reader browse mode type these, so they can be turned off (WCAG 2.1.4).
+ */
+export function isCharacterChord(chord: string): boolean {
+  const parts = chord.split(/\+(?!$)/u);
+  const key = parts.pop()!;
+  return key.length === 1 && key !== " " && parts.every((mod) => mod === "shift");
+}
+
 export interface ShortcutBinding extends KeyFilterOptions {
   /** Shortcut in the notation above. */
   shortcut: string;
   handler: (event: KeyboardEvent) => void;
   scope?: HotkeyScope;
+  /** Only while focus is on the page itself or inside this element (see `isFocusWithin`). */
+  focusWithin?: { readonly current: Element | null };
   /** Extra condition checked at key time, e.g. "no text is selected" for ⌘C. */
   when?: (event: KeyboardEvent) => boolean;
 }
@@ -175,11 +209,14 @@ export function createShortcutDispatcher({
   now = () => Date.now(),
   apple = isApplePlatform,
   layer = () => topmostLayer(),
+  singleKeys = () => true,
   onPendingChange,
 }: {
   now?: () => number;
   apple?: () => boolean;
   layer?: () => Element | null;
+  /** Whether character-key shortcuts are on (see the file comment). */
+  singleKeys?: () => boolean;
   onPendingChange?: (chords: readonly string[]) => void;
 } = {}): ShortcutDispatcher {
   const bindings: { sequence: string[]; binding: ShortcutBinding }[] = [];
@@ -211,28 +248,45 @@ export function createShortcutDispatcher({
       const time = now();
       const prefix = pending && time - pending.at <= SEQUENCE_TIMEOUT_MS ? pending.chords : null;
       const top = layer();
+      const characters = singleKeys();
       const active = bindings.filter(
-        ({ binding }) =>
+        ({ sequence, binding }) =>
+          (characters || !isCharacterChord(sequence[0]!)) &&
           isInScope(binding.scope ?? "page", top) &&
           !shouldIgnoreKeyEvent(event, binding) &&
+          (!binding.focusWithin || isFocusWithin(binding.focusWithin.current, event.target)) &&
           (binding.when?.(event) ?? true),
       );
-      const candidate = prefix ? [...prefix, chord] : [chord];
-      const key = candidate.join(" ");
-      let match: ShortcutBinding | undefined;
-      for (const entry of active) if (entry.sequence.join(" ") === key) match = entry.binding;
-      if (match) {
+      const run = (match: ShortcutBinding) => {
         setPending(null);
         event.preventDefault();
         match.handler(event);
-        return;
-      }
-      const startsSequence = active.some(
-        ({ sequence }) =>
-          sequence.length > candidate.length && sequence.join(" ").startsWith(`${key} `),
+      };
+      const find = (candidate: string[], among = active) => {
+        const key = candidate.join(" ");
+        let match: ShortcutBinding | undefined;
+        for (const entry of among) if (entry.sequence.join(" ") === key) match = entry.binding;
+        const continues = among.some(
+          ({ sequence }) =>
+            sequence.length > candidate.length && sequence.join(" ").startsWith(`${key} `),
+        );
+        return { match, continues };
+      };
+
+      const candidate = prefix ? [...prefix, chord] : [chord];
+      const { match, continues } = find(candidate);
+      if (match) return run(match);
+      if (continues) return setPending({ chords: candidate, at: time });
+      setPending(null);
+      if (!prefix) return;
+      // The key broke a sequence. A character key only cancels it ("g a" must not approve in
+      // review); a global binding (?, /) or a non-character chord (⌘K, Escape) still runs on its
+      // own, so a stray G never swallows ⌘K and leaves it to the browser.
+      const fallback = find(
+        [chord],
+        active.filter(({ binding }) => binding.scope === "global" || !isCharacterChord(chord)),
       );
-      // A key that breaks a sequence only cancels it: "g a" must not approve in review.
-      setPending(startsSequence ? { chords: candidate, at: time } : null);
+      if (fallback.match) run(fallback.match);
     },
   };
 }
@@ -248,57 +302,74 @@ export function isApplePlatform(): boolean {
   return apple;
 }
 
-const KEY_LABELS: Record<string, string> = {
-  arrowleft: "←",
-  arrowright: "→",
-  arrowup: "↑",
-  arrowdown: "↓",
-  escape: "Esc",
-  enter: "Enter",
-  " ": "Space",
-  tab: "Tab",
+type KeyForm = "label" | "aria" | "spoken";
+
+/** Named keys and symbols: display label, `aria-keyshortcuts` name, spoken name. */
+const KEY_NAMES: Record<string, Record<KeyForm, string>> = {
+  arrowleft: { label: "←", aria: "ArrowLeft", spoken: "Left arrow" },
+  arrowright: { label: "→", aria: "ArrowRight", spoken: "Right arrow" },
+  arrowup: { label: "↑", aria: "ArrowUp", spoken: "Up arrow" },
+  arrowdown: { label: "↓", aria: "ArrowDown", spoken: "Down arrow" },
+  escape: { label: "Esc", aria: "Escape", spoken: "Escape" },
+  enter: { label: "Enter", aria: "Enter", spoken: "Enter" },
+  " ": { label: "Space", aria: "Space", spoken: "Space" },
+  tab: { label: "Tab", aria: "Tab", spoken: "Tab" },
+  "?": { label: "?", aria: "?", spoken: "Question mark" },
+  "/": { label: "/", aria: "/", spoken: "Slash" },
+  ",": { label: ",", aria: ",", spoken: "Comma" },
 };
+
+function modifierName(mod: string, apple: boolean): Record<KeyForm, string> {
+  if (mod === "mod") {
+    return apple
+      ? { label: "⌘", aria: "Meta", spoken: "Command" }
+      : { label: "Ctrl", aria: "Control", spoken: "Control" };
+  }
+  if (mod === "alt")
+    return { label: apple ? "⌥" : "Alt", aria: "Alt", spoken: apple ? "Option" : "Alt" };
+  return { label: apple ? "⇧" : "Shift", aria: "Shift", spoken: "Shift" };
+}
+
+/** Each chord of a shortcut as key names in one form: `"g s"` → `[["G"], ["S"]]`. */
+function nameKeys(shortcut: string, apple: boolean, form: KeyForm): string[][] {
+  return parseShortcut(shortcut).map((chord) => {
+    const parts = chord.split(/\+(?!$)/u);
+    const key = parts.pop()!;
+    return [
+      ...parts.map((mod) => modifierName(mod, apple)[form]),
+      KEY_NAMES[key]?.[form] ?? (key.length === 1 ? key.toUpperCase() : key),
+    ];
+  });
+}
 
 /**
  * Display keys per chord: `"mod+k"` → `[["⌘", "K"]]` (or `[["Ctrl", "K"]]`), `"g s"` →
  * `[["G"], ["S"]]`. Render chords as Kbd groups joined by "then".
  */
 export function formatShortcut(shortcut: string, apple = isApplePlatform()): string[][] {
-  return parseShortcut(shortcut).map((chord) =>
-    chord.split(/\+(?!$)/u).map((part) => {
-      if (part === "mod") return apple ? "⌘" : "Ctrl";
-      if (part === "alt") return apple ? "⌥" : "Alt";
-      if (part === "shift") return apple ? "⇧" : "Shift";
-      return KEY_LABELS[part] ?? (part.length === 1 ? part.toUpperCase() : part);
-    }),
-  );
+  return nameKeys(shortcut, apple, "label");
 }
 
-const ARIA_KEYS: Record<string, string> = {
-  arrowleft: "ArrowLeft",
-  arrowright: "ArrowRight",
-  arrowup: "ArrowUp",
-  arrowdown: "ArrowDown",
-  escape: "Escape",
-  enter: "Enter",
-  " ": "Space",
-  tab: "Tab",
-};
+/** The shortcut as read out: `"g s"` → "G then S", `"mod+k"` → "Control K", `"?"` → "Question mark". */
+export function spokenShortcut(shortcut: string, apple = isApplePlatform()): string {
+  return nameKeys(shortcut, apple, "spoken")
+    .map((chord) => chord.join(" "))
+    .join(" then ");
+}
 
 /**
  * `aria-keyshortcuts` value for a single-chord shortcut (`"mod+k"` → `"Control+K"`), or undefined
  * for sequences, which the attribute can't express (a space there means "or").
  */
 export function ariaKeyShortcuts(shortcut: string, apple = isApplePlatform()): string | undefined {
-  const chords = parseShortcut(shortcut);
-  if (chords.length !== 1) return undefined;
-  return chords[0]!
-    .split(/\+(?!$)/u)
-    .map((part) => {
-      if (part === "mod") return apple ? "Meta" : "Control";
-      if (part === "alt") return "Alt";
-      if (part === "shift") return "Shift";
-      return ARIA_KEYS[part] ?? part.toUpperCase();
-    })
-    .join("+");
+  const chords = nameKeys(shortcut, apple, "aria");
+  return chords.length === 1 ? chords[0]!.join("+") : undefined;
 }
+
+/** True when a shortcut starts with a character key, so it is off while those are turned off. */
+export function isCharacterShortcut(shortcut: string): boolean {
+  return isCharacterChord(parseShortcut(shortcut)[0]!);
+}
+
+/** localStorage key of the per-device "Use single-key shortcuts" preference (on unless "false"). */
+export const SINGLE_KEY_SHORTCUTS_STORAGE_KEY = "screen-commons-single-key-shortcuts";

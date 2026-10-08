@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   createShortcutDispatcher,
   isApplePlatform,
+  SINGLE_KEY_SHORTCUTS_STORAGE_KEY,
   type HotkeyScope,
   type KeyFilterOptions,
   type ShortcutDispatcher,
@@ -36,6 +37,8 @@ export function useControllableState<T>(options: {
 export interface HotkeyOptions extends KeyFilterOptions {
   /** Where the shortcut applies (see `HotkeyScope`). Default `page`. */
   scope?: HotkeyScope;
+  /** Only while focus is on the page itself or inside this element (see `isFocusWithin`). */
+  focusWithin?: { readonly current: Element | null };
   /** Extra condition checked at key time. */
   when?: (event: KeyboardEvent) => boolean;
   enabled?: boolean;
@@ -49,11 +52,64 @@ const onKeyDown = (event: KeyboardEvent) => shortcuts?.handle(event);
 /** The app-wide dispatcher behind `useHotkey`: one bubbling keydown listener on the document. */
 function getShortcuts(): ShortcutDispatcher {
   shortcuts ??= createShortcutDispatcher({
+    singleKeys: readSingleKeys,
     onPendingChange: () => {
       for (const listener of pendingListeners) listener();
     },
   });
   return shortcuts;
+}
+
+// "Use single-key shortcuts", per device (localStorage), shared by every tab.
+const singleKeyListeners = new Set<() => void>();
+let singleKeys: boolean | undefined;
+
+function readSingleKeys(): boolean {
+  if (singleKeys === undefined) {
+    try {
+      singleKeys = localStorage.getItem(SINGLE_KEY_SHORTCUTS_STORAGE_KEY) !== "false";
+    } catch {
+      singleKeys = true; // storage blocked
+    }
+  }
+  return singleKeys;
+}
+
+function setSingleKeys(enabled: boolean): void {
+  singleKeys = enabled;
+  try {
+    localStorage.setItem(SINGLE_KEY_SHORTCUTS_STORAGE_KEY, String(enabled));
+  } catch {
+    // storage blocked: the choice lasts for this page
+  }
+  for (const listener of singleKeyListeners) listener();
+}
+
+function subscribeSingleKeys(listener: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== SINGLE_KEY_SHORTCUTS_STORAGE_KEY) return;
+    singleKeys = undefined;
+    listener();
+  };
+  singleKeyListeners.add(listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    singleKeyListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+/**
+ * The "Use single-key shortcuts" preference (WCAG 2.1.4): when off, `useHotkey` ignores letters,
+ * symbols and sequences that start with one ("g s"); ⌘K, Escape and arrows keep working. Hints
+ * for those keys should hide too (`useShortcutHint` does). On by default; on during SSR.
+ */
+export function useSingleKeyShortcuts(): [
+  enabled: boolean,
+  setEnabled: (enabled: boolean) => void,
+] {
+  const enabled = React.useSyncExternalStore(subscribeSingleKeys, readSingleKeys, () => true);
+  return [enabled, setSingleKeys];
 }
 
 /**
@@ -69,7 +125,13 @@ export function useHotkey(
   handler: (event: KeyboardEvent) => void,
   options: HotkeyOptions = {},
 ): void {
-  const { scope = "page", allowInInputs = false, allowRepeat = false, enabled = true } = options;
+  const {
+    scope = "page",
+    focusWithin,
+    allowInInputs = false,
+    allowRepeat = false,
+    enabled = true,
+  } = options;
   const handlerRef = React.useRef(handler);
   handlerRef.current = handler;
   const whenRef = React.useRef(options.when);
@@ -82,6 +144,7 @@ export function useHotkey(
     const unregister = dispatcher.register({
       shortcut,
       scope,
+      focusWithin,
       allowInInputs,
       allowRepeat,
       when: (event) => whenRef.current?.(event) ?? true,
@@ -91,7 +154,7 @@ export function useHotkey(
       unregister();
       if (--registered === 0) document.removeEventListener("keydown", onKeyDown);
     };
-  }, [shortcut, scope, allowInInputs, allowRepeat, enabled]);
+  }, [shortcut, scope, focusWithin, allowInInputs, allowRepeat, enabled]);
 }
 
 /** Chords typed so far of an unfinished sequence (`["g"]` after pressing G), for a hint. */

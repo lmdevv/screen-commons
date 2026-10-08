@@ -5,11 +5,16 @@ import {
   createShortcutDispatcher,
   eventChord,
   formatShortcut,
+  isCharacterChord,
+  isCharacterShortcut,
   isEditableTarget,
+  isFocusWithin,
+  isImeKeyEvent,
   isInScope,
   parseShortcut,
   SEQUENCE_TIMEOUT_MS,
   shouldIgnoreKeyEvent,
+  spokenShortcut,
   topmostLayer,
   type ShortcutDispatcher,
 } from "./keyboard";
@@ -66,6 +71,42 @@ describe("isEditableTarget", () => {
     for (const id of ["check", "button"]) expect(isEditableTarget(byId(id)), id).toBe(false);
     expect(isEditableTarget(document.body)).toBe(false);
     expect(isEditableTarget(null)).toBe(false);
+  });
+});
+
+describe("isImeKeyEvent", () => {
+  it("catches composition, including Safari's committing Enter (keyCode 229, not composing)", () => {
+    expect(isImeKeyEvent(key({ key: "Enter", isComposing: true }))).toBe(true);
+    expect(isImeKeyEvent(key({ key: "Enter", keyCode: 229 }))).toBe(true);
+    expect(isImeKeyEvent(key({ key: "Enter", keyCode: 13 }))).toBe(false);
+  });
+});
+
+describe("isCharacterChord", () => {
+  it("is a printable character without ⌘/Ctrl/Alt (Shift allowed)", () => {
+    for (const chord of ["s", "?", "/", ",", "1", "shift+a"]) {
+      expect(isCharacterChord(chord), chord).toBe(true);
+    }
+    for (const chord of ["mod+k", "alt+s", "mod+shift+a", "escape", "arrowleft", " ", "enter"]) {
+      expect(isCharacterChord(chord), chord).toBe(false);
+    }
+    expect(isCharacterShortcut("g s")).toBe(true);
+    expect(isCharacterShortcut("mod+k")).toBe(false);
+  });
+});
+
+describe("isFocusWithin", () => {
+  it("accepts the page itself or focus inside the region, not other controls", () => {
+    document.body.innerHTML = `
+      <header><button id="top">x</button></header>
+      <main id="main"><section id="region"><button id="row">x</button></section></main>`;
+    const byId = (id: string) => document.getElementById(id);
+    const region = byId("region");
+    expect(isFocusWithin(region, document.body)).toBe(true);
+    expect(isFocusWithin(region, byId("main"))).toBe(true); // after the skip link
+    expect(isFocusWithin(region, byId("row"))).toBe(true);
+    expect(isFocusWithin(region, byId("top"))).toBe(false);
+    expect(isFocusWithin(null, byId("row"))).toBe(false);
   });
 });
 
@@ -215,6 +256,95 @@ describe("createShortcutDispatcher", () => {
     expect(approve).toHaveBeenCalledOnce();
   });
 
+  it("runs a global binding or a modifier chord that breaks a sequence", () => {
+    const docs = vi.fn();
+    const palette = vi.fn();
+    const help = vi.fn();
+    const approve = vi.fn();
+    dispatcher.register({ shortcut: "g d", handler: docs });
+    dispatcher.register({ shortcut: "mod+k", handler: palette, scope: "global" });
+    dispatcher.register({ shortcut: "?", handler: help, scope: "global" });
+    dispatcher.register({ shortcut: "a", handler: approve });
+
+    press({ key: "g" });
+    const chord = press({ key: "k", ctrlKey: true });
+    expect(palette).toHaveBeenCalledOnce();
+    // Taken, so the browser doesn't focus its own search bar.
+    expect(chord.defaultPrevented).toBe(true);
+    expect(dispatcher.pending()).toEqual([]);
+
+    press({ key: "g" });
+    press({ key: "?", shiftKey: true });
+    expect(help).toHaveBeenCalledOnce();
+
+    press({ key: "g" });
+    press({ key: "d" });
+    expect(docs).toHaveBeenCalledOnce();
+  });
+
+  it("never runs a page letter after g (g a does not approve)", () => {
+    const approve = vi.fn();
+    const zoom = vi.fn();
+    dispatcher.register({ shortcut: "g d", handler: vi.fn() });
+    dispatcher.register({ shortcut: "a", handler: approve });
+    // A ref-scoped letter is not global either.
+    dispatcher.register({ shortcut: "z", handler: zoom, scope: { current: document.body } });
+    press({ key: "g" });
+    expect(press({ key: "a" }).defaultPrevented).toBe(false);
+    press({ key: "g" });
+    press({ key: "z" });
+    expect(approve).not.toHaveBeenCalled();
+    expect(zoom).not.toHaveBeenCalled();
+  });
+
+  it("ignores character-key shortcuts while they are turned off", () => {
+    let singleKeys = false;
+    dispatcher = createShortcutDispatcher({
+      now: () => time,
+      apple: () => false,
+      layer: () => null,
+      singleKeys: () => singleKeys,
+    });
+    const calls: string[] = [];
+    for (const shortcut of ["s", "?", "/", "g s", "mod+k", "escape", "arrowleft"]) {
+      dispatcher.register({ shortcut, handler: () => calls.push(shortcut), scope: "global" });
+    }
+    for (const init of [
+      { key: "s" },
+      { key: "?", shiftKey: true },
+      { key: "/" },
+      { key: "g" },
+      { key: "s" },
+      { key: "k", ctrlKey: true },
+      { key: "Escape" },
+      { key: "ArrowLeft" },
+    ]) {
+      press(init);
+    }
+    expect(calls).toEqual(["mod+k", "escape", "arrowleft"]);
+    expect(dispatcher.pending()).toEqual([]);
+
+    singleKeys = true;
+    press({ key: "g" });
+    press({ key: "s" });
+    expect(calls.at(-1)).toBe("g s");
+  });
+
+  it("limits focusWithin bindings to the page itself or their region", () => {
+    document.body.innerHTML = `<button id="top">x</button><div id="queue"><button id="row">x</button></div>`;
+    const approve = vi.fn();
+    dispatcher.register({
+      shortcut: "a",
+      handler: approve,
+      focusWithin: { current: document.getElementById("queue") },
+    });
+    press({ key: "a" }, document.getElementById("top")!);
+    expect(approve).not.toHaveBeenCalled();
+    press({ key: "a" }, document.getElementById("row")!);
+    press({ key: "a" });
+    expect(approve).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a sequence alive across a bare modifier press", () => {
     const settings = vi.fn();
     dispatcher.register({ shortcut: "g ?", handler: settings });
@@ -314,6 +444,15 @@ describe("formatting", () => {
     expect(formatShortcut("g s", false)).toEqual([["G"], ["S"]]);
     expect(formatShortcut("arrowleft", false)).toEqual([["←"]]);
     expect(formatShortcut("?", false)).toEqual([["?"]]);
+  });
+
+  it("spells shortcuts out for screen readers", () => {
+    expect(spokenShortcut("g s", false)).toBe("G then S");
+    expect(spokenShortcut("mod+k", true)).toBe("Command K");
+    expect(spokenShortcut("mod+k", false)).toBe("Control K");
+    expect(spokenShortcut("?", false)).toBe("Question mark");
+    expect(spokenShortcut("g ,", false)).toBe("G then Comma");
+    expect(spokenShortcut("arrowleft", false)).toBe("Left arrow");
   });
 
   it("builds aria-keyshortcuts for single chords only", () => {
