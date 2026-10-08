@@ -1,7 +1,18 @@
-import { LIMITS, type Viewport } from "@screen-commons/core";
+import {
+  DISPLAY_POLICY,
+  displaySize,
+  encodeWithinBudget,
+  isDisplayReady,
+  keepSource,
+  sniffImage,
+  thumbnailBox,
+  type EncodeOutcome,
+  type StoredImageType,
+  type Viewport,
+} from "@screen-commons/core";
 import sharp from "sharp";
 
-export type ImageType = "image/png" | "image/jpeg" | "image/webp";
+export type ImageType = StoredImageType;
 
 export interface EncodedImage {
   buffer: Buffer;
@@ -10,95 +21,116 @@ export interface EncodedImage {
   height: number;
 }
 
-/** WebP cannot encode images larger than this on either edge. */
-export const WEBP_MAX_DIMENSION = 16_383;
-
-/** Thumbnail aspect limits (width / height): desktop crops to 16:10, mobile to 9:19.5. */
-export const THUMBNAIL_MAX_ASPECT: Record<Viewport, number> = {
-  desktop: 16 / 10,
-  mobile: 9 / 19.5,
-};
-
-/**
- * Thumbnail geometry: scale to `width`, then crop from the top so the result is no taller than
- * `width / maxAspect`. Returns the resized height before cropping and the final crop height.
- */
-export function thumbnailGeometry(
-  source: { width: number; height: number },
-  options: { width?: number; maxAspect?: number } = {},
-): { width: number; resizedHeight: number; height: number } {
-  const width = options.width ?? LIMITS.thumbnailWidth;
-  const maxAspect = options.maxAspect ?? THUMBNAIL_MAX_ASPECT.desktop;
-  const resizedHeight = Math.max(1, Math.round((source.height * width) / source.width));
-  const maxHeight = Math.max(1, Math.round(width / maxAspect));
-  return { width, resizedHeight, height: Math.min(resizedHeight, maxHeight) };
-}
-
 export async function imageSize(input: Buffer): Promise<{ width: number; height: number }> {
   const meta = await sharp(input).metadata();
   return { width: meta.width ?? 0, height: meta.height ?? 0 };
 }
 
-export interface ThumbnailOptions {
-  width?: number;
-  /** Minimum width/height ratio; taller images are cropped from the top. */
-  maxAspect?: number;
-  viewport?: Viewport;
-  quality?: number;
+/**
+ * Try lossless WebP when the lossy result is above this share of the source: flat UI (docs,
+ * forms, text on solid colour) is often smaller lossless than at q90 and loses nothing, while
+ * photos and gradients never are. In the corpus, every page where lossless won was above 0.45.
+ */
+const LOSSLESS_TRY_RATIO = 0.4;
+
+const SOURCE_TYPES: Record<string, ImageType> = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
+
+async function encoded(buffer: Buffer): Promise<EncodedImage & { bytes: number }> {
+  const header = sniffImage(buffer);
+  if (!header) throw new Error("The encoder produced an unreadable image");
+  return { buffer, ...header, bytes: buffer.byteLength };
 }
 
-/** 640px-wide WebP thumbnail with a top-anchored crop (per spec). */
+function check<T>(outcome: EncodeOutcome<T>, what: string): T {
+  if (outcome.status === "ok") return outcome.image;
+  if (outcome.status === "over_budget") {
+    throw new Error(
+      `${what} is ${outcome.bytes} bytes at the lowest quality; the limit is exceeded`,
+    );
+  }
+  throw new Error(`${what} could not be encoded as WebP (${outcome.status})`);
+}
+
+/**
+ * Encode a capture as its display image (`DISPLAY_POLICY.full`): WebP, scaled down to fit 4096 ×
+ * 16,383 (aspect kept, never upscaled), alpha kept. WebP inputs that already fit are returned
+ * untouched, and the source is kept when it needs no resize and WebP wouldn't be smaller, so an
+ * already-compact image never goes through another lossy pass.
+ */
+export async function encodeDisplay(input: Buffer): Promise<EncodedImage> {
+  const meta = await sharp(input).metadata();
+  const type = SOURCE_TYPES[meta.format ?? ""];
+  if (!type || !meta.width || !meta.height) throw new Error("Not a PNG, JPEG or WebP image");
+  const source = { type, width: meta.width, height: meta.height, bytes: input.byteLength };
+  if (isDisplayReady(source))
+    return { buffer: input, type, width: source.width, height: source.height };
+
+  const size = displaySize(source.width, source.height);
+  const pipeline = () => {
+    const image = sharp(input, { limitInputPixels: false });
+    return size.scaled
+      ? image.resize({ width: size.width, height: size.height, fit: "fill", kernel: "lanczos3" })
+      : image;
+  };
+  let best = check(
+    await encodeWithinBudget(
+      async (quality) =>
+        encoded(
+          await pipeline()
+            .webp({ quality: Math.round(quality * 100), effort: 4, smartSubsample: true })
+            .toBuffer(),
+        ),
+      size,
+      DISPLAY_POLICY.full,
+    ),
+    "The display image",
+  );
+  if (best.bytes > source.bytes * LOSSLESS_TRY_RATIO) {
+    const lossless = await encoded(await pipeline().webp({ lossless: true, effort: 4 }).toBuffer());
+    if (lossless.bytes < best.bytes) best = lossless;
+  }
+  if (keepSource(source, best.bytes)) {
+    return { buffer: input, type, width: source.width, height: source.height };
+  }
+  return { buffer: best.buffer, type: best.type, width: best.width, height: best.height };
+}
+
+export interface ThumbnailOptions {
+  /** Desktop thumbnails crop to 16:10, mobile ones to 9:19.5. Default desktop. */
+  viewport?: Viewport;
+}
+
+/** Thumbnail (`DISPLAY_POLICY.thumbnail`): ≤640px wide WebP, never upscaled, top-anchored crop. */
 export async function makeThumbnail(
   input: Buffer,
   options: ThumbnailOptions = {},
 ): Promise<EncodedImage> {
   const source = await imageSize(input);
-  const geometry = thumbnailGeometry(source, {
-    width: options.width,
-    maxAspect: options.maxAspect ?? THUMBNAIL_MAX_ASPECT[options.viewport ?? "desktop"],
-  });
-  let quality = options.quality ?? 82;
-  // Resize first (fast path through shrink-on-load), then crop the top.
-  const resized = await sharp(input, { limitInputPixels: false })
-    .resize({ width: geometry.width, height: geometry.resizedHeight, fit: "fill" })
+  const box = thumbnailBox(source.width, source.height, options.viewport ?? "desktop");
+  // Crop the top first so tall pages aren't resized in full, then scale the crop.
+  const cropped = await sharp(input, { limitInputPixels: false })
+    .extract({ left: 0, top: 0, width: source.width, height: box.sourceHeight })
+    .resize({ width: box.width, height: box.height, fit: "fill", kernel: "lanczos3" })
+    .png()
     .toBuffer();
-  for (;;) {
-    const buffer = await sharp(resized)
-      .extract({ left: 0, top: 0, width: geometry.width, height: geometry.height })
-      .webp({ quality, effort: 4 })
-      .toBuffer();
-    if (buffer.byteLength <= LIMITS.maxThumbnailBytes || quality <= 40) {
-      return { buffer, type: "image/webp", width: geometry.width, height: geometry.height };
-    }
-    quality -= 15;
-  }
-}
-
-/**
- * Encode a full-size capture for upload: WebP (default q90) unless the image exceeds WebP's
- * dimension limit or the WebP would be larger than the PNG, in which case the PNG is kept.
- */
-export async function encodeWebp(input: Buffer, quality = 90): Promise<EncodedImage> {
-  const meta = await sharp(input).metadata();
-  const width = meta.width ?? 0;
-  const height = meta.height ?? 0;
-  const original: EncodedImage = {
-    buffer: input,
-    type:
-      meta.format === "jpeg" ? "image/jpeg" : meta.format === "webp" ? "image/webp" : "image/png",
-    width,
-    height,
-  };
-  if (original.type === "image/webp") return original;
-  if (width > WEBP_MAX_DIMENSION || height > WEBP_MAX_DIMENSION) {
-    if (original.type === "image/png") return original;
-    return { ...original, buffer: await sharp(input).png().toBuffer(), type: "image/png" };
-  }
-  const webp = await sharp(input, { limitInputPixels: false })
-    .webp({ quality, effort: 4, smartSubsample: true })
-    .toBuffer();
-  if (webp.byteLength >= input.byteLength) return original;
-  return { buffer: webp, type: "image/webp", width, height };
+  const image = check(
+    await encodeWithinBudget(
+      async (quality) =>
+        encoded(
+          await sharp(cropped)
+            .webp({ quality: Math.round(quality * 100), effort: 4, smartSubsample: true })
+            .toBuffer(),
+        ),
+      box,
+      DISPLAY_POLICY.thumbnail,
+    ),
+    "The thumbnail",
+  );
+  return { buffer: image.buffer, type: image.type, width: image.width, height: image.height };
 }
 
 /** Dominant colour of an image as `#rrggbb`. */

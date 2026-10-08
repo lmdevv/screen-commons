@@ -12,7 +12,7 @@ import {
 } from "@screen-commons/core";
 
 import { MAX_SCREEN_TEXT, type IconCandidate } from "./extract";
-import { dominantColor, encodeWebp, makeThumbnail, toLogoPng, type EncodedImage } from "./image";
+import { dominantColor, encodeDisplay, makeThumbnail, toLogoPng, type EncodedImage } from "./image";
 
 export interface ToCaptureScreenInput {
   /** Full-size capture (PNG, or any format sharp reads). */
@@ -28,8 +28,6 @@ export interface ToCaptureScreenInput {
   version?: string;
   capturedAt?: string;
   stepLabel?: string;
-  /** WebP quality for the full image. Default 90. */
-  quality?: number;
 }
 
 export interface PreparedScreen {
@@ -38,10 +36,13 @@ export interface PreparedScreen {
   thumbnail: EncodedImage;
 }
 
-/** Turn a raw capture into a core `CaptureScreen` (full image + thumbnail, base64). */
+/**
+ * Turn a raw capture into a core `CaptureScreen`: display image + thumbnail per the shared display
+ * policy (both derived from the lossless capture, never from each other), base64.
+ */
 export async function prepareScreen(input: ToCaptureScreenInput): Promise<PreparedScreen> {
   const [image, thumbnail, color] = await Promise.all([
-    encodeWebp(input.png, input.quality ?? 90),
+    encodeDisplay(input.png),
     makeThumbnail(input.png, { viewport: input.viewport ?? "desktop" }),
     dominantColor(input.png).catch(() => undefined),
   ]);

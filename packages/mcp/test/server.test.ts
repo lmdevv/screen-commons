@@ -198,7 +198,34 @@ describe("catalog tools", () => {
     const batch = api.batches[before]!;
     expect(batch.source).toBe("mcp");
     expect(batch.screens[0]?.patterns).toEqual(["pricing"]);
-    expect(batch.screens[0]?.thumbnail.type).toBe("image/webp");
+    // Display policy: full image and thumbnail are WebP, checked from the bytes themselves.
+    const [image, thumbnail] = [batch.screens[0]!.image, batch.screens[0]!.thumbnail];
+    expect(image.type).toBe("image/webp");
+    expect(readImageHeader(Buffer.from(image.base64, "base64"))).toEqual({
+      type: "image/webp",
+      width: 1440,
+      height: 900,
+    });
+    expect(thumbnail.type).toBe("image/webp");
+    expect(readImageHeader(Buffer.from(thumbnail.base64, "base64"))).toMatchObject({
+      type: "image/webp",
+      width: 640,
+    });
+  });
+
+  it("upload_screen rejects images whose declared type doesn't match their bytes", async () => {
+    const { client } = await connect();
+    const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#000" } })
+      .png()
+      .toBuffer();
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { type: "image/webp", base64: png.toString("base64") },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("image.type is image/webp but image.base64 is image/png");
+    expect(api.batches.length).toBe(before);
   });
 });
 
@@ -282,6 +309,11 @@ describe.skipIf(!chrome)("browser tools (headless)", () => {
     expect(batch.screens[0]).toMatchObject({ width: 1440, height: 900 });
     expect(batch.screens[0]?.text).toContain("Above the fold text");
     expect(batch.screens[0]?.thumbnail.type).toBe("image/webp");
+    expect(batch.screens.map((screen) => screen.image.type)).toEqual([
+      "image/webp",
+      "image/webp",
+      "image/webp",
+    ]);
     const text = textOf(result);
     expect(text).toContain(`${api.url}/apps/fixture`);
     expect(text).toContain(`${api.url}/flows/flow_1`);

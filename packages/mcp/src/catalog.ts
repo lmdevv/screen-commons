@@ -265,8 +265,13 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
   register("upload_screen", async (args) => {
     requireKey(context);
     const bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
-    if (!readImageHeader(bytes))
-      throw new FriendlyError("image.base64 is not a valid PNG, JPEG or WebP image.");
+    const header = readImageHeader(bytes);
+    if (!header) throw new FriendlyError("image.base64 is not a valid PNG, JPEG or WebP image.");
+    if (header.type !== args.image.type) {
+      throw new FriendlyError(
+        `image.type is ${args.image.type} but image.base64 is ${header.type}; send the type the bytes actually have.`,
+      );
+    }
     const viewport = args.app.platform && args.app.platform !== "web" ? "mobile" : "desktop";
     const { screen } = await prepareScreen({
       png: bytes,

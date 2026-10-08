@@ -1,6 +1,7 @@
 import {
   captureBatchInputSchema,
   captureScreenSchema,
+  sniffImage,
   type CaptureBatchInput,
   type ScreenCommonsClient,
 } from "@screen-commons/core";
@@ -10,12 +11,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   decodeIco,
   dominantColor,
-  encodeWebp,
+  encodeDisplay,
   imageSize,
   makePreview,
   makeThumbnail,
   prepareScreen,
-  thumbnailGeometry,
   uploadCaptures,
 } from "../src/index";
 
@@ -39,36 +39,6 @@ const noisy = async (width: number, height: number) => {
     .toBuffer();
 };
 
-describe("thumbnail geometry", () => {
-  it("crops desktop captures to 16:10 from the top", () => {
-    expect(thumbnailGeometry({ width: 2880, height: 1800 })).toEqual({
-      width: 640,
-      resizedHeight: 400,
-      height: 400,
-    });
-    expect(thumbnailGeometry({ width: 1440, height: 9000 })).toEqual({
-      width: 640,
-      resizedHeight: 4000,
-      height: 400,
-    });
-    expect(thumbnailGeometry({ width: 1440, height: 600 })).toEqual({
-      width: 640,
-      resizedHeight: 267,
-      height: 267,
-    });
-  });
-  it("crops mobile captures to 9:19.5", () => {
-    expect(thumbnailGeometry({ width: 1170, height: 2532 }, { maxAspect: 9 / 19.5 })).toEqual({
-      width: 640,
-      resizedHeight: 1385,
-      height: 1385,
-    });
-    expect(thumbnailGeometry({ width: 1170, height: 9000 }, { maxAspect: 9 / 19.5 }).height).toBe(
-      1387,
-    );
-  });
-});
-
 describe("image encoding", () => {
   it("makes 640px WebP thumbnails anchored at the top", async () => {
     // top half red, bottom half blue: the 16:10 crop of a tall image keeps only red
@@ -87,17 +57,78 @@ describe("image encoding", () => {
     expect([mobile.width, mobile.height]).toEqual([640, 1385]);
   });
 
-  it("encodes WebP when smaller and keeps PNG beyond WebP limits", async () => {
-    const png = await noisy(800, 500);
-    const webp = await encodeWebp(png);
-    expect(webp.type).toBe("image/webp");
-    expect(webp.buffer.byteLength).toBeLessThan(png.byteLength);
-    expect([webp.width, webp.height]).toEqual([800, 500]);
+  it("never upscales thumbnails and enforces the WebP output", async () => {
+    const small = await makeThumbnail(await solid(320, 200));
+    expect([small.type, small.width, small.height]).toEqual(["image/webp", 320, 200]);
+    expect(sniffImage(small.buffer)).toEqual({ type: "image/webp", width: 320, height: 200 });
+  });
 
-    const huge = await solid(100, 17_000);
-    const kept = await encodeWebp(huge);
-    expect(kept.type).toBe("image/png");
-    expect(kept.buffer).toBe(huge);
+  it("encodes PNG captures as WebP display images, checked from the encoded bytes", async () => {
+    const png = await noisy(800, 500);
+    const display = await encodeDisplay(png);
+    expect(display.type).toBe("image/webp");
+    expect(display.buffer.byteLength).toBeLessThan(png.byteLength);
+    expect(sniffImage(display.buffer)).toEqual({ type: "image/webp", width: 800, height: 500 });
+  });
+
+  it("returns WebP inputs untouched instead of re-encoding them", async () => {
+    const webp = await sharp(await noisy(400, 300))
+      .webp({ quality: 60 })
+      .toBuffer();
+    expect((await encodeDisplay(webp)).buffer).toBe(webp);
+  });
+
+  it("keeps a compact source when WebP wouldn't be smaller", async () => {
+    const jpeg = await sharp(await noisy(400, 300))
+      .jpeg({ quality: 20 })
+      .toBuffer();
+    const display = await encodeDisplay(jpeg);
+    expect(display.type).toBe("image/jpeg");
+    expect(display.buffer).toBe(jpeg);
+  });
+
+  it("scales pages taller than WebP allows down to 16,383px, keeping the aspect", async () => {
+    const display = await encodeDisplay(await solid(1000, 17_000));
+    expect(sniffImage(display.buffer)).toEqual({ type: "image/webp", width: 964, height: 16_383 });
+  });
+
+  it("keeps alpha", async () => {
+    const translucent = await sharp({
+      create: { width: 300, height: 200, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([{ input: await noisy(100, 100), top: 50, left: 100 }])
+      .png()
+      .toBuffer();
+    const display = await encodeDisplay(translucent);
+    expect(display.type).toBe("image/webp");
+    const { data } = await sharp(display.buffer).ensureAlpha().raw().toBuffer({
+      resolveWithObject: true,
+    });
+    expect(data[3]).toBe(0);
+    expect(data[(100 * 300 + 150) * 4 + 3]).toBe(255);
+  });
+
+  it("uses lossless WebP for flat UI when it beats lossy", async () => {
+    const lines = Array.from(
+      { length: 40 },
+      (_, index) =>
+        `<text x="24" y="${40 + index * 22}" font-family="sans-serif" font-size="14" fill="#18181b">Settings · Billing · Members · API keys · Webhooks · ${index}</text>`,
+    ).join("");
+    const ui = await sharp(
+      Buffer.from(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="920"><rect width="100%" height="100%" fill="#ffffff"/><rect x="0" y="0" width="1200" height="20" fill="#2563eb"/>${lines}</svg>`,
+      ),
+    )
+      .png()
+      .toBuffer();
+    const display = await encodeDisplay(ui);
+    expect(display.type).toBe("image/webp");
+    // VP8L = lossless bitstream: small text survives pixel-exact.
+    expect(display.buffer.subarray(12, 16).toString("ascii")).toBe("VP8L");
+    const [a, b] = await Promise.all(
+      [ui, display.buffer].map((buffer) => sharp(buffer).removeAlpha().raw().toBuffer()),
+    );
+    expect(Buffer.compare(a!, b!)).toBe(0);
   });
 
   it("computes dominant colours as hex", async () => {
