@@ -63,6 +63,7 @@ export function StepApp({
   };
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return; // Enter commits the IME composition instead
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setActive((i) => Math.min(optionCount - 1, i + 1));

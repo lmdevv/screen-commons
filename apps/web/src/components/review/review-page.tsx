@@ -63,9 +63,12 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
     items.findIndex((entry) => entry.item.id === selectedId),
   );
   const selected = items[index] ?? null;
-  const [rejecting, setRejecting] = useState(false);
-
-  useEffect(() => setRejecting(false), [selected?.item.id]);
+  // Tied to the item: moving on (J/K, a decision) closes the reason form in the same render, so the
+  // next item's detail never mounts mid-rejection and steals focus.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const rejecting = !!selected && rejectingId === selected.item.id;
+  const setRejecting = (value: boolean) =>
+    setRejectingId(value && selected ? selected.item.id : null);
 
   const decide = useMutation({
     mutationFn: (input: { entry: Item; decision: "approve" | "reject"; reason?: string }) =>
