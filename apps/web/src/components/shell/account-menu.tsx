@@ -1,6 +1,6 @@
 import type { User } from "@screen-commons/core";
 import { Avatar } from "@screen-commons/ui";
-import { lazy, Suspense, useState } from "react";
+import { lazy, startTransition, Suspense, useState } from "react";
 
 const loadPopup = () => import("./account-menu-popup");
 const AccountMenuPopup = lazy(loadPopup);
@@ -13,9 +13,12 @@ export interface AccountMenuProps {
  * Avatar button that becomes the full account menu (Saved, Contribute, Review for admins,
  * Settings, theme, Docs, Sign out) on first hover/focus/press. The menu — Base UI Menu + its
  * positioning engine and the app's items — is a separate chunk, so it costs nothing on first load.
+ * Arming is a transition: the placeholder stays mounted (and focused) until the chunk is ready.
  */
 export function AccountMenu(props: AccountMenuProps) {
-  const [armed, setArmed] = useState<false | { open: boolean; focus: boolean }>(false);
+  const [armed, setArmedNow] = useState<false | { open: boolean; focus: boolean }>(false);
+  const setArmed = (next: { open: boolean; focus: boolean }) =>
+    startTransition(() => setArmedNow(next));
   const placeholder = (
     <button
       type="button"
@@ -36,10 +39,13 @@ export function AccountMenu(props: AccountMenuProps) {
       <Avatar name={props.user.name} src={props.user.image} size="md" />
     </button>
   );
-  if (!armed) return placeholder;
   return (
     <Suspense fallback={placeholder}>
-      <AccountMenuPopup {...props} defaultOpen={armed.open} focusTrigger={armed.focus} />
+      {armed ? (
+        <AccountMenuPopup {...props} defaultOpen={armed.open} focusTrigger={armed.focus} />
+      ) : (
+        placeholder
+      )}
     </Suspense>
   );
 }

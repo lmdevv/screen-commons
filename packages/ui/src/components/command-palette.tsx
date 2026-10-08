@@ -80,6 +80,8 @@ export function CommandPalette({
               label={label}
               shouldFilter={shouldFilter}
               loop
+              // Ctrl+J/K would move the selection and swallow Ctrl+K, which closes the palette.
+              vimBindings={false}
               className="flex min-h-0 flex-1 flex-col"
             >
               <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-5">

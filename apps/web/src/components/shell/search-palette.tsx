@@ -425,7 +425,7 @@ export default function SearchPalette({
           ) : null}
           {data && !hasResults && !results.isFetching ? (
             <p className="px-4 py-10 text-center text-base text-fg-muted">
-              No matches for “{trimmed}”. Press Enter to search screenshot text.
+              No apps, screens or flows match “{trimmed}”. Press Enter to search screenshot text.
             </p>
           ) : null}
         </>
