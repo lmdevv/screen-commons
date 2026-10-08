@@ -2,7 +2,8 @@
  * The command and shortcut registry: every page command (⌘K palette, "g" shortcuts) and every
  * key the app binds, in one place. The palette lists `commandsFor(audience)`, the root binds
  * their `shortcut`s, the viewer/review/grid code binds `SHORTCUTS.*.keys`, and the `?` dialog and
- * docs/browsing.md render `helpSections(audience)`. Change a key here and every surface follows.
+ * docs/keyboard-shortcuts.md render `helpSections(audience)`. Change a key here and every surface
+ * follows (tests/shortcuts.test.ts fails until the docs page does too).
  *
  * Keys use the `@screen-commons/ui` notation ("mod+k", "g s", "?"). Navigation is "g then a
  * letter" — single letters without modifiers never collide with browser or OS shortcuts, and the
@@ -243,6 +244,9 @@ export const SHORTCUTS = {
   tileNext: { keys: "tab", label: "Move between tiles and controls", native: true },
   tileOpen: { keys: "enter", label: "Open the focused tile", native: true },
   tileSelect: { keys: "space", label: "Select the focused tile’s checkbox", native: true },
+  // Pointer modifiers, listed so the help covers selection fully.
+  selectRange: { keys: "shift", label: "Hold while clicking: select a range", native: true },
+  selectAdd: { keys: "mod", label: "Hold while clicking: add to the selection", native: true },
   clearSelection: { keys: "escape", label: "Clear the selection" },
 
   viewerPrevious: { keys: "arrowleft", label: "Previous screen" },
@@ -275,7 +279,7 @@ export interface HelpSection {
   items: ShortcutEntry[];
 }
 
-/** The `?` dialog's content for an audience (and the shortcut table in docs/browsing.md). */
+/** The `?` dialog's content for an audience (and the tables in docs/keyboard-shortcuts.md). */
 export function helpSections(audience: Audience): HelpSection[] {
   const s = SHORTCUTS;
   const sections: HelpSection[] = [
@@ -291,7 +295,7 @@ export function helpSections(audience: Audience): HelpSection[] {
   sections.push(
     {
       title: "Grids",
-      items: [s.tileNext, s.tileOpen, s.tileSelect, s.clearSelection],
+      items: [s.tileNext, s.tileOpen, s.tileSelect, s.selectRange, s.selectAdd, s.clearSelection],
     },
     {
       title: "Screen viewer",
