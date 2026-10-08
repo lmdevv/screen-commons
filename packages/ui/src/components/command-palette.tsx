@@ -5,7 +5,7 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 import { backdropClassName } from "./dialog";
-import { Kbd, KbdGroup } from "./kbd";
+import { Kbd, KbdGroup, Shortcut } from "./kbd";
 import { Skeleton } from "./skeleton";
 import { Spinner } from "./spinner";
 
@@ -13,7 +13,7 @@ import { Spinner } from "./spinner";
  * ⌘K command palette: search apps, screens, flows, taxonomy and actions from anywhere.
  *
  * const [open, setOpen] = useState(false);
- * useHotkey("k", () => setOpen((o) => !o));
+ * useHotkey("mod+k", () => setOpen((o) => !o), { scope: "global", allowInInputs: true });
  *
  * <CommandPalette open={open} onOpenChange={setOpen} search={q} onSearchChange={setQ}
  *   loading={isFetching} shouldFilter={false}>   // false: results already filtered by the API
@@ -179,8 +179,8 @@ export interface CommandItemProps extends React.ComponentProps<typeof Command.It
   icon?: React.ReactNode;
   /** Secondary text after the label (category, app name, count). */
   hint?: React.ReactNode;
-  /** Right-aligned shortcut, e.g. `["⌘", "U"]`. */
-  shortcut?: string[];
+  /** Right-aligned shortcut in `useHotkey` notation, e.g. `"g s"`. */
+  shortcut?: string;
 }
 
 export function CommandItem({
@@ -209,13 +209,7 @@ export function CommandItem({
       <span className="max-w-[70%] min-w-0 shrink-0 truncate">{children}</span>
       {hint ? <span className="min-w-0 flex-1 truncate text-sm text-fg-subtle">{hint}</span> : null}
       <span className="ml-auto flex shrink-0 items-center gap-2">
-        {shortcut ? (
-          <KbdGroup>
-            {shortcut.map((key) => (
-              <Kbd key={key}>{key}</Kbd>
-            ))}
-          </KbdGroup>
-        ) : null}
+        {shortcut ? <Shortcut keys={shortcut} /> : null}
         <CornerDownLeft
           aria-hidden
           className="size-3.5 text-fg-subtle opacity-0 group-data-[selected=true]:opacity-100"

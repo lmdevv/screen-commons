@@ -95,12 +95,15 @@ export function DropdownMenuItem({
 
 export interface DropdownMenuLinkItemProps extends React.ComponentProps<typeof Menu.LinkItem> {
   icon?: React.ReactNode;
+  /** Right-aligned hint, e.g. a shortcut. */
+  hint?: React.ReactNode;
   external?: boolean;
 }
 
 /** Menu item that is a link. Use `render={<Link to=… />}` for router links. */
 export function DropdownMenuLinkItem({
   icon,
+  hint,
   external,
   className,
   children,
@@ -110,6 +113,7 @@ export function DropdownMenuLinkItem({
     <Menu.LinkItem className={cn(itemClassName, className)} {...props}>
       {icon}
       <span className="min-w-0 flex-1 truncate">{children}</span>
+      {hint ? <span className="text-sm text-fg-subtle">{hint}</span> : null}
       {external ? <ArrowUpRight aria-hidden className="text-fg-subtle" /> : null}
     </Menu.LinkItem>
   );

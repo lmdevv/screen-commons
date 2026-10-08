@@ -13,10 +13,20 @@ export {
   useControllableState,
   useHotkey,
   useIsMac,
+  usePendingShortcut,
   useScrolled,
   useScrollEdges,
   type HotkeyOptions,
 } from "./lib/hooks";
+export {
+  ariaKeyShortcuts,
+  formatShortcut,
+  isEditableTarget,
+  shouldIgnoreKeyEvent,
+  topmostLayer,
+  SEQUENCE_TIMEOUT_MS,
+  type HotkeyScope,
+} from "./lib/keyboard";
 export * from "./lib/screen";
 export * from "./lib/theme";
 

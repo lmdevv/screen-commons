@@ -1,5 +1,13 @@
 import * as React from "react";
 
+import {
+  createShortcutDispatcher,
+  isApplePlatform,
+  type HotkeyScope,
+  type KeyFilterOptions,
+  type ShortcutDispatcher,
+} from "./keyboard";
+
 /**
  * Controlled/uncontrolled state helper: uses `value` when defined, otherwise internal state.
  * `onChange` fires in both modes.
@@ -25,53 +33,79 @@ export function useControllableState<T>(options: {
   return [current, set];
 }
 
-export interface HotkeyOptions {
-  /** Require ⌘ on macOS / Ctrl elsewhere. Default true. */
-  mod?: boolean;
-  shift?: boolean;
-  /** Fire even when focus is in an input/textarea/contenteditable. Default true when `mod`. */
-  allowInInputs?: boolean;
+export interface HotkeyOptions extends KeyFilterOptions {
+  /** Where the shortcut applies (see `HotkeyScope`). Default `page`. */
+  scope?: HotkeyScope;
+  /** Extra condition checked at key time. */
+  when?: (event: KeyboardEvent) => boolean;
   enabled?: boolean;
 }
 
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.tagName === "INPUT" ||
-    target.tagName === "TEXTAREA" ||
-    target.tagName === "SELECT"
-  );
+const pendingListeners = new Set<() => void>();
+let shortcuts: ShortcutDispatcher | null = null;
+let registered = 0;
+const onKeyDown = (event: KeyboardEvent) => shortcuts?.handle(event);
+
+/** The app-wide dispatcher behind `useHotkey`: one bubbling keydown listener on the document. */
+function getShortcuts(): ShortcutDispatcher {
+  shortcuts ??= createShortcutDispatcher({
+    onPendingChange: () => {
+      for (const listener of pendingListeners) listener();
+    },
+  });
+  return shortcuts;
 }
 
 /**
- * Global keyboard shortcut. `useHotkey("k", open)` → ⌘K / Ctrl+K.
- * `useHotkey("/", open, { mod: false })` → plain "/" (ignored while typing).
+ * Keyboard shortcut in `keyboard.ts` notation, through the shared dispatcher (so sequences such as
+ * "g s" and single keys such as "s" never both fire).
+ *
+ * useHotkey("mod+k", toggle, { scope: "global", allowInInputs: true });
+ * useHotkey("g s", goToSaved);                  // page scope: not while a dialog is open
+ * useHotkey("s", save, { scope: viewerRef });   // only while that dialog is on top
  */
 export function useHotkey(
-  key: string,
+  shortcut: string,
   handler: (event: KeyboardEvent) => void,
   options: HotkeyOptions = {},
 ): void {
-  const { mod = true, shift = false, enabled = true } = options;
-  const allowInInputs = options.allowInInputs ?? mod;
+  const { scope = "page", allowInInputs = false, allowRepeat = false, enabled = true } = options;
   const handlerRef = React.useRef(handler);
   handlerRef.current = handler;
+  const whenRef = React.useRef(options.when);
+  whenRef.current = options.when;
 
   React.useEffect(() => {
     if (!enabled) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== key.toLowerCase()) return;
-      if (mod !== (event.metaKey || event.ctrlKey)) return;
-      if (shift !== event.shiftKey) return;
-      if (!allowInInputs && isEditable(event.target)) return;
-      event.preventDefault();
-      handlerRef.current(event);
+    const dispatcher = getShortcuts();
+    if (registered++ === 0) document.addEventListener("keydown", onKeyDown);
+    const unregister = dispatcher.register({
+      shortcut,
+      scope,
+      allowInInputs,
+      allowRepeat,
+      when: (event) => whenRef.current?.(event) ?? true,
+      handler: (event) => handlerRef.current(event),
+    });
+    return () => {
+      unregister();
+      if (--registered === 0) document.removeEventListener("keydown", onKeyDown);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [key, mod, shift, allowInInputs, enabled]);
+  }, [shortcut, scope, allowInInputs, allowRepeat, enabled]);
 }
+
+/** Chords typed so far of an unfinished sequence (`["g"]` after pressing G), for a hint. */
+export function usePendingShortcut(): readonly string[] {
+  return React.useSyncExternalStore(
+    (listener) => {
+      pendingListeners.add(listener);
+      return () => pendingListeners.delete(listener);
+    },
+    () => shortcuts?.pending() ?? NO_CHORDS,
+    () => NO_CHORDS,
+  );
+}
+const NO_CHORDS: readonly string[] = [];
 
 /** True once the window has scrolled past `threshold` px. */
 export function useScrolled(threshold = 4): boolean {
@@ -88,12 +122,7 @@ export function useScrolled(threshold = 4): boolean {
 /** `true` on Apple platforms, for ⌘ vs Ctrl hints. SSR-safe (assumes ⌘ until mounted). */
 export function useIsMac(): boolean {
   const [isMac, setIsMac] = React.useState(true);
-  React.useEffect(() => {
-    const platform =
-      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
-        ?.platform ?? navigator.platform;
-    setIsMac(/mac|iphone|ipad|ipod/iu.test(platform));
-  }, []);
+  React.useEffect(() => setIsMac(isApplePlatform()), []);
   return isMac;
 }
 

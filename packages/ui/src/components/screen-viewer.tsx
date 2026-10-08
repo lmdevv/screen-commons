@@ -203,6 +203,8 @@ export interface ScreenViewerProps extends Omit<ScreenDetailsProps, "className">
   zoom?: "fill" | "fit";
   /** Shows the fit / fill toggle in the header. */
   onZoomChange?: (zoom: "fill" | "fit") => void;
+  /** The overlay element, e.g. to scope `useHotkey` to it. */
+  ref?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -222,12 +224,13 @@ export function ScreenViewer({
   actions,
   zoom = "fill",
   onZoomChange,
+  ref,
   ...detailsProps
 }: ScreenViewerProps) {
   const mobile = frameKind(screen.app.platform) === "mobile";
   const fit = zoom === "fit";
   return (
-    <Lightbox open={open} onOpenChange={onOpenChange}>
+    <Lightbox ref={ref} open={open} onOpenChange={onOpenChange}>
       <LightboxHeader
         actions={
           <>

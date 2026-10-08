@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
+import { shouldIgnoreKeyEvent, topmostLayer } from "../lib/keyboard";
 import { backdropClassName, CloseButton } from "./dialog";
 
 /*
@@ -23,18 +24,28 @@ export interface LightboxProps {
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
   className?: string;
+  /** The overlay element, e.g. to scope `useHotkey` to it. */
+  ref?: React.Ref<HTMLDivElement>;
 }
 
-export function Lightbox({ open, onOpenChange, children, className }: LightboxProps) {
+export function Lightbox({ open, onOpenChange, children, className, ref }: LightboxProps) {
   // Focus the overlay itself on open (not the first button), so no tooltip/focus ring flashes;
   // Tab then reaches the header actions, ←/→ work immediately.
   const popupRef = React.useRef<HTMLDivElement>(null);
+  const setPopup = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      popupRef.current = element;
+      if (typeof ref === "function") return ref(element);
+      if (ref) ref.current = element;
+    },
+    [ref],
+  );
   return (
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={backdropClassName} />
         <BaseDialog.Popup
-          ref={popupRef}
+          ref={setPopup}
           tabIndex={-1}
           initialFocus={popupRef}
           className={cn(
@@ -132,12 +143,12 @@ export function LightboxBody({
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=slider]")) return;
-      // Only when focus is in this overlay (not in a dialog stacked on top of it).
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      // Holding an arrow walks the list, so repeat is allowed.
+      if (shouldIgnoreKeyEvent(event, { allowRepeat: true })) return;
+      // Only while this overlay is the topmost layer (not under a stacked picker or the palette).
       const dialog = mainRef.current?.closest("[role=dialog]");
-      if (dialog && target && target !== document.body && !dialog.contains(target)) return;
+      if (dialog && topmostLayer() !== dialog) return;
       if (event.key === "ArrowLeft" && onPrev) {
         event.preventDefault();
         onPrev();
