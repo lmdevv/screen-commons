@@ -6,7 +6,7 @@ import {
   type CaptureBatchInput,
   type ScreenCommonsClient,
 } from "@screen-commons/core";
-import sharp from "sharp";
+import sharp, { type WebpOptions } from "sharp";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -160,7 +160,9 @@ describe("image encoding", () => {
     try {
       await encodeDisplay(jpeg);
       expect(webp).toHaveBeenCalled();
-      expect(webp.mock.calls.some(([options]) => options?.lossless)).toBe(false);
+      expect(
+        webp.mock.calls.some(([options]) => (options as WebpOptions | undefined)?.lossless),
+      ).toBe(false);
     } finally {
       webp.mockRestore();
     }
