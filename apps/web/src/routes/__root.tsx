@@ -11,6 +11,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
   Link,
+  Outlet,
   Scripts,
   createRootRouteWithContext,
   type ErrorComponentProps,
@@ -19,6 +20,7 @@ import { CircleAlert, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { DeferredToaster } from "../components/shell/deferred-toaster";
+import { KeyboardShortcuts } from "../components/shell/keyboard-shortcuts";
 import { queries } from "../lib/queries";
 import styles from "../styles.css?url";
 
@@ -51,6 +53,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     user: await context.queryClient.fetchQuery(queries.session()),
   }),
   shellComponent: RootDocument,
+  component: Root,
   notFoundComponent: NotFound,
   errorComponent: RootError,
 });
@@ -73,6 +76,16 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+/** Every page, public or signed in: ⌘K palette, `?` help and "g …" shortcuts. */
+function Root() {
+  const { user } = Route.useRouteContext();
+  return (
+    <KeyboardShortcuts user={user}>
+      <Outlet />
+    </KeyboardShortcuts>
   );
 }
 

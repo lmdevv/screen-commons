@@ -7,8 +7,6 @@ const AccountMenuPopup = lazy(loadPopup);
 
 export interface AccountMenuProps {
   user: User;
-  /** Opens the keyboard shortcuts dialog (menu footer item). */
-  onShowShortcuts?: () => void;
 }
 
 /**

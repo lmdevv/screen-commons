@@ -1,9 +1,20 @@
 import type { User } from "@screen-commons/core";
-import { Button, Logo, SearchPill, Tooltip, TopBar, cn } from "@screen-commons/ui";
+import {
+  Button,
+  Logo,
+  SearchPill,
+  Tooltip,
+  TopBar,
+  ariaKeyShortcuts,
+  cn,
+  formatShortcut,
+  useIsMac,
+} from "@screen-commons/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bookmark, Plus } from "lucide-react";
 
 import { platformLabel, type Platform } from "../../lib/platform";
+import { commandShortcut, SHORTCUTS } from "../../lib/shortcuts";
 import { AccountMenu } from "./account-menu";
 import { useCommandPalette } from "./command-palette";
 import { PlatformSwitch } from "./platform-switch";
@@ -11,12 +22,14 @@ import { PlatformSwitch } from "./platform-switch";
 export interface AppTopBarProps {
   user: User;
   platform: Platform;
-  onShowShortcuts?: () => void;
 }
 
+const savedShortcut = formatShortcut(commandShortcut("saved")!).flat().join(" ");
+
 /** The signed-in library top bar: logo · platform │ search │ saved · contribute · account. */
-export function AppTopBar({ user, platform, onShowShortcuts }: AppTopBarProps) {
+export function AppTopBar({ user, platform }: AppTopBarProps) {
   const { openPalette, prefetchPalette } = useCommandPalette();
+  const isMac = useIsMac();
   const onSaved = useRouterState({
     select: (state) => state.location.pathname.startsWith("/saved"),
   });
@@ -38,6 +51,7 @@ export function AppTopBar({ user, platform, onShowShortcuts }: AppTopBarProps) {
       search={
         <SearchPill
           placeholder={placeholder}
+          aria-keyshortcuts={`${ariaKeyShortcuts(SHORTCUTS.palette.keys, isMac)} ${ariaKeyShortcuts(SHORTCUTS.search.keys, isMac)}`}
           onClick={() => openPalette()}
           onPointerEnter={prefetchPalette}
           onFocus={prefetchPalette}
@@ -45,7 +59,7 @@ export function AppTopBar({ user, platform, onShowShortcuts }: AppTopBarProps) {
       }
       actions={
         <>
-          <Tooltip content="Saved" align="end">
+          <Tooltip content="Saved" shortcut={savedShortcut} align="end">
             <Link
               to="/saved"
               aria-label="Saved"
@@ -69,7 +83,7 @@ export function AppTopBar({ user, platform, onShowShortcuts }: AppTopBarProps) {
           </Button>
         </>
       }
-      account={<AccountMenu user={user} onShowShortcuts={onShowShortcuts} />}
+      account={<AccountMenu user={user} />}
     />
   );
 }

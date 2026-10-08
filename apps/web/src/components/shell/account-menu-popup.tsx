@@ -4,23 +4,28 @@ import {
   DropdownMenuLinkItem,
 } from "@screen-commons/ui/components/dropdown-menu";
 import AccountMenuPopupBase from "@screen-commons/ui/components/account-menu-popup";
+import { Shortcut } from "@screen-commons/ui/components/kbd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { BookOpen, Bookmark, Code, Inbox, Keyboard, Plus, Settings } from "lucide-react";
 
 import { authClient } from "../../lib/auth-client";
+import { commandShortcut, SHORTCUTS } from "../../lib/shortcuts";
 import type { AccountMenuProps } from "./account-menu";
+import { useShowShortcuts } from "./keyboard-shortcuts";
+
+const hint = (id: string) => <Shortcut keys={commandShortcut(id)!} />;
 
 export const REPOSITORY_URL = "https://github.com/lmdevv/screen-commons";
 
 export default function AccountMenuPopup({
   user,
-  onShowShortcuts,
   defaultOpen,
   focusTrigger,
 }: AccountMenuProps & { defaultOpen: boolean; focusTrigger: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const showShortcuts = useShowShortcuts();
 
   async function signOut() {
     await authClient.signOut();
@@ -37,14 +42,20 @@ export default function AccountMenuPopup({
       onSignOut={() => void signOut()}
       footer={
         <>
-          <DropdownMenuLinkItem icon={<BookOpen />} render={<Link to="/docs" />}>
+          <DropdownMenuLinkItem
+            icon={<BookOpen />}
+            hint={hint("docs")}
+            render={<Link to="/docs" />}
+          >
             Docs
           </DropdownMenuLinkItem>
-          {onShowShortcuts ? (
-            <DropdownMenuItem icon={<Keyboard />} hint="?" onClick={onShowShortcuts}>
-              Keyboard shortcuts
-            </DropdownMenuItem>
-          ) : null}
+          <DropdownMenuItem
+            icon={<Keyboard />}
+            hint={<Shortcut keys={SHORTCUTS.help.keys} />}
+            onClick={showShortcuts}
+          >
+            Keyboard shortcuts
+          </DropdownMenuItem>
           <DropdownMenuLinkItem
             icon={<Code />}
             external
@@ -55,18 +66,26 @@ export default function AccountMenuPopup({
         </>
       }
     >
-      <DropdownMenuLinkItem icon={<Bookmark />} render={<Link to="/saved" />}>
+      <DropdownMenuLinkItem icon={<Bookmark />} hint={hint("saved")} render={<Link to="/saved" />}>
         Saved
       </DropdownMenuLinkItem>
-      <DropdownMenuLinkItem icon={<Plus />} render={<Link to="/contribute" />}>
+      <DropdownMenuLinkItem
+        icon={<Plus />}
+        hint={hint("contribute")}
+        render={<Link to="/contribute" />}
+      >
         Contribute
       </DropdownMenuLinkItem>
       {user.role === "admin" ? (
-        <DropdownMenuLinkItem icon={<Inbox />} render={<Link to="/review" />}>
+        <DropdownMenuLinkItem icon={<Inbox />} hint={hint("review")} render={<Link to="/review" />}>
           Review queue
         </DropdownMenuLinkItem>
       ) : null}
-      <DropdownMenuLinkItem icon={<Settings />} render={<Link to="/settings" />}>
+      <DropdownMenuLinkItem
+        icon={<Settings />}
+        hint={hint("settings")}
+        render={<Link to="/settings" />}
+      >
         Settings
       </DropdownMenuLinkItem>
     </AccountMenuPopupBase>
