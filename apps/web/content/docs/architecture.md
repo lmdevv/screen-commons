@@ -34,7 +34,7 @@ Cloudflare Worker  (apps/web/src/server.ts)
   │  counts the request body as it streams: 1 MiB, or 40 MiB for uploads
   │
   ├── /api/auth/*     Better Auth: sign up, sign in, GitHub OAuth
-  ├── /api/v1/*       REST API (Hono)          ┐
+  ├── /api/v1/*       REST API (server routes) ┐
   ├── /mcp            remote MCP               ├─▶ principal: bearer key or session cookie
   ├── /_serverFn/*    UI server functions      ┘              │
   ├── /media/*        R2 images, visibility checked           ▼
@@ -48,6 +48,8 @@ Cloudflare Worker  (apps/web/src/server.ts)
 ```
 
 The REST API, the MCP tools and the UI's server functions call the same service functions, so visibility, limits and review rules are enforced once.
+
+The UI calls server functions. Everything other clients call is a plain HTTP endpoint, written as a TanStack Start server route. The REST API has one route file per resource under `src/routes/api/v1/`. A shared request middleware on the `/api/v1` layout route answers CORS preflights, resolves the principal, maps errors to the JSON error envelope and marks responses `private, no-store`. CORS, authentication, error and body-limit helpers live in `src/server/http/` and don't depend on any framework, so `/mcp` and the Worker entry use the same ones.
 
 ## Data model
 
