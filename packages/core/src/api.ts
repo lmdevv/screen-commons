@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { DisplayException } from "./image-policy";
 import {
   LIMITS,
   categorySchema,
@@ -36,9 +37,11 @@ export const ERROR_CODES = [
   "conflict",
   "payload_too_large",
   "unsupported_media_type",
+  /** Valid input the server can't process as sent (e.g. a page too tall to make a thumbnail of). */
+  "unprocessable",
   "rate_limited",
   "internal",
-  /** A dependency (e.g. the Images binding) failed; retrying later may succeed. */
+  /** A dependency (e.g. the Images binding) failed; retrying later (`Retry-After`) may succeed. */
   "unavailable",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -125,11 +128,13 @@ export interface BackfillDisplayResult {
     screenId: string;
     /**
      * `updated`: new display image and/or thumbnail; `current`: already met the policy, only
-     * marked; `failed`: left for a later run; `pending`: dry run.
+     * marked; `exception`: displayed as uploaded under a documented exception (`exception`), not
+     * retried; `failed`: left for a later run; `pending`: dry run.
      */
-    action: "updated" | "current" | "failed" | "pending";
+    action: "updated" | "current" | "exception" | "failed" | "pending";
     imageKey: string;
     thumbKey: string;
+    exception?: DisplayException;
     reason?: string;
   }[];
   nextCursor: string | null;

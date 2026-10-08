@@ -15,13 +15,22 @@ export class ScreenCommonsApiError extends Error {
   readonly status: number;
   readonly code: ErrorCode;
   readonly details: unknown;
+  /** Seconds to wait before retrying (`Retry-After`), for `unavailable` and `rate_limited`. */
+  readonly retryAfter: number | null;
 
-  constructor(status: number, code: ErrorCode, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: ErrorCode,
+    message: string,
+    details?: unknown,
+    retryAfter: number | null = null,
+  ) {
     super(message);
     this.name = "ScreenCommonsApiError";
     this.status = status;
     this.code = code;
     this.details = details;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -79,6 +88,7 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
         error?.code ?? "internal",
         error?.message ?? `Request failed with ${response.status}`,
         error?.details,
+        Number(response.headers.get("retry-after")) || null,
       );
     }
     return data as T;

@@ -4,6 +4,7 @@ import {
   encodeDisplayImage,
   encodeThumbnail,
   readEncoded,
+  type EncodedBlob,
 } from "@screen-commons/core/canvas";
 import { LIMITS } from "@screen-commons/core/limits";
 
@@ -94,13 +95,16 @@ export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<
       throw new ImageValidationError("Too small to be a screenshot");
     }
 
-    const [image, thumbnail] = await Promise.all([
-      encodeDisplayImage(bitmap, original),
-      encodeThumbnail(bitmap, kind === "web" ? "desktop" : "mobile"),
-    ]).catch((error: unknown) => {
+    // One after the other, so only one large canvas is alive at a time (iOS caps canvas memory).
+    let image: EncodedBlob;
+    let thumbnail: EncodedBlob;
+    try {
+      image = await encodeDisplayImage(bitmap, original);
+      thumbnail = await encodeThumbnail(bitmap, kind === "web" ? "desktop" : "mobile");
+    } catch (error) {
       if (error instanceof ImageBudgetError) throw new ImageValidationError(error.message);
       throw error;
-    });
+    }
 
     return {
       width,

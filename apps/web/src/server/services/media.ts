@@ -1,7 +1,9 @@
 import {
   DISPLAY_POLICY,
+  IMAGES_BINDING_LIMITS,
   IMAGE_EXTENSIONS,
   LIMITS,
+  WEBP_MAX_DIMENSION,
   backfillDisplayInputSchema,
   derivativeKey,
   isDisplayReady,
@@ -9,6 +11,7 @@ import {
   sniffImage,
   thumbnailKindFor,
   type BackfillDisplayResult,
+  type DisplayException,
   type StoredImageType,
   type ThumbnailKind,
 } from "@screen-commons/core";
@@ -17,7 +20,7 @@ import { and, asc, count, eq, gt, isNull, lt, or } from "drizzle-orm";
 
 import { deriveDisplayImage, deriveThumbnail, type DecodedImage } from "../display";
 import { getDb, getImages, getMedia } from "../env";
-import { ServiceError, forbidden, parseInput } from "../errors";
+import { ServiceError, forbidden, parseInput, unavailable } from "../errors";
 import { sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
 
@@ -78,8 +81,13 @@ export interface ScreenMedia {
   thumb: StoredImage;
   /** Retained source when `full` is a server-derived display image. */
   originalKey: string | null;
-  /** `DISPLAY_POLICY.version` when `full` and `thumb` meet the policy; null to retry later. */
+  /**
+   * `DISPLAY_POLICY.version` when `full` and `thumb` were checked against the policy (they meet
+   * it, or `displayException` documents why not); null when the binding failed and the backfill
+   * should retry.
+   */
   displayVersion: number | null;
+  displayException: DisplayException | null;
 }
 
 /** Keys a source can end up under, for dedupe: as uploaded, as retained original, as derivative. */
@@ -92,6 +100,22 @@ export function sourceKeys(source: Pick<MediaSource, "sha256" | "type">): string
   ];
 }
 
+/** Why an upload without a usable thumbnail can't be completed, for a permanent failure. */
+function thumbnailRequired(
+  label: string,
+  source: MediaSource,
+  exception: DisplayException,
+  reason: string,
+): ServiceError {
+  const message =
+    exception === "binding_limits"
+      ? `${label}.image is a ${source.width}x${source.height} ${source.type}, too tall for the server to make a thumbnail of (PNG/JPEG up to ${IMAGES_BINDING_LIMITS.maxDimension.toLocaleString("en-US")}px). Send a thumbnail with it, or the image as WebP (up to ${WEBP_MAX_DIMENSION.toLocaleString("en-US")}px tall).`
+      : exception === "no_binding"
+        ? `${label}: this instance has no Images binding to make thumbnails with. Send a thumbnail with the image.`
+        : `${label}: the server couldn't make a thumbnail of this image (${reason}). Send a thumbnail with it.`;
+  return new ServiceError("unprocessable", message, { exception });
+}
+
 /**
  * Display image and thumbnail for a screen's source, per the display policy (shared by ingest
  * and backfill):
@@ -99,12 +123,15 @@ export function sourceKeys(source: Pick<MediaSource, "sha256" | "type">): string
  *   Images binding under a versioned key (`img/<sha>.v1.webp`), with the source retained
  *   separately (`orig/<sha>.<ext>`, never served), unless WebP isn't smaller and no resize is
  *   needed, in which case the source is the display image.
- * - If the binding fails, the source is displayed as uploaded (it is within the upload limits;
- *   pages taller than 16,383px stay PNG/JPEG) and `displayVersion` is null so the backfill
- *   retries. This is the only case where a non-conforming full image is displayed.
+ * - Without a derivative the source is displayed as uploaded (it is within the upload limits).
+ *   When retrying can't help, that is a documented exception (`displayException`: source outside
+ *   the binding's limits, no binding, unusable output) and the version is current, so the
+ *   backfill doesn't loop on it; when the binding call failed, `displayVersion` is null and the
+ *   backfill retries.
  * - A client WebP thumbnail is used as sent. Otherwise one is derived from the source; a client
- *   JPEG/PNG thumbnail is only a fallback when that fails. Without either, the upload fails
- *   (`unavailable`): a full image is never displayed as a thumbnail.
+ *   JPEG/PNG thumbnail is only a fallback when that fails. Without either the upload fails: 503
+ *   `unavailable` (with `Retry-After`) when a retry may succeed, 422 `unprocessable` when only a
+ *   thumbnail from the client will do. A full image is never displayed as a thumbnail.
  * - Derivatives are content-addressed by source + policy version, so retries, duplicate uploads
  *   and backfill runs reuse them instead of re-encoding.
  */
@@ -124,7 +151,13 @@ export async function resolveScreenMedia(input: {
       ? { key: input.sourceKey, type, width, height, bytes: source.data.byteLength }
       : putOnce(key, source.data, source);
   const images = getImages();
-  let normalized = true;
+  let retry = false;
+  let exception: DisplayException | null = null;
+  const fallBack = (result: { reason: string; exception?: DisplayException }, what: string) => {
+    if (result.exception) exception ??= result.exception;
+    else retry = true;
+    console.warn(`screen-commons: ${label}: ${what} (${result.reason})`);
+  };
 
   let full: StoredImage;
   let retained: string | null = null;
@@ -135,12 +168,7 @@ export async function resolveScreenMedia(input: {
     const result = await deriveDisplayImage(images, source);
     if (result.status === "derived")
       derived = await putOnce(imageKey, result.image.data, result.image);
-    else if (result.status === "failed") {
-      normalized = false;
-      console.warn(
-        `screen-commons: ${label}: displaying the source as uploaded (${result.reason})`,
-      );
-    }
+    else if (result.status === "failed") fallBack(result, "displaying the source as uploaded");
   }
   if (derived) {
     full = derived;
@@ -157,13 +185,14 @@ export async function resolveScreenMedia(input: {
       if (result.status === "derived")
         thumb = await putOnce(thumbKey, result.image.data, result.image);
       else if (input.thumbnail) {
-        normalized = false;
-        console.warn(`screen-commons: ${label}: keeping the sent thumbnail (${result.reason})`);
+        fallBack(result, "keeping the sent thumbnail");
         thumb = await input.thumbnail.store();
       } else {
         console.warn(`screen-commons: ${label}: thumbnail generation failed (${result.reason})`);
-        throw new ServiceError(
-          "unavailable",
+        if (result.exception) {
+          throw thumbnailRequired(label, source, result.exception, result.reason);
+        }
+        throw unavailable(
           `${label}: a thumbnail couldn't be generated right now. Retry later, or send a thumbnail with the image.`,
         );
       }
@@ -174,7 +203,8 @@ export async function resolveScreenMedia(input: {
     full,
     thumb,
     originalKey: retained,
-    displayVersion: normalized ? DISPLAY_POLICY.version : null,
+    displayVersion: retry ? null : DISPLAY_POLICY.version,
+    displayException: exception,
   };
 }
 
@@ -182,13 +212,20 @@ export async function resolveScreenMedia(input: {
 // Backfill: bring existing screens up to the current policy version
 // ---------------------------------------------------------------------------------------------
 
-const outdated = or(
-  isNull(screen.displayVersion),
-  lt(screen.displayVersion, DISPLAY_POLICY.version),
-);
+/**
+ * Screens the backfill should look at: below the current policy version (or never checked), plus,
+ * once the instance has an Images binding, those stored as uploaded for lack of one.
+ */
+function outdated() {
+  return or(
+    isNull(screen.displayVersion),
+    lt(screen.displayVersion, DISPLAY_POLICY.version),
+    getImages() ? eq(screen.displayException, "no_binding") : undefined,
+  );
+}
 
 async function remainingCount(): Promise<number> {
-  const [row] = await getDb().select({ n: count() }).from(screen).where(outdated);
+  const [row] = await getDb().select({ n: count() }).from(screen).where(outdated());
   return row?.n ?? 0;
 }
 
@@ -206,12 +243,23 @@ async function existingThumbnail(
   return { type, store: async () => ({ key: row.thumbKey, type, ...size, bytes: head.size }) };
 }
 
+/** The exception behind a permanent `unprocessable` failure from `resolveScreenMedia`. */
+function permanentException(error: unknown): DisplayException | undefined {
+  if (!(error instanceof ServiceError) || error.code !== "unprocessable") return undefined;
+  return (error.details as { exception?: DisplayException } | undefined)?.exception;
+}
+
 /**
  * One page of the display backfill (admin only): screens whose `display_version` is missing or
  * older than the policy, oldest id first. Each is re-resolved from its retained original (or its
- * current image) exactly like a new upload, then its keys, size and version are updated. Old
- * objects are left in place (the replaced image becomes `original_key`), so the run is safe to
- * repeat or interrupt; failures stay below the version for the next run.
+ * current image) exactly like a new upload, then its keys, size and version are updated.
+ * - Old objects are left in place (the replaced image becomes `original_key`), so the run is safe
+ *   to repeat or interrupt.
+ * - A screen that already has a derivative keeps it when the run makes none (binding failure, or
+ *   the source would now be displayed as is): `original_key` is never served, so it never becomes
+ *   the display image. Only the version (and exception) are recorded then.
+ * - Binding failures stay below the version for the next run; documented exceptions are recorded
+ *   at the current version and not retried.
  */
 export async function backfillDisplay(
   principal: Principal,
@@ -232,7 +280,7 @@ export async function backfillDisplay(
     })
     .from(screen)
     .innerJoin(app, eq(app.id, screen.appId))
-    .where(cursor ? and(outdated, gt(screen.id, cursor)) : outdated)
+    .where(cursor ? and(outdated(), gt(screen.id, cursor)) : outdated())
     .orderBy(asc(screen.id))
     .limit(limit);
 
@@ -258,34 +306,48 @@ export async function backfillDisplay(
         kind: thumbnailKindFor(row.platform),
         label: `screen ${row.id}`,
       });
+      const keepDisplay = row.originalKey !== null && media.originalKey === null;
+      const imageKey = keepDisplay ? row.imageKey : media.full.key;
+      if (imageKey.startsWith("orig/")) throw new Error(`${imageKey} can't be a display image`);
       await db
         .update(screen)
         .set({
-          imageKey: media.full.key,
+          ...(keepDisplay
+            ? {}
+            : {
+                imageKey,
+                width: media.full.width,
+                height: media.full.height,
+                bytes: media.full.bytes,
+                originalKey: media.originalKey,
+              }),
           thumbKey: media.thumb.key,
-          width: media.full.width,
-          height: media.full.height,
-          bytes: media.full.bytes,
           thumbWidth: media.thumb.width,
           thumbHeight: media.thumb.height,
-          originalKey: media.originalKey,
           displayVersion: media.displayVersion,
+          displayException: media.displayException,
         })
         .where(eq(screen.id, row.id));
-      const changed = media.full.key !== row.imageKey || media.thumb.key !== row.thumbKey;
-      items.push({
-        screenId: row.id,
-        imageKey: media.full.key,
-        thumbKey: media.thumb.key,
-        action: media.displayVersion === null ? "failed" : changed ? "updated" : "current",
-        ...(media.displayVersion === null ? { reason: "the Images binding failed" } : {}),
-      });
+      const result = { screenId: row.id, imageKey, thumbKey: media.thumb.key };
+      if (media.displayVersion === null) {
+        items.push({ ...result, action: "failed", reason: "the Images binding failed" });
+      } else if (media.displayException) {
+        items.push({ ...result, action: "exception", exception: media.displayException });
+      } else {
+        const changed = imageKey !== row.imageKey || media.thumb.key !== row.thumbKey;
+        items.push({ ...result, action: changed ? "updated" : "current" });
+      }
     } catch (error) {
-      items.push({
-        ...item,
-        action: "failed",
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      const reason = error instanceof Error ? error.message : String(error);
+      const exception = permanentException(error);
+      if (exception) {
+        // Only a thumbnail from a client would do; don't retry it on every run.
+        await db
+          .update(screen)
+          .set({ displayVersion: DISPLAY_POLICY.version, displayException: exception })
+          .where(eq(screen.id, row.id));
+        items.push({ ...item, action: "exception", exception, reason });
+      } else items.push({ ...item, action: "failed", reason });
     }
   }
   return {

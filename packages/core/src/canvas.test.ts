@@ -219,7 +219,17 @@ describe("encodeThumbnail", () => {
     // wider than the display image the server checks it against
     const tall = await encodeThumbnail(source(750, 20_000), "mobile");
     expect(tall).toMatchObject({ width: 614, height: 1330 });
-    expect(canvases.at(-1)!.draws[0]).toEqual([expect.anything(), 0, 0, 750, 1625, 0, 0, 614, 1330]);
+    expect(canvases.at(-1)!.draws[0]).toEqual([
+      expect.anything(),
+      0,
+      0,
+      750,
+      1625,
+      0,
+      0,
+      614,
+      1330,
+    ]);
     expect(await encodeThumbnail(source(390, 18_000), "mobile")).toMatchObject({
       width: 355,
       height: 769,

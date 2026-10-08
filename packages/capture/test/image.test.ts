@@ -159,6 +159,7 @@ describe("image encoding", () => {
     const webp = vi.spyOn(sharp.prototype, "webp");
     try {
       await encodeDisplay(jpeg);
+      expect(webp).toHaveBeenCalled();
       expect(webp.mock.calls.some(([options]) => options?.lossless)).toBe(false);
     } finally {
       webp.mockRestore();

@@ -38,7 +38,14 @@ import { ServiceError, badRequest, notFound, parseInput } from "../errors";
 import { newId, sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
 import { getFlow, getScreenRow } from "./catalog";
-import { putOnce, resolveScreenMedia, sourceKeys, type StoredImage } from "./media";
+import {
+  putOnce,
+  resolveScreenMedia,
+  sourceKeys,
+  type ScreenMedia,
+  type StoredImage,
+  type ThumbnailCandidate,
+} from "./media";
 import { screensToApi, visibleSql } from "./shared";
 
 type AppInput = z.output<typeof appInputSchema>;
@@ -63,9 +70,11 @@ const tooLarge = (message: string) => new ServiceError("payload_too_large", mess
 
 /**
  * An image not yet decoded: base64 text (JSON transports, with the type the client declared) or a
- * Blob (multipart, whose browser-assigned type is ignored).
+ * Blob (multipart, whose browser-assigned type is ignored). A declared type the bytes don't have
+ * is rejected, except with `lenientType` (MCP tools: models often mislabel what they send), where
+ * the bytes' type is used and the mismatch logged.
  */
-export type ImageSource = { base64: string; type?: string } | { blob: Blob };
+export type ImageSource = { base64: string; type?: string; lenientType?: boolean } | { blob: Blob };
 
 /** Upper bound of the decoded size, computed without allocating. */
 function estimatedBytes(source: ImageSource): number {
@@ -124,15 +133,19 @@ function checkImage(kind: ImageKind, data: Uint8Array, label: string, source?: I
   if (!header) {
     throw new ServiceError(
       "unsupported_media_type",
-      `${label} must be a complete PNG, JPEG or WebP image`,
+      `${label} must be a complete, still PNG, JPEG or WebP image`,
     );
   }
   const declared = source && "type" in source ? source.type : undefined;
   if (declared && declared !== header.type) {
-    throw new ServiceError(
-      "unsupported_media_type",
-      `${label} is declared as ${declared} but is ${header.type}; send the type the bytes actually have`,
-    );
+    if (source && "lenientType" in source && source.lenientType) {
+      console.warn(`screen-commons: ${label} is declared as ${declared} but is ${header.type}`);
+    } else {
+      throw new ServiceError(
+        "unsupported_media_type",
+        `${label} is declared as ${declared} but is ${header.type}; send the type the bytes actually have`,
+      );
+    }
   }
   if (header.width > limits.width || header.height > limits.height) {
     throw badRequest(
@@ -340,20 +353,42 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       ? (await ingestImage({ kind: "logo", source: input.logo, label: "logo" })).key
       : null;
 
-  // 3. Decode → validate → store one screen at a time, normalized per the display policy
-  //    (content addressed: retries are idempotent; objects stored before a later validation
-  //    failure stay unreferenced and are never served).
+  // 3. Decode → validate → dedupe → store one screen at a time, normalized per the display
+  //    policy (content addressed: retries are idempotent; objects stored before a later
+  //    validation failure stay unreferenced and are never served).
+  const db = getDb();
+  const now = new Date();
+  const status = statusFor(principal);
   const kind = thumbnailKindFor(input.app.platform);
-  const stored: (Awaited<ReturnType<typeof resolveScreenMedia>> & {
-    item: IngestScreen;
-    keys: string[];
-  })[] = [];
+  // Screens by every key their source can be stored under (as uploaded, derived or retained),
+  // so a re-upload is recognised whichever way the first one was normalized, within this batch
+  // too, before any thumbnail or derivative is made for it.
+  const seen = new Map<string, { id: string; status: Status }>();
+  const findDuplicate = async (keys: string[]) => {
+    const known = keys.map((key) => seen.get(key)).find(Boolean);
+    if (known || !existing) return known;
+    const [row] = await db
+      .select({ id: screen.id, status: screen.status })
+      .from(screen)
+      .where(
+        and(
+          eq(screen.appId, existing.id),
+          or(inJsonArray(screen.imageKey, keys), inJsonArray(screen.originalKey, keys)),
+          visibleSql(screen, principal, "detail"),
+          sql`${screen.status} != 'rejected'`,
+        ),
+      )
+      .limit(1);
+    return row;
+  };
+  const screens: { id: string; status: Status }[] = [];
+  const created: { item: IngestScreen; id: string; media: ScreenMedia }[] = [];
   for (const [index, item] of input.screens.entries()) {
     const label = `screens[${index}]`;
     const data = await loadSource(item.image, `${label}.image`);
     const header = checkImage("img", data, `${label}.image`, item.image);
     const source = { data, ...header, sha256: await sha256Hex(data) };
-    let thumbnail: Parameters<typeof resolveScreenMedia>[0]["thumbnail"];
+    let thumbnail: ThumbnailCandidate | undefined;
     if (item.thumbnail) {
       const thumbLabel = `${label}.thumbnail`;
       const thumbData = await loadSource(item.thumbnail, thumbLabel);
@@ -368,55 +403,28 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
         store: () => storeImage("thumb", thumbData, thumbHeader),
       };
     }
-    const media = await resolveScreenMedia({ source, thumbnail, kind, label });
-    stored.push({ ...media, item, keys: sourceKeys(source) });
-  }
-
-  // 4. Rows, written in one batch.
-  const db = getDb();
-  const now = new Date();
-  const status = statusFor(principal);
-  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
-  const appRow = resolved.row;
-
-  // Duplicates match on any key the same source can be stored under (as uploaded, derived or
-  // retained), so a re-upload is recognised whichever way the first one was normalized.
-  const existingByKey = new Map<string, { id: string; status: Status }>();
-  if (existing) {
-    const keys = stored.flatMap((entry) => entry.keys);
-    const rows = await db
-      .select({
-        id: screen.id,
-        imageKey: screen.imageKey,
-        originalKey: screen.originalKey,
-        status: screen.status,
-      })
-      .from(screen)
-      .where(
-        and(
-          eq(screen.appId, appRow.id),
-          or(inJsonArray(screen.imageKey, keys), inJsonArray(screen.originalKey, keys)),
-          visibleSql(screen, principal, "detail"),
-          sql`${screen.status} != 'rejected'`,
-        ),
-      );
-    for (const row of rows) {
-      existingByKey.set(row.imageKey, { id: row.id, status: row.status });
-      if (row.originalKey) existingByKey.set(row.originalKey, { id: row.id, status: row.status });
-    }
-  }
-
-  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
-  const screens: { id: string; status: Status }[] = [];
-  for (const { item, full, thumb, originalKey, displayVersion, keys } of stored) {
-    const duplicate = keys.map((key) => existingByKey.get(key)).find(Boolean);
+    const keys = sourceKeys(source);
+    const duplicate = await findDuplicate(keys);
     if (duplicate) {
       screens.push(duplicate);
       continue;
     }
+    const media = await resolveScreenMedia({ source, thumbnail, kind, label });
+    const id = newId();
+    for (const key of keys) seen.set(key, { id, status });
+    created.push({ item, id, media });
+    screens.push({ id, status });
+  }
+
+  // 4. Rows, written in one batch.
+  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
+  const appRow = resolved.row;
+  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
+  for (const { item, id, media } of created) {
+    const { full, thumb, originalKey, displayVersion, displayException } = media;
     const capturedAt = parseDate(item.capturedAt);
     const values: NewScreenRow = {
-      id: newId(),
+      id,
       appId: appRow.id,
       imageKey: full.key,
       thumbKey: thumb.key,
@@ -427,6 +435,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       thumbHeight: thumb.height,
       originalKey,
       displayVersion,
+      displayException,
       title: item.title ?? null,
       sourceUrl: item.sourceUrl ?? null,
       text: item.text ?? null,
@@ -442,9 +451,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       createdAt: now,
       updatedAt: now,
     };
-    for (const key of keys) existingByKey.set(key, { id: values.id, status });
     writes.push(db.insert(screen).values(values));
-    screens.push({ id: values.id, status });
   }
 
   let flowResult: IngestResult["flow"] = null;
@@ -475,7 +482,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
           flowId,
           position,
           screenId: item.id,
-          label: stored[position]?.item.stepLabel ?? null,
+          label: input.screens[position]?.stepLabel ?? null,
         }),
       );
     });
@@ -557,7 +564,10 @@ export async function createScreen(
   return { screen: apiScreen! };
 }
 
-/** MCP `upload_screen`: no thumbnail is sent, so the server generates one. */
+/**
+ * MCP `upload_screen`: no thumbnail is sent, so the server generates one. The image is typed by
+ * its bytes; a mislabelled `image.type` is only logged.
+ */
 export async function uploadScreenFromTool(
   principal: Principal,
   input: z.output<(typeof catalogTools)["upload_screen"]["input"]>,
@@ -568,7 +578,7 @@ export async function uploadScreenFromTool(
     source: "mcp",
     screens: [
       {
-        image: { base64: input.image.base64, type: input.image.type },
+        image: { base64: input.image.base64, type: input.image.type, lenientType: true },
         title: input.title,
         sourceUrl: input.sourceUrl,
         patterns: input.patterns,

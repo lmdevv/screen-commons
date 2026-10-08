@@ -265,13 +265,13 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
   register("upload_screen", async (args) => {
     requireKey(context);
     const bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
+    // Typed by its bytes: a mislabelled image.type (common from models) is noted, not fatal.
     const header = readImageHeader(bytes);
     if (!header) throw new FriendlyError("image.base64 is not a valid PNG, JPEG or WebP image.");
-    if (header.type !== args.image.type) {
-      throw new FriendlyError(
-        `image.type is ${args.image.type} but image.base64 is ${header.type}; send the type the bytes actually have.`,
-      );
-    }
+    const note =
+      header.type === args.image.type
+        ? ""
+        : ` (image.type said ${args.image.type}, but the bytes are ${header.type}; uploaded as ${header.type})`;
     const viewport = args.app.platform && args.app.platform !== "web" ? "mobile" : "desktop";
     const { screen } = await prepareScreen({
       png: bytes,
@@ -285,7 +285,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
     const created = result.screens[0];
     return ok(
       text(
-        `Uploaded to ${result.app.name}: ${absoluteUrl(context.baseUrl, created?.url)} (status ${created?.status}). ${created?.status === "pending" ? "It will appear after an admin approves it." : ""}`.trim(),
+        `Uploaded to ${result.app.name}: ${absoluteUrl(context.baseUrl, created?.url)} (status ${created?.status})${note}. ${created?.status === "pending" ? "It will appear after an admin approves it." : ""}`.trim(),
       ),
     );
   });

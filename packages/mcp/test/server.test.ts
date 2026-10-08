@@ -213,7 +213,7 @@ describe("catalog tools", () => {
     });
   });
 
-  it("upload_screen rejects images whose declared type doesn't match their bytes", async () => {
+  it("upload_screen types images by their bytes, noting a mislabelled image.type", async () => {
     const { client } = await connect();
     const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#000" } })
       .png()
@@ -223,9 +223,10 @@ describe("catalog tools", () => {
       app: { name: "Acme" },
       image: { type: "image/webp", base64: png.toString("base64") },
     });
-    expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain("image.type is image/webp but image.base64 is image/png");
-    expect(api.batches.length).toBe(before);
+    expect(result.isError).toBeFalsy();
+    expect(textOf(result)).toContain("image.type said image/webp, but the bytes are image/png");
+    const image = api.batches[before]!.screens[0]!.image;
+    expect(readImageHeader(Buffer.from(image.base64, "base64"))?.type).toBe(image.type);
   });
 });
 

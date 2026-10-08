@@ -36,7 +36,11 @@ export const apiMiddleware = createMiddleware().server(async ({ request, pathnam
 });
 
 function withApiHeaders(request: Request, response: Response): Response {
-  if (isCrossOrigin(request)) response.headers.set("access-control-allow-origin", "*");
+  if (isCrossOrigin(request)) {
+    response.headers.set("access-control-allow-origin", "*");
+    // `unavailable` answers say when to retry; the extension reads it cross-origin.
+    response.headers.set("access-control-expose-headers", "retry-after");
+  }
   response.headers.set("cache-control", "private, no-store");
   return response;
 }

@@ -32,10 +32,10 @@ export async function processCapture(raw: RawCapture, mode: CaptureMode): Promis
   const bitmap = await decode(raw.image.blob);
   try {
     const kind = kindForViewport(raw.viewportWidth);
-    const [image, thumbnail] = await Promise.all([
-      readEncoded(raw.image.blob).then((original) => encodeDisplayImage(bitmap, original)),
-      encodeThumbnail(bitmap, kind),
-    ]);
+    // One after the other: each holds a canvas (up to 256 MiB for a 4096 × 16,383 page), and
+    // the service worker shares its memory with the capture bitmap.
+    const image = await encodeDisplayImage(bitmap, await readEncoded(raw.image.blob));
+    const thumbnail = await encodeThumbnail(bitmap, kind);
     return {
       id: newId(),
       order: 0,

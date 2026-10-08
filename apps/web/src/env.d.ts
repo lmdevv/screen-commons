@@ -2,8 +2,13 @@
 interface CloudflareEnv {
   DB: import("@cloudflare/workers-types").D1Database;
   MEDIA: import("@cloudflare/workers-types").R2Bucket;
-  /** Cloudflare Images (optional: thumbnails fall back to the full image without it). */
+  /**
+   * Cloudflare Images (optional). Without it, uploads are displayed as sent (documented
+   * `no_binding` exception) and must include a thumbnail.
+   */
   IMAGES?: import("@cloudflare/workers-types").ImagesBinding;
+  /** Test servers only: honour `x-test-images` fault headers (see `getImages`). */
+  SCREEN_COMMONS_TEST_FAULTS?: string;
   APP_URL: string;
   BETTER_AUTH_SECRET?: string;
   GITHUB_CLIENT_ID?: string;

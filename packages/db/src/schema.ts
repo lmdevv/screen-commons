@@ -146,6 +146,12 @@ export const screen = sqliteTable(
      * normalized (Images binding failure, rows from before the policy) and the backfill should retry.
      */
     displayVersion: integer("display_version"),
+    /**
+     * Set when, at `displayVersion`, the media is displayed as uploaded under a documented
+     * exception (`DisplayException`: source outside the Images binding's limits, no binding,
+     * unconvertible) rather than a derivative; the backfill doesn't retry these.
+     */
+    displayException: text("display_exception"),
     title: text("title"),
     sourceUrl: text("source_url"),
     /** Visible text on the screen (DOM innerText / OCR), indexed for search. */

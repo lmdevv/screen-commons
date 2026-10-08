@@ -70,7 +70,12 @@ export default async function setup(project: TestProject) {
   const configDir = join(stateDir, "config");
   await mkdir(configDir);
   const configPath = writeTestWranglerConfig(configDir, {
-    devVars: { APP_URL: BASE_URL, BETTER_AUTH_SECRET: randomBytes(32).toString("base64url") },
+    devVars: {
+      APP_URL: BASE_URL,
+      BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"),
+      // honour `x-test-images: fail | missing` (simulated Images binding failures)
+      SCREEN_COMMONS_TEST_FAULTS: "1",
+    },
   });
   const env = {
     ...process.env,

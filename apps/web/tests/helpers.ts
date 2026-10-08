@@ -76,8 +76,16 @@ export class Session {
   }
 }
 
-export const keyClient = (apiKey: string) =>
-  createScreenCommonsClient({ baseUrl: baseUrl(), apiKey });
+/**
+ * API client for a key. `images` simulates a failing or missing Images binding for its requests
+ * (`x-test-images`, honoured by test servers only).
+ */
+export const keyClient = (apiKey: string, options: { images?: "fail" | "missing" } = {}) =>
+  createScreenCommonsClient({
+    baseUrl: baseUrl(),
+    apiKey,
+    headers: options.images ? { "x-test-images": options.images } : undefined,
+  });
 
 export const b64 = (buffer: Buffer) => buffer.toString("base64");
 
@@ -106,8 +114,8 @@ export const uniqueSuffix = () => Math.random().toString(36).slice(2, 8);
 /**
  * Run a wrangler command against the test server's local state, e.g.
  * `wranglerLocal(["d1", "execute", "DB", "--command", sql])`, to set up states the API can't
- * produce (rows from before a migration). Async on purpose: blocking the event loop for seconds
- * lets the dev server's keep-alive timeout close pooled sockets unnoticed ("other side closed").
+ * produce (rows from before a migration). Async, so the test process stays responsive while
+ * wrangler starts.
  */
 export async function wranglerLocal(args: string[]): Promise<string> {
   const { stdout } = await promisify(execFile)(
