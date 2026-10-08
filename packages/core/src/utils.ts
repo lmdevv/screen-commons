@@ -114,7 +114,9 @@ export function readImageHeader(
       const height = 1 + (bytes[27]! | (bytes[28]! << 8) | (bytes[29]! << 16));
       return { type: "image/webp", width, height };
     }
+    // Lossy frames start with the 9d 01 2a start code; lossless ones with the 0x2f signature.
     if (chunk === "VP8 ") {
+      if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return null;
       return {
         type: "image/webp",
         width: view.getUint16(26, true) & 0x3fff,
@@ -122,6 +124,7 @@ export function readImageHeader(
       };
     }
     if (chunk === "VP8L") {
+      if (bytes[20] !== 0x2f) return null;
       const b0 = bytes[21]!;
       const b1 = bytes[22]!;
       const b2 = bytes[23]!;

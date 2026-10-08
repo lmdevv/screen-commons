@@ -212,6 +212,16 @@ describe("contribute → review", () => {
     );
     screenIds = flow.steps.map((step: { screen: { id: string } }) => step.screen.id);
     for (const step of flow.steps) assert.equal(step.screen.status, "pending");
+
+    // Display policy: the browser uploaded WebP it encoded itself (not a server derivative).
+    for (const { screen } of flow.steps as { screen: { imageUrl: string; thumbUrl: string } }[]) {
+      assert.match(screen.imageUrl, /^\/media\/img\/[0-9a-f]{64}\.webp$/u);
+      for (const url of [screen.imageUrl, screen.thumbUrl]) {
+        const response = await member.request.get(`${BASE}${url}`);
+        assert.equal(response.headers()["content-type"], "image/webp");
+        assert.equal((await response.body()).toString("ascii", 8, 12), "WEBP");
+      }
+    }
   });
 
   test("members can't open the review queue", async () => {

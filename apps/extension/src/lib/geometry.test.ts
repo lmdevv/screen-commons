@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_OUTPUT_HEIGHT,
   documentRect,
   kindForViewport,
   planCapture,
   planStitchTiles,
-  planThumbnail,
   tilePlacement,
 } from "./geometry";
 
@@ -23,17 +23,17 @@ describe("planCapture", () => {
 
   it("reduces scale toward 1 before truncating tall pages", () => {
     const plan = planCapture({ x: 0, y: 0, width: 1440, height: 12_000 }, 2);
-    expect(plan.scale).toBeCloseTo(16_384 / 12_000, 3);
+    expect(plan.scale).toBeCloseTo(MAX_OUTPUT_HEIGHT / 12_000, 3);
     expect(plan.truncated).toBe(false);
-    expect(plan.outputHeight).toBeLessThanOrEqual(16_384);
+    expect(plan.outputHeight).toBeLessThanOrEqual(MAX_OUTPUT_HEIGHT);
   });
 
   it("truncates when even scale 1 does not fit", () => {
     const plan = planCapture({ x: 0, y: 0, width: 1280, height: 40_000 }, 1);
     expect(plan.scale).toBe(1);
     expect(plan.truncated).toBe(true);
-    expect(plan.clip.height).toBe(16_384);
-    expect(plan.outputHeight).toBe(16_384);
+    expect(plan.clip.height).toBe(MAX_OUTPUT_HEIGHT);
+    expect(plan.outputHeight).toBe(MAX_OUTPUT_HEIGHT);
   });
 
   it("scales down wide content to the max width", () => {
@@ -72,41 +72,6 @@ describe("tilePlacement", () => {
     expect(tilePlacement(1100, 1800, 2, 4000)).toEqual({ destY: 2200, srcHeight: 1800 });
     expect(tilePlacement(1800, 1800, 2, 4000)).toEqual({ destY: 3600, srcHeight: 400 });
     expect(tilePlacement(2000, 1800, 2, 4000)).toBeNull();
-  });
-});
-
-describe("planThumbnail", () => {
-  it("crops tall desktop shots from the top to 16:10", () => {
-    expect(planThumbnail(2880, 9000, "desktop")).toEqual({
-      sx: 0,
-      sy: 0,
-      sw: 2880,
-      sh: 1800,
-      width: 640,
-      height: 400,
-    });
-  });
-
-  it("keeps the aspect of short shots", () => {
-    expect(planThumbnail(1280, 400, "desktop")).toEqual({
-      sx: 0,
-      sy: 0,
-      sw: 1280,
-      sh: 400,
-      width: 640,
-      height: 200,
-    });
-  });
-
-  it("uses 9:19.5 for mobile", () => {
-    const plan = planThumbnail(1170, 8000, "mobile");
-    expect(plan.sh).toBe(Math.round(1170 * (19.5 / 9)));
-    expect(plan.width).toBe(640);
-    expect(plan.height).toBe(Math.round((plan.sh * 640) / 1170));
-  });
-
-  it("never upscales small images", () => {
-    expect(planThumbnail(300, 150, "desktop")).toMatchObject({ width: 300, height: 150 });
   });
 });
 

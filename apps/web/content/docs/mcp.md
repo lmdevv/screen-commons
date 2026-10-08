@@ -197,6 +197,8 @@ Catalog tools are available on both servers. Browser tools are local only.
 
 Results are JSON text. URLs in tool output are absolute, and every item includes a `url` to open it on your instance.
 
+`upload_screen` types the image by its bytes: an `image.type` that doesn't match is ignored (the local server notes it in the result). The server makes the thumbnail, so an upload it can't make one for fails: `unavailable` (retry after the stated time) when the Images binding failed, `unprocessable` when retrying can't help, such as a PNG or JPEG taller than 12,000 px (send it as WebP, at most 16,383 px tall) or an instance without an Images binding.
+
 ### Browser tools (local only)
 
 | Tool                 | Purpose                                                                                            | Arguments                                                                                                                                                                                  |

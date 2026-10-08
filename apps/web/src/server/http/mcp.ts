@@ -178,9 +178,11 @@ function createServer(principal: Principal, origin: string): McpServer {
           return await handler(args);
         } catch (error) {
           const failure = toServiceError(error);
+          const retry =
+            failure.retryAfter === undefined ? "" : ` Retry in ${failure.retryAfter} seconds.`;
           return {
             isError: true,
-            content: [{ type: "text", text: `${failure.code}: ${failure.message}` }],
+            content: [{ type: "text", text: `${failure.code}: ${failure.message}${retry}` }],
           };
         }
       }) as never,

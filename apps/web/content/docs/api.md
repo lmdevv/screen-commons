@@ -55,17 +55,19 @@ Errors use HTTP status codes and a JSON body:
 }
 ```
 
-| Code                     | Status | Meaning                                                                          |
-| ------------------------ | ------ | -------------------------------------------------------------------------------- |
-| `bad_request`            | 400    | Invalid input. `error.details` lists the validation issues.                      |
-| `unauthorized`           | 401    | Missing, unknown or revoked key, and no session.                                 |
-| `forbidden`              | 403    | Authenticated, but not allowed. For example, a member calling a review endpoint. |
-| `not_found`              | 404    | The item doesn't exist or you can't see it.                                      |
-| `conflict`               | 409    | Reserved. Not returned by the current release.                                   |
-| `payload_too_large`      | 413    | Request body or an image is over its limit.                                      |
-| `unsupported_media_type` | 415    | An image isn't PNG, JPEG or WebP.                                                |
-| `rate_limited`           | 429    | Reserved. The current release has no rate limits.                                |
-| `internal`               | 500    | Something went wrong on the server.                                              |
+| Code                     | Status | Meaning                                                                                                                                                                   |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bad_request`            | 400    | Invalid input. `error.details` lists the validation issues.                                                                                                               |
+| `unauthorized`           | 401    | Missing, unknown or revoked key, and no session.                                                                                                                          |
+| `forbidden`              | 403    | Authenticated, but not allowed. For example, a member calling a review endpoint.                                                                                          |
+| `not_found`              | 404    | The item doesn't exist or you can't see it.                                                                                                                               |
+| `conflict`               | 409    | Reserved. Not returned by the current release.                                                                                                                            |
+| `payload_too_large`      | 413    | Request body or an image is over its limit.                                                                                                                               |
+| `unsupported_media_type` | 415    | An image isn't a complete, still PNG, JPEG or WebP, or isn't the type it's declared as.                                                                                   |
+| `unprocessable`          | 422    | Valid, but the server can't process it as sent, e.g. it can't make a thumbnail of the image. The message says what to send instead; retrying the same request won't help. |
+| `rate_limited`           | 429    | Reserved. The current release has no rate limits.                                                                                                                         |
+| `internal`               | 500    | Something went wrong on the server.                                                                                                                                       |
+| `unavailable`            | 503    | A dependency failed in a way a retry can fix, e.g. the Images binding. `Retry-After` gives the seconds to wait.                                                           |
 
 Hidden items return `404`, not `403`, so the API doesn't reveal what exists.
 
@@ -315,6 +317,8 @@ Content-Type: multipart/form-data
 | `image`     | file | Full-size PNG, JPEG or WebP.                       |
 | `thumbnail` | file | 640 px wide thumbnail you generated, ideally WebP. |
 | `meta`      | JSON | Screen metadata and the app (below).               |
+
+Images are typed and sized from their bytes, never from file names or declared types; animated WebP is rejected. The thumbnail must be a top crop of the image: no wider than the image (or 1280 px), and no taller than the image's own aspect or 9:19.5. For an image at WebP's 16,383 px height limit, a thumbnail up to 640 px wide is accepted even if the image is narrower, since it may have been scaled down from a wider source. The server stores the display image as WebP (see [Media](#media)): send WebP if you can, otherwise the server converts PNG and JPEG for you, up to the Images binding's 12,000 px input limit. Taller PNG and JPEG pages are displayed as sent: encode them as WebP (scaled to at most 16,383 px tall) for smaller downloads.
 
 `meta` fields:
 
@@ -713,17 +717,56 @@ curl -X POST http://localhost:5173/api/v1/review/screen/01m4a8ae3z0000yfr7j15phk
 
 Returns `204`. See [Review](/docs/contributing#review) for what each decision changes.
 
+### Backfill display media
+
+```http
+POST /api/v1/admin/media/backfill
+```
+
+Admin only. Processes one page of screens whose display media predates the current [display policy](/docs/architecture#display-images), oldest id first. Run `pnpm media:backfill --url … --key sc_…` to page through all of them.
+
+| Field    | Type    | Required | Notes                                                   |
+| -------- | ------- | -------- | ------------------------------------------------------- |
+| `limit`  | number  | No       | 1–50, default 10.                                       |
+| `cursor` | string  | No       | `nextCursor` from the previous page.                    |
+| `dryRun` | boolean | No       | List what would be processed without changing anything. |
+
+```json
+{
+  "items": [
+    {
+      "screenId": "01m4a8ae3z0000yfr7j15phk4b",
+      "action": "updated",
+      "imageKey": "img/9c1f….v1.webp",
+      "thumbKey": "thumb/9c1f….v1-desktop.webp"
+    }
+  ],
+  "nextCursor": null,
+  "remaining": 0
+}
+```
+
+`action` is one of:
+
+- `updated`: new display image and/or thumbnail.
+- `current`: already met the policy, only marked.
+- `exception`: displayed as uploaded under a documented exception (`exception`: `binding_limits`, `no_binding` or `unconvertible`; see [Display images](/docs/architecture#display-images)). Not retried until the policy version changes, except `no_binding`, which is retried once the instance has an Images binding.
+- `failed`: left for the next run, with a `reason`.
+- `pending`: dry run.
+
 ## Media
 
 `imageUrl`, `thumbUrl`, `logoUrl` and preview URLs are relative paths on your instance:
 
 ```text
-/media/img/<sha256>.png
+/media/img/<sha256>.webp
+/media/img/<sha256>.v1.webp
 /media/thumb/<sha256>.webp
+/media/thumb/<sha256>.v1-desktop.webp
 /media/logo/<sha256>.png
 ```
 
-Prefix them with the instance origin. Keys are SHA-256 hashes of the file contents, so a URL never changes meaning.
+Prefix them with the instance origin. Keys are SHA-256 hashes of the file contents, so a URL never changes meaning. `.v1` keys are display images the server derived from an upload under display policy version 1. They are addressed by the hash of the uploaded source, so the same upload always maps to the same derivative. A policy change produces new keys, never new bytes at an old URL. Display images are WebP except when WebP wouldn't be smaller than the uploaded PNG or JPEG, when the server couldn't convert the upload yet (the backfill retries), or under a documented exception (PNG or JPEG taller than 12,000 px, or an instance without an Images binding). Retained originals are never served.
 
 | Media referenced by              | Who can fetch it                                  | Caching                                                 |
 | -------------------------------- | ------------------------------------------------- | ------------------------------------------------------- |
@@ -735,17 +778,17 @@ Prefix them with the instance origin. Keys are SHA-256 hashes of the file conten
 
 ## Limits
 
-| Limit                                                                      | Value                     |
-| -------------------------------------------------------------------------- | ------------------------- |
-| Request body, upload endpoints (`POST /screens`, `POST /captures`, `/mcp`) | 40 MiB                    |
-| Request body, everything else                                              | 1 MiB                     |
-| Full-size image                                                            | 15 MiB, 4096 × 20,000 px  |
-| Thumbnail                                                                  | 1 MiB, up to 1280 px wide |
-| Logo                                                                       | 512 KiB, 1024 × 1024 px   |
-| Decoded images per request                                                 | 28 MiB                    |
-| Screens per batch                                                          | 50                        |
-| Steps per flow                                                             | 2–60                      |
-| Page size                                                                  | default 30, max 100       |
+| Limit                                                                      | Value                                                                      |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Request body, upload endpoints (`POST /screens`, `POST /captures`, `/mcp`) | 40 MiB                                                                     |
+| Request body, everything else                                              | 1 MiB                                                                      |
+| Full-size image                                                            | 15 MiB, 4096 × 20,000 px; displayed at up to 16,383 px tall (WebP's limit) |
+| Thumbnail                                                                  | 1 MiB, up to 1280 px wide                                                  |
+| Logo                                                                       | 512 KiB, 1024 × 1024 px                                                    |
+| Decoded images per request                                                 | 28 MiB                                                                     |
+| Screens per batch                                                          | 50                                                                         |
+| Steps per flow                                                             | 2–60                                                                       |
+| Page size                                                                  | default 30, max 100                                                        |
 
 Bodies are measured as they stream in; `Content-Length` isn't trusted.
 

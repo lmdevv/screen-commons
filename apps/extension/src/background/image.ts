@@ -1,8 +1,7 @@
-import { LIMITS } from "@screen-commons/core/schemas";
 import { base64ToBytes, bytesToBase64 } from "@screen-commons/core/utils";
 
 import { dominantColor } from "../lib/color";
-import { planThumbnail, type Rect, type ShotKind } from "../lib/geometry";
+import type { Rect } from "../lib/geometry";
 
 export type ImageType = "image/png" | "image/jpeg" | "image/webp";
 
@@ -91,54 +90,10 @@ export async function composeTiles(
   };
 }
 
-/** 640px-wide WebP thumbnail, top-anchored crop (16:10 desktop / 9:19.5 mobile). */
-export async function makeThumbnail(
-  bitmap: ImageBitmap,
-  kind: ShotKind,
-): Promise<{ blob: Blob; width: number; height: number }> {
-  const plan = planThumbnail(bitmap.width, bitmap.height, kind);
-  const [canvas, context] = canvas2d(plan.width, plan.height);
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-  context.drawImage(bitmap, plan.sx, plan.sy, plan.sw, plan.sh, 0, 0, plan.width, plan.height);
-  let blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.8 });
-  if (blob.type !== "image/webp") throw new Error("This browser cannot encode WebP thumbnails");
-  if (blob.size > LIMITS.maxThumbnailBytes)
-    blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.6 });
-  return { blob, width: plan.width, height: plan.height };
-}
-
 /** Dominant colour from a 24x24 downsample of the top of the image. */
 export function dominantColorOf(bitmap: ImageBitmap): string | null {
   const [, context] = canvas2d(24, 24);
   const sh = Math.min(bitmap.height, bitmap.width * 1.25);
   context.drawImage(bitmap, 0, 0, bitmap.width, sh, 0, 0, 24, 24);
   return dominantColor(context.getImageData(0, 0, 24, 24).data);
-}
-
-/**
- * Make sure a capture fits the server limits: width ≤ 4096 (downscale), bytes ≤ 15 MB
- * (re-encode PNG as high-quality WebP, then lower quality).
- */
-export async function ensureUploadable(
-  image: EncodedImage,
-  bitmap: ImageBitmap,
-): Promise<EncodedImage> {
-  let { width, height } = image;
-  const needsResize = width > LIMITS.maxImageWidth || height > LIMITS.maxImageHeight;
-  if (!needsResize && image.blob.size <= LIMITS.maxImageBytes) return image;
-  const factor = Math.min(1, LIMITS.maxImageWidth / width, LIMITS.maxImageHeight / height);
-  width = Math.max(1, Math.floor(width * factor));
-  height = Math.max(1, Math.floor(height * factor));
-  const [canvas, context] = canvas2d(width, height);
-  context.imageSmoothingQuality = "high";
-  context.drawImage(bitmap, 0, 0, width, height);
-  let blob = await canvas.convertToBlob({ type: "image/png" });
-  let type: ImageType = "image/png";
-  for (const quality of [0.92, 0.82, 0.7]) {
-    if (blob.size <= LIMITS.maxImageBytes) break;
-    blob = await canvas.convertToBlob({ type: "image/webp", quality });
-    type = "image/webp";
-  }
-  return { blob, type, width, height };
 }

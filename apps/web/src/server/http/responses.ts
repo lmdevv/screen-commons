@@ -9,7 +9,11 @@ export function errorResponse(error: unknown, headers?: HeadersInit): Response {
   if (failure.details !== undefined && failure.code === "bad_request") {
     body.error.details = failure.details;
   }
-  return Response.json(body, { status: failure.status, headers });
+  const response = Response.json(body, { status: failure.status, headers });
+  if (failure.retryAfter !== undefined) {
+    response.headers.set("retry-after", String(failure.retryAfter));
+  }
+  return response;
 }
 
 export const noContent = () => new Response(null, { status: 204 });

@@ -1,4 +1,5 @@
 import {
+  IMAGE_EXTENSIONS,
   LIMITS,
   appInputSchema,
   base64ToBytes,
@@ -6,8 +7,10 @@ import {
   createFlowInputSchema,
   createScreenInputSchema,
   hostnameOf,
-  readImageHeader,
+  isThumbnailOf,
+  sniffImage,
   slugify,
+  thumbnailKindFor,
   versionLabel,
   type CaptureBatchResult,
   type FlowDetail,
@@ -30,18 +33,23 @@ import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { z } from "zod";
 
-import { getDb, getImages, getMedia } from "../env";
+import { getDb } from "../env";
 import { ServiceError, badRequest, notFound, parseInput } from "../errors";
 import { newId, sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
-import { generateThumbnail } from "../thumbnails";
 import { getFlow, getScreenRow } from "./catalog";
+import {
+  putOnce,
+  resolveScreenMedia,
+  sourceKeys,
+  type ScreenMedia,
+  type StoredImage,
+  type ThumbnailCandidate,
+} from "./media";
 import { screensToApi, visibleSql } from "./shared";
 
 type AppInput = z.output<typeof appInputSchema>;
 type ImageKind = "img" | "thumb" | "logo";
-
-const EXTENSIONS = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" } as const;
 
 export const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: number }> = {
   img: { bytes: LIMITS.maxImageBytes, width: LIMITS.maxImageWidth, height: LIMITS.maxImageHeight },
@@ -60,8 +68,13 @@ const tooLarge = (message: string) => new ServiceError("payload_too_large", mess
 // Image sources: sized cheaply up front, decoded lazily one at a time
 // ---------------------------------------------------------------------------------------------
 
-/** An image not yet decoded: base64 text (JSON transports) or a Blob (multipart). */
-export type ImageSource = { base64: string } | { blob: Blob };
+/**
+ * An image not yet decoded: base64 text (JSON transports, with the type the client declared) or a
+ * Blob (multipart, whose browser-assigned type is ignored). A declared type the bytes don't have
+ * is rejected, except with `lenientType` (MCP tools: models often mislabel what they send), where
+ * the bytes' type is used and the mismatch logged.
+ */
+export type ImageSource = { base64: string; type?: string; lenientType?: boolean } | { blob: Blob };
 
 /** Upper bound of the decoded size, computed without allocating. */
 function estimatedBytes(source: ImageSource): number {
@@ -107,25 +120,33 @@ function checkBudget(images: SizedImage[]) {
   }
 }
 
-export interface StoredImage {
-  key: string;
-  type: keyof typeof EXTENSIONS;
-  width: number;
-  height: number;
-  bytes: number;
-}
-
-/** Validate type/size/dimensions from the file header (never trust declared values). */
-function checkImage(kind: ImageKind, data: Uint8Array, label: string) {
+/**
+ * Validate type/size/dimensions from the complete file (never trust declared values): truncated
+ * files are rejected, and so is a declared type the bytes don't have, rather than relabelling.
+ */
+function checkImage(kind: ImageKind, data: Uint8Array, label: string, source?: ImageSource) {
   const limits = KIND_LIMITS[kind];
   if (data.byteLength > limits.bytes) {
     throw tooLarge(`${label} is ${data.byteLength} bytes; the limit is ${limits.bytes}`);
   }
-  const header = readImageHeader(data);
+  const header = sniffImage(data);
   if (!header) {
-    throw new ServiceError("unsupported_media_type", `${label} must be a PNG, JPEG or WebP image`);
+    throw new ServiceError(
+      "unsupported_media_type",
+      `${label} must be a complete, still PNG, JPEG or WebP image`,
+    );
   }
-  if (header.width < 1 || header.height < 1) throw badRequest(`${label} has invalid dimensions`);
+  const declared = source && "type" in source ? source.type : undefined;
+  if (declared && declared !== header.type) {
+    if (source && "lenientType" in source && source.lenientType) {
+      console.warn(`screen-commons: ${label} is declared as ${declared} but is ${header.type}`);
+    } else {
+      throw new ServiceError(
+        "unsupported_media_type",
+        `${label} is declared as ${declared} but is ${header.type}; send the type the bytes actually have`,
+      );
+    }
+  }
   if (header.width > limits.width || header.height > limits.height) {
     throw badRequest(
       `${label} is ${header.width}x${header.height}; the limit is ${limits.width}x${limits.height}`,
@@ -134,30 +155,19 @@ function checkImage(kind: ImageKind, data: Uint8Array, label: string) {
   return header;
 }
 
-/** Store validated bytes under a content-addressed key (`img/<sha256>.png`), once. */
+/** Store validated bytes under a content-addressed key (`logo/<sha256>.png`), once. */
 async function storeImage(
   kind: ImageKind,
   data: Uint8Array,
   header: ReturnType<typeof checkImage>,
 ): Promise<StoredImage> {
-  const key = `${kind}/${await sha256Hex(data)}.${EXTENSIONS[header.type]}`;
-  const media = getMedia();
-  if (!(await media.head(key))) {
-    await media.put(key, data, { httpMetadata: { contentType: header.type } });
-  }
-  return {
-    key,
-    type: header.type,
-    width: header.width,
-    height: header.height,
-    bytes: data.byteLength,
-  };
+  return putOnce(`${kind}/${await sha256Hex(data)}.${IMAGE_EXTENSIONS[header.type]}`, data, header);
 }
 
 /** Decode, validate and store one image. The decoded bytes are released on return. */
 async function ingestImage({ kind, source, label }: SizedImage): Promise<StoredImage> {
   const data = await loadSource(source, label);
-  return storeImage(kind, data, checkImage(kind, data, label));
+  return storeImage(kind, data, checkImage(kind, data, label, source));
 }
 
 function parseDate(value: string | undefined): Date {
@@ -296,7 +306,7 @@ async function appWrite(
 
 interface IngestScreen {
   image: ImageSource;
-  /** Omitted only by the MCP upload tool; the full image doubles as the thumbnail. */
+  /** Omitted only by the MCP upload tool; the server generates one. */
   thumbnail?: ImageSource;
   title?: string;
   sourceUrl?: string;
@@ -343,72 +353,78 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       ? (await ingestImage({ kind: "logo", source: input.logo, label: "logo" })).key
       : null;
 
-  // 3. Decode → validate → store one image at a time (content addressed: retries are idempotent;
-  //    objects stored before a later validation failure stay unreferenced and are never served).
-  const stored: { item: IngestScreen; full: StoredImage; thumb: StoredImage }[] = [];
-  for (const [index, item] of input.screens.entries()) {
-    const label = `screens[${index}]`;
-    const data = await loadSource(item.image, `${label}.image`);
-    const header = checkImage("img", data, `${label}.image`);
-    const full = await storeImage("img", data, header);
-    let thumb = full;
-    if (item.thumbnail) {
-      thumb = await ingestImage({
-        kind: "thumb",
-        source: item.thumbnail,
-        label: `${label}.thumbnail`,
-      });
-    } else {
-      // No client thumbnail (e.g. MCP upload_screen): generate one server-side.
-      const generated = await generateThumbnail(getImages(), data, header, input.app.platform);
-      if (generated) {
-        thumb = await storeImage(
-          "thumb",
-          generated,
-          checkImage("thumb", generated, `${label}.thumbnail`),
-        );
-      }
-    }
-    stored.push({ item, full, thumb });
-  }
-
-  // 4. Rows, written in one batch.
+  // 3. Decode → validate → dedupe → store one screen at a time, normalized per the display
+  //    policy (content addressed: retries are idempotent; objects stored before a later
+  //    validation failure stay unreferenced and are never served).
   const db = getDb();
   const now = new Date();
   const status = statusFor(principal);
-  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
-  const appRow = resolved.row;
-
-  const existingByKey = new Map<string, { id: string; status: Status }>();
-  if (existing) {
-    const rows = await db
-      .select({ id: screen.id, imageKey: screen.imageKey, status: screen.status })
+  const kind = thumbnailKindFor(input.app.platform);
+  // Screens by every key their source can be stored under (as uploaded, derived or retained),
+  // so a re-upload is recognised whichever way the first one was normalized, within this batch
+  // too, before any thumbnail or derivative is made for it.
+  const seen = new Map<string, { id: string; status: Status }>();
+  const findDuplicate = async (keys: string[]) => {
+    const known = keys.map((key) => seen.get(key)).find(Boolean);
+    if (known || !existing) return known;
+    const [row] = await db
+      .select({ id: screen.id, status: screen.status })
       .from(screen)
       .where(
         and(
-          eq(screen.appId, appRow.id),
-          inJsonArray(
-            screen.imageKey,
-            stored.map(({ full }) => full.key),
-          ),
+          eq(screen.appId, existing.id),
+          or(inJsonArray(screen.imageKey, keys), inJsonArray(screen.originalKey, keys)),
           visibleSql(screen, principal, "detail"),
           sql`${screen.status} != 'rejected'`,
         ),
-      );
-    for (const row of rows) existingByKey.set(row.imageKey, { id: row.id, status: row.status });
-  }
-
-  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
+      )
+      .limit(1);
+    return row;
+  };
   const screens: { id: string; status: Status }[] = [];
-  for (const { item, full, thumb } of stored) {
-    const duplicate = existingByKey.get(full.key);
+  const created: { item: IngestScreen; id: string; media: ScreenMedia }[] = [];
+  for (const [index, item] of input.screens.entries()) {
+    const label = `screens[${index}]`;
+    const data = await loadSource(item.image, `${label}.image`);
+    const header = checkImage("img", data, `${label}.image`, item.image);
+    const source = { data, ...header, sha256: await sha256Hex(data) };
+    let thumbnail: ThumbnailCandidate | undefined;
+    if (item.thumbnail) {
+      const thumbLabel = `${label}.thumbnail`;
+      const thumbData = await loadSource(item.thumbnail, thumbLabel);
+      const thumbHeader = checkImage("thumb", thumbData, thumbLabel, item.thumbnail);
+      if (!isThumbnailOf(thumbHeader, header)) {
+        throw badRequest(
+          `${thumbLabel} is ${thumbHeader.width}x${thumbHeader.height}, which isn't a thumbnail of the ${header.width}x${header.height} image (≤640px wide, never upscaled, cropped from the top)`,
+        );
+      }
+      thumbnail = {
+        type: thumbHeader.type,
+        store: () => storeImage("thumb", thumbData, thumbHeader),
+      };
+    }
+    const keys = sourceKeys(source);
+    const duplicate = await findDuplicate(keys);
     if (duplicate) {
       screens.push(duplicate);
       continue;
     }
+    const media = await resolveScreenMedia({ source, thumbnail, kind, label });
+    const id = newId();
+    for (const key of keys) seen.set(key, { id, status });
+    created.push({ item, id, media });
+    screens.push({ id, status });
+  }
+
+  // 4. Rows, written in one batch.
+  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
+  const appRow = resolved.row;
+  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
+  for (const { item, id, media } of created) {
+    const { full, thumb, originalKey, displayVersion, displayException } = media;
     const capturedAt = parseDate(item.capturedAt);
     const values: NewScreenRow = {
-      id: newId(),
+      id,
       appId: appRow.id,
       imageKey: full.key,
       thumbKey: thumb.key,
@@ -417,6 +433,9 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       bytes: full.bytes,
       thumbWidth: thumb.width,
       thumbHeight: thumb.height,
+      originalKey,
+      displayVersion,
+      displayException,
       title: item.title ?? null,
       sourceUrl: item.sourceUrl ?? null,
       text: item.text ?? null,
@@ -432,9 +451,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       createdAt: now,
       updatedAt: now,
     };
-    existingByKey.set(full.key, { id: values.id, status });
     writes.push(db.insert(screen).values(values));
-    screens.push({ id: values.id, status });
   }
 
   let flowResult: IngestResult["flow"] = null;
@@ -465,7 +482,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
           flowId,
           position,
           screenId: item.id,
-          label: stored[position]?.item.stepLabel ?? null,
+          label: input.screens[position]?.stepLabel ?? null,
         }),
       );
     });
@@ -489,14 +506,10 @@ export async function captures(
   const batch = parseInput(captureBatchInputSchema, input);
   const result = await ingest(principal, {
     app: batch.app,
-    logo: batch.logo ? { base64: batch.logo.base64 } : undefined,
+    logo: batch.logo,
     flow: batch.flow,
     source: batch.source,
-    screens: batch.screens.map(({ image, thumbnail, ...meta }) => ({
-      ...meta,
-      image: { base64: image.base64 },
-      thumbnail: { base64: thumbnail.base64 },
-    })),
+    screens: batch.screens.map(({ image, thumbnail, ...meta }) => ({ ...meta, image, thumbnail })),
   });
   return {
     app: {
@@ -551,7 +564,10 @@ export async function createScreen(
   return { screen: apiScreen! };
 }
 
-/** MCP `upload_screen`: no thumbnail is sent, so the full image is reused as the thumbnail. */
+/**
+ * MCP `upload_screen`: no thumbnail is sent, so the server generates one. The image is typed by
+ * its bytes; a mislabelled `image.type` is only logged.
+ */
 export async function uploadScreenFromTool(
   principal: Principal,
   input: z.output<(typeof catalogTools)["upload_screen"]["input"]>,
@@ -562,7 +578,7 @@ export async function uploadScreenFromTool(
     source: "mcp",
     screens: [
       {
-        image: { base64: input.image.base64 },
+        image: { base64: input.image.base64, type: input.image.type, lenientType: true },
         title: input.title,
         sourceUrl: input.sourceUrl,
         patterns: input.patterns,

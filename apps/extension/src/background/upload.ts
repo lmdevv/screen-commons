@@ -15,7 +15,7 @@ import {
   planUpload,
   validateDraft,
 } from "../lib/upload-plan";
-import { blobToBase64 } from "./image";
+import { blobToBase64, type ImageType } from "./image";
 import { summarize } from "./shots";
 
 type Report = (message: UploadServerMessage) => void;
@@ -46,6 +46,9 @@ async function fetchLogo(url: string | null): Promise<CaptureBatchInput["logo"]>
     return undefined;
   }
 }
+
+const thumbnailType = (blob: Blob): ImageType =>
+  blob.type === "image/jpeg" || blob.type === "image/png" ? blob.type : "image/webp";
 
 function describeError(error: unknown): string {
   if (error instanceof ScreenCommonsApiError) {
@@ -108,7 +111,8 @@ export async function runUpload(
           buildScreenInput(
             summaries[index]!,
             { type: shot.imageType, base64: await blobToBase64(shot.image) },
-            { type: "image/webp", base64: await blobToBase64(shot.thumbnail) },
+            // The blob's type was read from its bytes when the shot was made.
+            { type: thumbnailType(shot.thumbnail), base64: await blobToBase64(shot.thumbnail) },
             { stepLabel: Boolean(flow) },
           ),
         );

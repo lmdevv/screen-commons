@@ -9,8 +9,10 @@ const STATUS: Record<ErrorCode, number> = {
   conflict: 409,
   payload_too_large: 413,
   unsupported_media_type: 415,
+  unprocessable: 422,
   rate_limited: 429,
   internal: 500,
+  unavailable: 503,
 };
 
 /** Error thrown by the service layer; mapped to `{ error: { code, message } }` by the HTTP layer. */
@@ -18,13 +20,21 @@ export class ServiceError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
   readonly details: unknown;
+  /** Seconds a client should wait before retrying (`Retry-After`). */
+  readonly retryAfter: number | undefined;
 
-  constructor(code: ErrorCode, message: string, details?: unknown) {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    details?: unknown,
+    options: { retryAfter?: number } = {},
+  ) {
     super(message);
     this.name = "ServiceError";
     this.code = code;
     this.status = STATUS[code];
     this.details = details;
+    this.retryAfter = options.retryAfter;
   }
 }
 
@@ -35,6 +45,9 @@ export const unauthorized = (message = "Sign in or provide an API key") =>
 export const forbidden = (message = "You don't have access to this") =>
   new ServiceError("forbidden", message);
 export const notFound = (what = "Resource") => new ServiceError("not_found", `${what} not found`);
+/** A dependency failed in a way a retry can fix; `retryAfter` seconds go out as `Retry-After`. */
+export const unavailable = (message: string, retryAfter = 60) =>
+  new ServiceError("unavailable", message, undefined, { retryAfter });
 
 /** Parse with a zod schema, turning validation failures into `bad_request`. */
 export function parseInput<T>(schema: { parse: (input: unknown) => T }, input: unknown): T {

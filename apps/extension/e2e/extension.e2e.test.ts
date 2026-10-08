@@ -353,7 +353,9 @@ describe("tray and upload", () => {
       sourceUrl: site.url,
       patterns: ["pricing"],
     });
-    expect(first!.image.type).toBe("image/png");
+    // Display policy: the lossless capture is uploaded as WebP, labelled with its real type.
+    expect(first!.image.type).toBe("image/webp");
+    expect(Buffer.from(first!.image.base64, "base64").toString("ascii", 8, 12)).toBe("WEBP");
     expect(first!.thumbnail.type).toBe("image/webp");
     expect(first!.height).toBe(FIXTURE.height);
     expect(first!.text).toContain("Loaded late");
