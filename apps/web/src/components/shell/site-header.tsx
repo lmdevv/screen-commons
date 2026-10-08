@@ -1,12 +1,4 @@
-import {
-  Button,
-  Logo,
-  Tooltip,
-  TopBar,
-  TopBarIconButton,
-  ariaKeyShortcuts,
-  cn,
-} from "@screen-commons/ui";
+import { Button, Logo, Tooltip, TopBar, TopBarIconButton, cn } from "@screen-commons/ui";
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { Keyboard } from "lucide-react";
 import type { ReactNode } from "react";
@@ -79,7 +71,6 @@ export function SiteHeader({ nav, actions, className }: SiteHeaderProps) {
             <Tooltip content={SHORTCUTS.help.label} shortcut={SHORTCUTS.help.keys} align="end">
               <TopBarIconButton
                 aria-label={SHORTCUTS.help.label}
-                aria-keyshortcuts={ariaKeyShortcuts(SHORTCUTS.help.keys)}
                 className="max-sm:hidden"
                 onClick={showShortcuts}
               >

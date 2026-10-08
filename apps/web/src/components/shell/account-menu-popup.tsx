@@ -4,7 +4,6 @@ import {
   DropdownMenuLinkItem,
 } from "@screen-commons/ui/components/dropdown-menu";
 import AccountMenuPopupBase from "@screen-commons/ui/components/account-menu-popup";
-import { Shortcut } from "@screen-commons/ui/components/kbd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { BookOpen, Bookmark, Code, Inbox, Keyboard, Plus, Settings } from "lucide-react";
@@ -13,8 +12,6 @@ import { authClient } from "../../lib/auth-client";
 import { commandShortcut, SHORTCUTS } from "../../lib/shortcuts";
 import type { AccountMenuProps } from "./account-menu";
 import { useShowShortcuts } from "./keyboard-shortcuts";
-
-const hint = (id: string) => <Shortcut keys={commandShortcut(id)!} />;
 
 export const REPOSITORY_URL = "https://github.com/lmdevv/screen-commons";
 
@@ -44,14 +41,14 @@ export default function AccountMenuPopup({
         <>
           <DropdownMenuLinkItem
             icon={<BookOpen />}
-            hint={hint("docs")}
+            shortcut={commandShortcut("docs")}
             render={<Link to="/docs" />}
           >
             Docs
           </DropdownMenuLinkItem>
           <DropdownMenuItem
             icon={<Keyboard />}
-            hint={<Shortcut keys={SHORTCUTS.help.keys} />}
+            shortcut={SHORTCUTS.help.keys}
             onClick={showShortcuts}
           >
             Keyboard shortcuts
@@ -66,24 +63,32 @@ export default function AccountMenuPopup({
         </>
       }
     >
-      <DropdownMenuLinkItem icon={<Bookmark />} hint={hint("saved")} render={<Link to="/saved" />}>
+      <DropdownMenuLinkItem
+        icon={<Bookmark />}
+        shortcut={commandShortcut("saved")}
+        render={<Link to="/saved" />}
+      >
         Saved
       </DropdownMenuLinkItem>
       <DropdownMenuLinkItem
         icon={<Plus />}
-        hint={hint("contribute")}
+        shortcut={commandShortcut("contribute")}
         render={<Link to="/contribute" />}
       >
         Contribute
       </DropdownMenuLinkItem>
       {user.role === "admin" ? (
-        <DropdownMenuLinkItem icon={<Inbox />} hint={hint("review")} render={<Link to="/review" />}>
+        <DropdownMenuLinkItem
+          icon={<Inbox />}
+          shortcut={commandShortcut("review")}
+          render={<Link to="/review" />}
+        >
           Review queue
         </DropdownMenuLinkItem>
       ) : null}
       <DropdownMenuLinkItem
         icon={<Settings />}
-        hint={hint("settings")}
+        shortcut={commandShortcut("settings")}
         render={<Link to="/settings" />}
       >
         Settings

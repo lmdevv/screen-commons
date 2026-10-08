@@ -5,7 +5,7 @@ import type * as React from "react";
 
 import { cn } from "../lib/cn";
 import { backdropClassName } from "./dialog";
-import { Kbd, KbdGroup, Shortcut } from "./kbd";
+import { Kbd, KbdGroup, useShortcutHint } from "./kbd";
 import { Skeleton } from "./skeleton";
 import { Spinner } from "./spinner";
 
@@ -197,8 +197,10 @@ export function CommandItem({
   children,
   ...props
 }: CommandItemProps) {
+  const shortcutHint = useShortcutHint(shortcut);
   return (
     <Command.Item
+      {...shortcutHint.props}
       className={cn(
         "group flex min-h-11 cursor-default items-center gap-3 rounded-[10px] px-3 text-base text-fg outline-none select-none",
         "data-[selected=true]:bg-muted data-[disabled=true]:opacity-40",
@@ -215,7 +217,8 @@ export function CommandItem({
       <span className="max-w-[70%] min-w-0 shrink-0 truncate">{children}</span>
       {hint ? <span className="min-w-0 flex-1 truncate text-sm text-fg-subtle">{hint}</span> : null}
       <span className="ml-auto flex shrink-0 items-center gap-2">
-        {shortcut ? <Shortcut keys={shortcut} /> : null}
+        {shortcutHint.hint}
+        {shortcutHint.description}
         <CornerDownLeft
           aria-hidden
           className="size-3.5 text-fg-subtle opacity-0 group-data-[selected=true]:opacity-100"

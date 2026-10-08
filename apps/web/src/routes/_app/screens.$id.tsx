@@ -8,10 +8,8 @@ import {
   Tooltip,
   cn,
   frameKind,
-  formatShortcut,
   textLinkClassName,
   useHotkey,
-  useIsMac,
 } from "@screen-commons/ui";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -58,7 +56,6 @@ function ScreenPage() {
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
   const mobile = frameKind(screen.app.platform) === "mobile";
-  const copyHint = formatShortcut(SHORTCUTS.viewerCopy.keys, useIsMac()).flat().join("");
 
   const go = (target: string | null) =>
     target && void navigate({ to: "/screens/$id", params: { id: target } });
@@ -111,7 +108,7 @@ function ScreenPage() {
           <NeighbourButton id={screen.previousId} direction="prev" />
           <NeighbourButton id={screen.nextId} direction="next" />
           <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-          <Tooltip content="Copy image" shortcut={copyHint}>
+          <Tooltip content="Copy image" shortcut={SHORTCUTS.viewerCopy.keys}>
             <Button variant="ghost" icon aria-label="Copy image" onClick={() => void copyImage()}>
               <Copy />
             </Button>
@@ -206,7 +203,10 @@ function NeighbourButton({ id, direction }: { id: string | null; direction: "pre
     );
   }
   return (
-    <Tooltip content={label} shortcut={direction === "prev" ? "←" : "→"}>
+    <Tooltip
+      content={label}
+      shortcut={(direction === "prev" ? SHORTCUTS.viewerPrevious : SHORTCUTS.viewerNext).keys}
+    >
       <Button
         variant="ghost"
         icon

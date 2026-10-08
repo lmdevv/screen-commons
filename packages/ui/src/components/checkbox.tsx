@@ -1,7 +1,7 @@
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { Check, Minus } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import { cn } from "../lib/cn";
 
@@ -13,8 +13,10 @@ export interface CheckboxProps extends React.ComponentProps<typeof BaseCheckbox.
 
 /** Checkbox (supports `indeterminate`). Black fill when checked. */
 export function Checkbox({ label, description, className, ...props }: CheckboxProps) {
+  const descriptionId = React.useId();
   const box = (
     <BaseCheckbox.Root
+      aria-describedby={label && description ? descriptionId : undefined}
       className={cn(
         "ou-focus-ring flex size-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] border-control-border bg-bg text-inverse-fg",
         "transition-[background-color,border-color] duration-120 ease-out hover:border-fg-muted",
@@ -42,11 +44,33 @@ export function Checkbox({ label, description, className, ...props }: CheckboxPr
   return (
     <label className={cn("flex cursor-pointer items-start gap-2.5 text-base text-fg", className)}>
       <span className="flex h-5 items-center">{box}</span>
-      <span className="flex flex-col gap-0.5">
-        <span>{label}</span>
-        {description ? <span className="text-sm text-fg-muted">{description}</span> : null}
-      </span>
+      <LabelText label={label} description={description} descriptionId={descriptionId} />
     </label>
+  );
+}
+
+/**
+ * Label and description of a labelled control. The description stays out of the control's name
+ * (it is read as its description instead): "Save as a flow", not "Save as a flow Keep these…".
+ */
+function LabelText({
+  label,
+  description,
+  descriptionId,
+}: {
+  label: React.ReactNode;
+  description?: React.ReactNode;
+  descriptionId: string;
+}) {
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{label}</span>
+      {description ? (
+        <span id={descriptionId} aria-hidden className="text-sm text-fg-muted">
+          {description}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -58,8 +82,10 @@ export interface SwitchProps extends React.ComponentProps<typeof BaseSwitch.Root
 
 /** On/off switch for immediate settings. */
 export function Switch({ label, description, size = "md", className, ...props }: SwitchProps) {
+  const descriptionId = React.useId();
   const control = (
     <BaseSwitch.Root
+      aria-describedby={label && description ? descriptionId : undefined}
       className={cn(
         "ou-focus-ring relative inline-flex shrink-0 items-center rounded-pill bg-control-border p-0.5",
         "transition-colors duration-150 ease-out data-[checked]:bg-inverse data-[disabled]:opacity-45",
@@ -86,10 +112,7 @@ export function Switch({ label, description, size = "md", className, ...props }:
         className,
       )}
     >
-      <span className="flex flex-col gap-0.5">
-        <span>{label}</span>
-        {description ? <span className="text-sm text-fg-muted">{description}</span> : null}
-      </span>
+      <LabelText label={label} description={description} descriptionId={descriptionId} />
       {control}
     </label>
   );

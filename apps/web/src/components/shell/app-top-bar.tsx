@@ -7,7 +7,6 @@ import {
   TopBar,
   ariaKeyShortcuts,
   cn,
-  formatShortcut,
   useIsMac,
 } from "@screen-commons/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -23,8 +22,6 @@ export interface AppTopBarProps {
   user: User;
   platform: Platform;
 }
-
-const savedShortcut = formatShortcut(commandShortcut("saved")!).flat().join(" ");
 
 /** The signed-in library top bar: logo · platform │ search │ saved · contribute · account. */
 export function AppTopBar({ user, platform }: AppTopBarProps) {
@@ -59,7 +56,7 @@ export function AppTopBar({ user, platform }: AppTopBarProps) {
       }
       actions={
         <>
-          <Tooltip content="Saved" shortcut={savedShortcut} align="end">
+          <Tooltip content="Saved" shortcut={commandShortcut("saved")} align="end">
             <Link
               to="/saved"
               aria-label="Saved"

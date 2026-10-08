@@ -4,13 +4,11 @@ import {
   Chip,
   Container,
   EmptyState,
-  Kbd,
-  KbdGroup,
   PageHeader,
   ScreenGridSkeleton,
   SectionHeader,
   Skeleton,
-  useIsMac,
+  useShortcutHint,
 } from "@screen-commons/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -25,6 +23,7 @@ import { useCommandPalette } from "../../components/shell";
 import { platformLabel, type Platform } from "../../lib/platform";
 import { queries } from "../../lib/queries";
 import { addRecentSearch } from "../../lib/recent-searches";
+import { SHORTCUTS } from "../../lib/shortcuts";
 import { validateSearchPage } from "../../lib/search-params";
 
 const LIMIT = 30;
@@ -64,7 +63,7 @@ function SearchPage() {
   const q = search.q?.trim() ?? "";
   const platform: Platform = search.platform ?? "web";
   const { openPalette } = useCommandPalette();
-  const isMac = useIsMac();
+  const paletteHint = useShortcutHint(SHORTCUTS.palette.keys, { tone: "chrome" });
 
   const results = useQuery({
     ...queries.search({ q, platform, limit: LIMIT }),
@@ -93,12 +92,9 @@ function SearchPage() {
           title="Search apps, screens and flows"
           description="Find screens by app, pattern, UI element or any text visible in the screenshot."
           actions={
-            <Button onClick={() => openPalette()}>
+            <Button {...paletteHint.props} onClick={() => openPalette()}>
               Open search
-              <KbdGroup className="ml-1">
-                <Kbd tone="chrome">{isMac ? "⌘" : "Ctrl"}</Kbd>
-                <Kbd tone="chrome">K</Kbd>
-              </KbdGroup>
+              <span className="ml-1">{paletteHint.hint}</span>
             </Button>
           }
         />
