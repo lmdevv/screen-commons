@@ -13,6 +13,8 @@ concurrency:
   # Never cancel a main-branch run mid-deploy.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Deploy jobs run once CLOUDFLARE_ACCOUNT_ID (variable) and CLOUDFLARE_API_TOKEN (secret) are set.
+# main → dev and production; each same-repo pull request → a preview version of dev.
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -31,8 +33,91 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  preview:
+    # Fork and Dependabot PRs get no secrets, so they skip previews.
+    needs: validate
+    if: >-
+      github.event_name == 'pull_request' && vars.CLOUDFLARE_ACCOUNT_ID != '' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: preview
+      url: ${{ steps.upload.outputs.url }}
+    concurrency:
+      # One upload per PR at a time, so an older push can't overwrite a newer preview.
+      group: preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The PR's own commit, not the merge with main, so the preview matches the branch.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          CLOUDFLARE_ENV: dev
+      - run: pnpm db:migrate:dev
+      - id: upload
+        name: Upload preview version
+        env:
+          ALIAS: pr-${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # The alias URL is <alias>-<dev workers.dev host>; Better Auth needs it as APP_URL.
+          dev_url=$(jq -r .vars.APP_URL dist/server/wrangler.json)
+          case "$dev_url" in
+            https://*.workers.dev) ;;
+            *) echo "::error::Preview URLs need the dev APP_URL on workers.dev, got $dev_url"; exit 1 ;;
+          esac
+          url="https://$ALIAS-${dev_url#https://}"
+          pnpm exec wrangler versions upload --preview-alias "$ALIAS" --var "APP_URL:$url" \
+            --tag "$ALIAS" --message "PR #${ALIAS#pr-} @ ${SHA:0:7}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-dev:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: dev
+      url: https://screen-commons-dev.lmdev.workers.dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @screen-commons/web cf:deploy:dev
+
   deploy:
-    # Pushes to main deploy once CLOUDFLARE_ACCOUNT_ID (variable) and CLOUDFLARE_API_TOKEN (secret) are set.
+    # Independent of dev: previews migrate the shared dev database, so dev can drift from main.
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
     runs-on: ubuntu-latest

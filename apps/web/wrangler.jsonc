@@ -5,6 +5,9 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "workers_dev": true,
+  // Old production versions stay private; only `dev` serves per-version preview URLs.
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
@@ -20,5 +23,29 @@
   "vars": {
     // Public origin. `.dev.vars` overrides it locally (see .dev.vars.example).
     "APP_URL": "https://screen-commons.lmdev.workers.dev",
+  },
+  "env": {
+    // Shared non-production environment: tracks `main`, and every pull request uploads a preview
+    // version of it (https://pr-<number>-screen-commons-dev.<subdomain>.workers.dev). Bindings
+    // aren't inherited, so each one is repeated against its own dev resources.
+    "dev": {
+      "name": "screen-commons-dev",
+      "workers_dev": true,
+      "preview_urls": true,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "screen-commons-dev",
+          "database_id": "68564e79-c752-4628-b4de-6531bcdac4d1",
+          "migrations_dir": "../../packages/db/migrations",
+        },
+      ],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "screen-commons-media-dev" }],
+      "images": { "binding": "IMAGES" },
+      "vars": {
+        // Previews override this per version with `--var APP_URL:<preview url>`.
+        "APP_URL": "https://screen-commons-dev.lmdev.workers.dev",
+      },
+    },
   },
 }
