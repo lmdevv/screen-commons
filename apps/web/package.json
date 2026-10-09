@@ -10,7 +10,9 @@
     "check-types": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "cf:deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "db:migrate:dev": "wrangler d1 migrations apply DB --remote --env dev",
+    "cf:deploy": "pnpm build && pnpm db:migrate:remote && wrangler deploy",
+    "cf:deploy:dev": "CLOUDFLARE_ENV=dev pnpm build && pnpm db:migrate:dev && wrangler deploy",
     "test": "vitest run",
     "test:e2e": "node --test --test-concurrency=1 e2e/library.e2e.ts e2e/keyboard.e2e.ts e2e/product.e2e.ts"
   },

@@ -115,7 +115,19 @@ To apply migrations on their own, use `pnpm db:migrate:remote`.
 
 ### Deploy from GitHub Actions
 
-The CI workflow deploys every push to `main` after checks, tests and the build pass, once the repository has:
+The CI workflow deploys to three places once checks, tests and the build pass:
+
+| Environment | Deployed by                     | Worker                                    | D1 and R2                                        |
+| ----------- | ------------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Production  | every push to `main`, after dev | `screen-commons`                          | `screen-commons`, `screen-commons-media`         |
+| Dev         | every push to `main`            | `screen-commons-dev`                      | `screen-commons-dev`, `screen-commons-media-dev` |
+| Preview     | every push to a pull request    | a preview version of `screen-commons-dev` | shared with dev                                  |
+
+Each pull request gets its own URL, `https://pr-<number>-screen-commons-dev.<your-subdomain>.workers.dev`, linked from the PR as a **preview** deployment. Previews are uploaded with `wrangler versions upload --preview-alias`, so they never change what dev serves, but they do apply the pull request's migrations to the dev database. Treat dev data as disposable. Pull requests from forks and Dependabot don't get previews, because they can't read the repository's secrets.
+
+Production deploys only after the same commit has migrated and deployed on dev.
+
+The deploy jobs need:
 
 - a `CLOUDFLARE_ACCOUNT_ID` **variable** (your account id from `pnpm exec wrangler whoami`), and
 - a `CLOUDFLARE_API_TOKEN` **secret**: an API token created from the **Edit Cloudflare Workers** template with **D1: Edit** added.
@@ -125,7 +137,24 @@ gh variable set CLOUDFLARE_ACCOUNT_ID --body <account-id>
 gh secret set CLOUDFLARE_API_TOKEN
 ```
 
-Until the variable is set, the deploy job is skipped.
+Until the variable is set, the deploy jobs are skipped.
+
+The dev environment needs its own resources and secret, set up once:
+
+```bash
+pnpm exec wrangler d1 create screen-commons-dev
+pnpm exec wrangler r2 bucket create screen-commons-media-dev
+pnpm exec wrangler secret put BETTER_AUTH_SECRET --env dev
+```
+
+Paste the dev `database_id` into `env.dev` in `wrangler.jsonc`, and point its `APP_URL` at your dev Worker's `workers.dev` URL (previews derive their URL from it). Deploy dev by hand with `pnpm cf:deploy:dev`, and migrate it with `pnpm db:migrate:dev`. Previews inherit the dev Worker's secrets.
+
+GitHub sign-in doesn't work on previews, because an OAuth app has a single callback URL. Use email and password there.
+
+If you don't want a dev environment, delete `env.dev` from `wrangler.jsonc`, delete the `preview` and `deploy-dev` jobs from `.github/workflows/ci.yml`, and remove `deploy-dev` from the `needs` of the `deploy` job.
+
+> **Warning**
+> Wrangler's `d1` commands read the top level of `wrangler.jsonc` unless you pass `--env`, even right after a `CLOUDFLARE_ENV=dev` build. Use `pnpm db:migrate:dev`, not a bare `wrangler d1 migrations apply`, for dev.
 
 ## 5. Add your domain
 
