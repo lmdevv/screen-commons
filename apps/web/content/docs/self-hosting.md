@@ -117,15 +117,15 @@ To apply migrations on their own, use `pnpm db:migrate:remote`.
 
 The CI workflow deploys to three places once checks, tests and the build pass:
 
-| Environment | Deployed by                     | Worker                                    | D1 and R2                                        |
-| ----------- | ------------------------------- | ----------------------------------------- | ------------------------------------------------ |
-| Production  | every push to `main`, after dev | `screen-commons`                          | `screen-commons`, `screen-commons-media`         |
-| Dev         | every push to `main`            | `screen-commons-dev`                      | `screen-commons-dev`, `screen-commons-media-dev` |
-| Preview     | every push to a pull request    | a preview version of `screen-commons-dev` | shared with dev                                  |
+| Environment | Deployed by                  | Worker                                    | D1 and R2                                        |
+| ----------- | ---------------------------- | ----------------------------------------- | ------------------------------------------------ |
+| Production  | every push to `main`         | `screen-commons`                          | `screen-commons`, `screen-commons-media`         |
+| Dev         | every push to `main`         | `screen-commons-dev`                      | `screen-commons-dev`, `screen-commons-media-dev` |
+| Preview     | every push to a pull request | a preview version of `screen-commons-dev` | shared with dev                                  |
 
 Each pull request gets its own URL, `https://pr-<number>-screen-commons-dev.<your-subdomain>.workers.dev`, linked from the PR as a **preview** deployment. Previews are uploaded with `wrangler versions upload --preview-alias`, so they never change what dev serves, but they do apply the pull request's migrations to the dev database. Treat dev data as disposable. Pull requests from forks and Dependabot don't get previews, because they can't read the repository's secrets.
 
-Production deploys only after the same commit has migrated and deployed on dev.
+Production and dev deploy side by side, so a dev database that a preview left out of step with `main` never blocks production. If that happens, `deploy-dev` fails on the conflicting migration. Restore dev to a point before the preview ran with `pnpm exec wrangler d1 time-travel restore screen-commons-dev --timestamp <time>` and re-run the job.
 
 The deploy jobs need:
 
@@ -149,9 +149,11 @@ pnpm exec wrangler secret put BETTER_AUTH_SECRET --env dev
 
 Paste the dev `database_id` into `env.dev` in `wrangler.jsonc`, and point its `APP_URL` at your dev Worker's `workers.dev` URL (previews derive their URL from it). Deploy dev by hand with `pnpm cf:deploy:dev`, and migrate it with `pnpm db:migrate:dev`. Previews inherit the dev Worker's secrets.
 
-GitHub sign-in doesn't work on previews, because an OAuth app has a single callback URL. Use email and password there.
+GitHub sign-in doesn't work on previews, because an OAuth app has a single callback URL. If the dev Worker has GitHub credentials, previews still show **Continue with GitHub**; use email and password there instead.
 
-If you don't want a dev environment, delete `env.dev` from `wrangler.jsonc`, delete the `preview` and `deploy-dev` jobs from `.github/workflows/ci.yml`, and remove `deploy-dev` from the `needs` of the `deploy` job.
+Preview URLs stay up after a pull request closes. They serve that pull request's last version against the current dev database.
+
+If you don't want a dev environment, delete `env.dev` from `wrangler.jsonc`, and delete the `preview` and `deploy-dev` jobs from `.github/workflows/ci.yml`.
 
 > **Warning**
 > Wrangler's `d1` commands read the top level of `wrangler.jsonc` unless you pass `--env`, even right after a `CLOUDFLARE_ENV=dev` build. Use `pnpm db:migrate:dev`, not a bare `wrangler d1 migrations apply`, for dev.

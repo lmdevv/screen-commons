@@ -6,8 +6,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "workers_dev": true,
-  // Per-version preview URLs (`wrangler versions upload --preview-alias`); CI uses them on `dev`.
-  "preview_urls": true,
+  // Old production versions stay private; only `dev` serves per-version preview URLs.
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",

@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Deploy jobs run once CLOUDFLARE_ACCOUNT_ID (variable) and CLOUDFLARE_API_TOKEN (secret) are set.
-# main → dev → production; each same-repo pull request → a preview version of dev.
+# main → dev and production; each same-repo pull request → a preview version of dev.
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -57,6 +57,9 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The PR's own commit, not the merge with main, so the preview matches the branch.
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: pnpm/action-setup@v6
         with:
           version: 11.25.0
@@ -114,8 +117,8 @@ jobs:
       - run: pnpm --filter @screen-commons/web cf:deploy:dev
 
   deploy:
-    # Production only after the same commit deployed and migrated cleanly on dev.
-    needs: deploy-dev
+    # Independent of dev: previews migrate the shared dev database, so dev can drift from main.
+    needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
