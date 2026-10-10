@@ -17,6 +17,7 @@ export function StepUpload({
   platform,
   onPlatformChange,
   drafts,
+  duplicates,
   onFiles,
   onReject,
   onRemove,
@@ -24,6 +25,8 @@ export function StepUpload({
   platform: Platform;
   onPlatformChange: (platform: Platform) => void;
   drafts: Draft[];
+  /** Drafts that repeat an earlier one, mapped to that draft. */
+  duplicates: ReadonlyMap<string, Draft>;
   onFiles: (files: File[]) => void;
   onReject: (rejected: RejectedFile[]) => void;
   onRemove: (id: string) => void;
@@ -62,32 +65,36 @@ export function StepUpload({
 
       {drafts.length > 0 ? (
         <ul aria-label="Selected images" className="grid gap-2 sm:grid-cols-2">
-          {drafts.map((draft) => (
-            <li key={draft.id}>
-              <UploadItem
-                name={draft.name}
-                previewUrl={draft.previewUrl}
-                bytes={draft.file.size}
-                status={draft.status === "invalid" ? "error" : "queued"}
-                error={draft.error}
-                className={cn(draft.status === "invalid" && "bg-danger-soft")}
-                onRemove={() => onRemove(draft.id)}
-                trailing={
-                  draft.status === "processing" ? (
-                    <Spinner
-                      size={16}
-                      label={`Processing ${draft.name}`}
-                      className="text-fg-muted"
-                    />
-                  ) : draft.processed ? (
-                    <span className="hidden text-sm text-fg-muted tabular-nums sm:inline">
-                      {formatDimensions(draft.processed.width, draft.processed.height)}
-                    </span>
-                  ) : null
-                }
-              />
-            </li>
-          ))}
+          {drafts.map((draft) => {
+            const original = duplicates.get(draft.id);
+            const failed = draft.status === "invalid" || Boolean(original);
+            return (
+              <li key={draft.id}>
+                <UploadItem
+                  name={draft.name}
+                  previewUrl={draft.previewUrl}
+                  bytes={draft.file.size}
+                  status={failed ? "error" : "queued"}
+                  error={original ? `Same as ${original.name}: won’t be uploaded` : draft.error}
+                  className={cn(failed && "bg-danger-soft")}
+                  onRemove={() => onRemove(draft.id)}
+                  trailing={
+                    draft.status === "processing" ? (
+                      <Spinner
+                        size={16}
+                        label={`Processing ${draft.name}`}
+                        className="text-fg-muted"
+                      />
+                    ) : draft.processed ? (
+                      <span className="hidden text-sm text-fg-muted tabular-nums sm:inline">
+                        {formatDimensions(draft.processed.width, draft.processed.height)}
+                      </span>
+                    ) : null
+                  }
+                />
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

@@ -10,14 +10,14 @@ import {
 } from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorMessage, notify } from "../../lib/toast";
 import { ImageValidationError } from "./image-processing";
 import {
   MAX_SCREENS,
   STEPS,
-  contentHash,
+  findDuplicates,
   frameKindOf,
   initialState,
   isValidUrl,
@@ -36,6 +36,11 @@ import { createFlow, uploadScreen } from "./upload";
 
 let draftSeq = 0;
 
+function keepUploadable(drafts: Draft[]): Draft[] {
+  const duplicates = findDuplicates(drafts);
+  return drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
+}
+
 /** Screens uploaded in parallel: each request's time is mostly server round trips, not bytes. */
 const UPLOAD_CONCURRENCY = 4;
 
@@ -48,7 +53,8 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   const headingRef = useRef<HTMLDivElement>(null);
 
   const { step, drafts, platform, submit } = state;
-  const ready = drafts.filter((d) => d.status === "ready");
+  const duplicates = useMemo(() => findDuplicates(drafts), [drafts]);
+  const ready = drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
   const processing = drafts.some((d) => d.status === "processing");
 
   const patchDraft = useCallback((id: string, patch: Partial<Draft>) => {
@@ -80,36 +86,17 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   );
 
   const addFiles = useCallback(
-    async (files: File[]) => {
-      if (MAX_SCREENS - stateRef.current.drafts.length <= 0) return;
-      // One at a time: hashing reads each file into memory.
-      const hashed: { file: File; hash: string }[] = [];
-      for (const file of files) hashed.push({ file, hash: await contentHash(file) });
-      const seen = new Set(stateRef.current.drafts.map((d) => d.hash));
-      const unique: typeof hashed = [];
-      for (const item of hashed) {
-        if (seen.has(item.hash)) continue;
-        seen.add(item.hash);
-        unique.push(item);
-      }
-      const duplicates = hashed.length - unique.length;
-      if (duplicates > 0)
-        notify.message(
-          duplicates === 1
-            ? "Skipped an image that’s already added"
-            : `Skipped ${duplicates} images that are already added`,
-        );
+    (files: File[]) => {
       const room = MAX_SCREENS - stateRef.current.drafts.length;
       if (room <= 0) return;
-      if (unique.length > room) notify.message(`Only the first ${room} images were added`);
+      if (files.length > room) notify.message(`Only the first ${room} images were added`);
       const kind = frameKindOf(stateRef.current.platform);
-      const added: Draft[] = unique.slice(0, room).map(({ file, hash }) => {
+      const added: Draft[] = files.slice(0, room).map((file) => {
         const name = file.name || `Pasted image ${draftSeq + 1}.png`;
         const title = titleFromFilename(name);
         return {
           id: `draft-${(draftSeq += 1)}`,
           file,
-          hash,
           name,
           previewUrl: URL.createObjectURL(file),
           status: "processing",
@@ -120,13 +107,7 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
           upload: { status: "queued", progress: 0 },
         };
       });
-      // Re-checked against the latest state: an overlapping drop may have added the same image
-      // while this one was hashing (processing results for drafts not in the list are ignored).
-      setState((s) => {
-        const known = new Set(s.drafts.map((d) => d.hash));
-        const fresh = added.filter((d) => !known.has(d.hash));
-        return { ...s, drafts: [...s.drafts, ...fresh].slice(0, MAX_SCREENS) };
-      });
+      setState((s) => ({ ...s, drafts: [...s.drafts, ...added] }));
       for (const draft of added) runProcessing(draft, kind);
     },
     [runProcessing],
@@ -207,8 +188,9 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     setState((s) => ({
       ...s,
       step: next,
-      // Images that failed validation are dropped once you move on.
-      drafts: next > 0 ? s.drafts.filter((d) => d.status === "ready") : s.drafts,
+      // Images that failed validation, and repeats of an earlier image, are dropped once you
+      // move on.
+      drafts: next > 0 ? keepUploadable(s.drafts) : s.drafts,
     }));
     requestAnimationFrame(() => {
       headingRef.current?.focus({ preventScroll: true });
@@ -356,7 +338,8 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
             platform={platform}
             onPlatformChange={changePlatform}
             drafts={drafts}
-            onFiles={(files) => void addFiles(files)}
+            duplicates={duplicates}
+            onFiles={addFiles}
             onReject={onReject}
             onRemove={removeDraft}
           />
