@@ -10,13 +10,14 @@ import {
 } from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorMessage, notify } from "../../lib/toast";
 import { ImageValidationError } from "./image-processing";
 import {
   MAX_SCREENS,
   STEPS,
+  findDuplicates,
   frameKindOf,
   initialState,
   isValidUrl,
@@ -35,6 +36,14 @@ import { createFlow, uploadScreen } from "./upload";
 
 let draftSeq = 0;
 
+function keepUploadable(drafts: Draft[]): Draft[] {
+  const duplicates = findDuplicates(drafts);
+  return drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
+}
+
+/** Screens uploaded in parallel: each request's time is mostly server round trips, not bytes. */
+const UPLOAD_CONCURRENCY = 4;
+
 export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const [state, setState] = useState<WizardState>(initialState);
@@ -44,7 +53,8 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   const headingRef = useRef<HTMLDivElement>(null);
 
   const { step, drafts, platform, submit } = state;
-  const ready = drafts.filter((d) => d.status === "ready");
+  const duplicates = useMemo(() => findDuplicates(drafts), [drafts]);
+  const ready = drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
   const processing = drafts.some((d) => d.status === "processing");
 
   const patchDraft = useCallback((id: string, patch: Partial<Draft>) => {
@@ -178,8 +188,9 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     setState((s) => ({
       ...s,
       step: next,
-      // Images that failed validation are dropped once you move on.
-      drafts: next > 0 ? s.drafts.filter((d) => d.status === "ready") : s.drafts,
+      // Images that failed validation, and repeats of an earlier image, are dropped once you
+      // move on.
+      drafts: next > 0 ? keepUploadable(s.drafts) : s.drafts,
     }));
     requestAnimationFrame(() => {
       headingRef.current?.focus({ preventScroll: true });
@@ -223,22 +234,21 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     for (const draft of current.drafts)
       if (draft.upload.screen) uploaded.set(draft.id, draft.upload.screen);
     let failed = false;
-    for (const draft of current.drafts) {
-      if (uploaded.has(draft.id) || !draft.processed) continue;
+    const uploadOne = async (draft: Draft, processed: NonNullable<Draft["processed"]>) => {
       patchDraft(draft.id, { upload: { status: "uploading", progress: 0 } });
       try {
         const screen = await uploadScreen(
           {
-            image: draft.processed.image,
-            thumbnail: draft.processed.thumbnail,
+            image: processed.image,
+            thumbnail: processed.thumbnail,
             meta: {
               app: appInput,
               title: draft.title.trim() || undefined,
               patterns: draft.patterns,
               elements: draft.elements,
-              width: draft.processed.imageWidth,
-              height: draft.processed.imageHeight,
-              dominantColor: draft.processed.dominantColor,
+              width: processed.imageWidth,
+              height: processed.imageHeight,
+              dominantColor: processed.dominantColor,
               source: "upload",
             },
           },
@@ -253,7 +263,22 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
           upload: { status: "error", progress: 0, error: errorMessage(error) },
         });
       }
+    };
+    const pending = current.drafts.flatMap((draft) =>
+      !uploaded.has(draft.id) && draft.processed ? [{ draft, processed: draft.processed }] : [],
+    );
+    // A new app is created by the first upload that succeeds: send one at a time until then, so
+    // concurrent requests don't each create it.
+    while (!appInput.slug && pending.length > 0) {
+      const next = pending.shift()!;
+      await uploadOne(next.draft, next.processed);
     }
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, async () => {
+        for (let next = pending.shift(); next; next = pending.shift())
+          await uploadOne(next.draft, next.processed);
+      }),
+    );
 
     void queryClient.invalidateQueries();
     if (failed) {
@@ -313,6 +338,7 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
             platform={platform}
             onPlatformChange={changePlatform}
             drafts={drafts}
+            duplicates={duplicates}
             onFiles={addFiles}
             onReject={onReject}
             onRemove={removeDraft}
