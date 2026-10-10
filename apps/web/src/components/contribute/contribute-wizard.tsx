@@ -17,6 +17,7 @@ import { ImageValidationError } from "./image-processing";
 import {
   MAX_SCREENS,
   STEPS,
+  contentHash,
   frameKindOf,
   initialState,
   isValidUrl,
@@ -34,6 +35,9 @@ import { StepUpload } from "./step-upload";
 import { createFlow, uploadScreen } from "./upload";
 
 let draftSeq = 0;
+
+/** Screens uploaded in parallel: each request's time is mostly server round trips, not bytes. */
+const UPLOAD_CONCURRENCY = 4;
 
 export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
@@ -76,17 +80,36 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   );
 
   const addFiles = useCallback(
-    (files: File[]) => {
+    async (files: File[]) => {
+      if (MAX_SCREENS - stateRef.current.drafts.length <= 0) return;
+      // One at a time: hashing reads each file into memory.
+      const hashed: { file: File; hash: string }[] = [];
+      for (const file of files) hashed.push({ file, hash: await contentHash(file) });
+      const seen = new Set(stateRef.current.drafts.map((d) => d.hash));
+      const unique: typeof hashed = [];
+      for (const item of hashed) {
+        if (seen.has(item.hash)) continue;
+        seen.add(item.hash);
+        unique.push(item);
+      }
+      const duplicates = hashed.length - unique.length;
+      if (duplicates > 0)
+        notify.message(
+          duplicates === 1
+            ? "Skipped an image that’s already added"
+            : `Skipped ${duplicates} images that are already added`,
+        );
       const room = MAX_SCREENS - stateRef.current.drafts.length;
       if (room <= 0) return;
-      if (files.length > room) notify.message(`Only the first ${room} images were added`);
+      if (unique.length > room) notify.message(`Only the first ${room} images were added`);
       const kind = frameKindOf(stateRef.current.platform);
-      const added: Draft[] = files.slice(0, room).map((file) => {
+      const added: Draft[] = unique.slice(0, room).map(({ file, hash }) => {
         const name = file.name || `Pasted image ${draftSeq + 1}.png`;
         const title = titleFromFilename(name);
         return {
           id: `draft-${(draftSeq += 1)}`,
           file,
+          hash,
           name,
           previewUrl: URL.createObjectURL(file),
           status: "processing",
@@ -97,7 +120,13 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
           upload: { status: "queued", progress: 0 },
         };
       });
-      setState((s) => ({ ...s, drafts: [...s.drafts, ...added] }));
+      // Re-checked against the latest state: an overlapping drop may have added the same image
+      // while this one was hashing (processing results for drafts not in the list are ignored).
+      setState((s) => {
+        const known = new Set(s.drafts.map((d) => d.hash));
+        const fresh = added.filter((d) => !known.has(d.hash));
+        return { ...s, drafts: [...s.drafts, ...fresh].slice(0, MAX_SCREENS) };
+      });
       for (const draft of added) runProcessing(draft, kind);
     },
     [runProcessing],
@@ -223,22 +252,21 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     for (const draft of current.drafts)
       if (draft.upload.screen) uploaded.set(draft.id, draft.upload.screen);
     let failed = false;
-    for (const draft of current.drafts) {
-      if (uploaded.has(draft.id) || !draft.processed) continue;
+    const uploadOne = async (draft: Draft, processed: NonNullable<Draft["processed"]>) => {
       patchDraft(draft.id, { upload: { status: "uploading", progress: 0 } });
       try {
         const screen = await uploadScreen(
           {
-            image: draft.processed.image,
-            thumbnail: draft.processed.thumbnail,
+            image: processed.image,
+            thumbnail: processed.thumbnail,
             meta: {
               app: appInput,
               title: draft.title.trim() || undefined,
               patterns: draft.patterns,
               elements: draft.elements,
-              width: draft.processed.imageWidth,
-              height: draft.processed.imageHeight,
-              dominantColor: draft.processed.dominantColor,
+              width: processed.imageWidth,
+              height: processed.imageHeight,
+              dominantColor: processed.dominantColor,
               source: "upload",
             },
           },
@@ -253,7 +281,22 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
           upload: { status: "error", progress: 0, error: errorMessage(error) },
         });
       }
+    };
+    const pending = current.drafts.flatMap((draft) =>
+      !uploaded.has(draft.id) && draft.processed ? [{ draft, processed: draft.processed }] : [],
+    );
+    // A new app is created by the first upload that succeeds: send one at a time until then, so
+    // concurrent requests don't each create it.
+    while (!appInput.slug && pending.length > 0) {
+      const next = pending.shift()!;
+      await uploadOne(next.draft, next.processed);
     }
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, async () => {
+        for (let next = pending.shift(); next; next = pending.shift())
+          await uploadOne(next.draft, next.processed);
+      }),
+    );
 
     void queryClient.invalidateQueries();
     if (failed) {
@@ -313,7 +356,7 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
             platform={platform}
             onPlatformChange={changePlatform}
             drafts={drafts}
-            onFiles={addFiles}
+            onFiles={(files) => void addFiles(files)}
             onReject={onReject}
             onRemove={removeDraft}
           />

@@ -29,6 +29,8 @@ export interface UploadState {
 export interface Draft {
   id: string;
   file: File;
+  /** SHA-256 of the file's bytes: the same image can't be added twice. */
+  hash: string;
   name: string;
   /** Object URL of the generated thumbnail (or the file while processing). */
   previewUrl: string;
@@ -89,6 +91,12 @@ export const initialState = (): WizardState => ({
   flow: { enabled: false, name: "", type: "" },
   submit: { phase: "idle" },
 });
+
+/** Hex SHA-256 of a file's bytes (what the server dedupes uploads by). */
+export async function contentHash(file: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 export const frameKindOf = (platform: Platform) => (platform === "web" ? "web" : "mobile");
 
