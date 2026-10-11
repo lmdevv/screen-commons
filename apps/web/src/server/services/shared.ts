@@ -189,7 +189,14 @@ export async function screensToApi(viewer: Viewer, rows: ScreenRow[]): Promise<S
   ]);
   return rows.flatMap((row) => {
     const appRow = apps.get(row.appId);
-    return appRow ? [toScreen(row, appRow, saved.has(row.id))] : [];
+    return appRow
+      ? [
+          {
+            ...toScreen(row, appRow, saved.has(row.id)),
+            owned: row.contributorId === viewer?.user.id,
+          },
+        ]
+      : [];
   });
 }
 

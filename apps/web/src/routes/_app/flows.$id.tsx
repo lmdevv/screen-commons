@@ -1,3 +1,4 @@
+import { ContributionActions } from "../../components/library/contribution-actions";
 import { labelFor } from "@screen-commons/core/taxonomy";
 import {
   AppLogo,
@@ -80,6 +81,14 @@ function FlowPage() {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            <ContributionActions
+              key={id}
+              kind="flow"
+              item={flow}
+              onDeleted={() =>
+                void navigate({ to: "/apps/$slug", params: { slug: flow.app.slug } })
+              }
+            />
             <Button
               variant="outline"
               icon

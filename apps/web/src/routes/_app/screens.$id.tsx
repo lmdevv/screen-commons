@@ -1,3 +1,4 @@
+import { ContributionActions } from "../../components/library/contribution-actions";
 import type { ScreenDetail } from "@screen-commons/core";
 import {
   AppLogo,
@@ -105,6 +106,14 @@ function ScreenPage() {
           </span>
         </h1>
         <div className="flex items-center gap-2">
+          <ContributionActions
+            key={id}
+            kind="screen"
+            item={data}
+            onDeleted={() =>
+              void navigate({ to: "/apps/$slug", params: { slug: screen.app.slug } })
+            }
+          />
           <NeighbourButton id={screen.previousId} direction="prev" />
           <NeighbourButton id={screen.nextId} direction="next" />
           <span aria-hidden className="mx-1 h-5 w-px bg-border" />

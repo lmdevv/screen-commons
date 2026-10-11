@@ -1,6 +1,6 @@
 import { reviewDecisionSchema, type ReviewQueue } from "@screen-commons/core";
 import { app, flow, flowStep, screen } from "@screen-commons/db";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, lt, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { getDb } from "../env";
@@ -92,43 +92,49 @@ export async function review(
       );
     }
   }
-  if (decision === "reject" && kind === "screen") writes.push(...(await dropScreenFromFlows(id)));
+  if (decision === "reject" && kind === "screen") writes.push(...dropScreenFromFlows(id));
   await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 }
 
-/** Batch writes removing a screen from all flows (renumbering positions, fixing step counts). */
-async function dropScreenFromFlows(screenId: string): Promise<BatchItem<"sqlite">[]> {
+/**
+ * Batch writes removing a screen from all flows. They read nothing beforehand: each statement
+ * works on the rows as they are when the batch runs, so a concurrent flow edit or deletion can't
+ * be overwritten. Step counts and statuses are fixed first (a published flow left with fewer
+ * than 2 steps goes back to `pending`); the remaining steps are renumbered through negative
+ * positions so the (flow, position) key never collides.
+ */
+export function dropScreenFromFlows(screenId: string): BatchItem<"sqlite">[] {
   const db = getDb();
-  const steps = await db
-    .select({ step: flowStep, status: flow.status })
+  const affected = sql`SELECT ${flowStep.flowId} FROM ${flowStep} WHERE ${flowStep.screenId} = ${screenId}`;
+  const remaining = sql`(SELECT count(*) FROM ${flowStep} WHERE ${flowStep.flowId} = ${flow.id} AND ${flowStep.screenId} != ${screenId})`;
+  const ranked = db
+    .select({
+      flowId: flowStep.flowId,
+      position: flowStep.position,
+      rank: sql<number>`row_number() OVER (PARTITION BY ${flowStep.flowId} ORDER BY ${flowStep.position}) - 1`.as(
+        "rank",
+      ),
+    })
     .from(flowStep)
-    .innerJoin(flow, eq(flow.id, flowStep.flowId))
-    .where(
-      sql`${flowStep.flowId} IN (SELECT ${flowStep.flowId} FROM ${flowStep} WHERE ${flowStep.screenId} = ${screenId})`,
-    )
-    .orderBy(asc(flowStep.flowId), asc(flowStep.position));
-  const byFlow = new Map<string, { status: string; steps: (typeof steps)[number]["step"][] }>();
-  for (const { step, status } of steps) {
-    const entry = byFlow.get(step.flowId) ?? { status, steps: [] };
-    entry.steps.push(step);
-    byFlow.set(step.flowId, entry);
-  }
-  const writes: BatchItem<"sqlite">[] = [];
-  for (const [flowId, entry] of byFlow) {
-    const remaining = entry.steps.filter((step) => step.screenId !== screenId);
-    writes.push(db.delete(flowStep).where(eq(flowStep.flowId, flowId)));
-    remaining.forEach((step, position) =>
-      writes.push(db.insert(flowStep).values({ ...step, position })),
-    );
-    writes.push(
-      db
-        .update(flow)
-        .set({
-          stepCount: remaining.length,
-          ...(remaining.length < 2 && entry.status === "published" ? { status: "pending" } : {}),
-        })
-        .where(eq(flow.id, flowId)),
-    );
-  }
-  return writes;
+    .where(and(ne(flowStep.screenId, screenId), sql`${flowStep.flowId} IN (${affected})`))
+    .as("ranked");
+  return [
+    db
+      .update(flow)
+      .set({
+        stepCount: remaining,
+        status: sql`CASE WHEN ${flow.status} = 'published' AND ${remaining} < 2 THEN 'pending' ELSE ${flow.status} END`,
+      })
+      .where(sql`${flow.id} IN (${affected})`),
+    db
+      .update(flowStep)
+      .set({ position: sql`-1 - ${ranked.rank}` })
+      .from(ranked)
+      .where(and(eq(flowStep.flowId, ranked.flowId), eq(flowStep.position, ranked.position))),
+    db.delete(flowStep).where(eq(flowStep.screenId, screenId)),
+    db
+      .update(flowStep)
+      .set({ position: sql`-1 - ${flowStep.position}` })
+      .where(lt(flowStep.position, 0)),
+  ];
 }

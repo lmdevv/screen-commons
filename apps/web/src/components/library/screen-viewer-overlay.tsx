@@ -1,3 +1,4 @@
+import { ContributionActions } from "./contribution-actions";
 /*
  * Screen viewer overlay (`?screen=<id>`, lazy chunk). Shows the listed copy of the screen
  * instantly, then its detail (flows, neighbours). ←/→ walk the current result list (loading the
@@ -180,6 +181,7 @@ export default function ScreenViewerOverlay({
       onZoomChange={changeZoom}
       actions={
         <>
+          <ContributionActions key={id} kind="screen" item={detail.data} onDeleted={onClose} />
           <Tooltip content="Copy link">
             <Button
               variant="ghost"

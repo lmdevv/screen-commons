@@ -16,6 +16,8 @@ import type {
   SaveKind,
   SearchQuery,
   User,
+  UpdateScreenInput,
+  UpdateFlowInput,
 } from "@screen-commons/core";
 import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -148,6 +150,16 @@ export const submitCaptures = createServerFn({ method: "POST" })
 export const createFlow = createServerFn({ method: "POST" })
   .validator(identity<CreateFlowInput>())
   .handler(({ data }) => asUser((principal) => services.createFlow(principal, data)));
+
+export const updateScreen = createServerFn({ method: "POST" })
+  .validator(identity<{ id: string; patch: UpdateScreenInput }>())
+  .handler(({ data }) => asUser((p) => services.updateScreen(p, data.id, data.patch)));
+export const updateFlow = createServerFn({ method: "POST" })
+  .validator(identity<{ id: string; patch: UpdateFlowInput }>())
+  .handler(({ data }) => asUser((p) => services.updateFlow(p, data.id, data.patch)));
+export const deleteContribution = createServerFn({ method: "POST" })
+  .validator(identity<{ kind: "screen" | "flow"; id: string }>())
+  .handler(({ data }) => asUser((p) => services.deleteContribution(p, data.kind, data.id)));
 
 // --- collections + saves ---------------------------------------------------------------------
 

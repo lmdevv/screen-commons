@@ -601,6 +601,25 @@ export async function createFlow(
 ): Promise<{ flow: FlowDetail }> {
   const parsed = parseInput(createFlowInputSchema, input);
   const db = getDb();
+  const existing = async () =>
+    parsed.id
+      ? (
+          await db
+            .select({ id: flow.id })
+            .from(flow)
+            .where(
+              and(
+                eq(flow.id, parsed.id),
+                eq(flow.contributorId, principal.user.id),
+                eq(flow.appId, parsed.appId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : undefined;
+  const previous = await existing();
+  if (previous) return { flow: await getFlow(principal, previous.id, { countView: false }) };
+
   const [appRow] = await db
     .select({ id: app.id })
     .from(app)
@@ -627,7 +646,7 @@ export async function createFlow(
   }
 
   const now = new Date();
-  const flowId = newId();
+  const flowId = parsed.id ?? newId();
   const writes: BatchItem<"sqlite">[] = [
     db.insert(flow).values({
       id: flowId,
@@ -650,6 +669,12 @@ export async function createFlow(
         .values({ flowId, position, screenId: step.screenId, label: step.label ?? null }),
     ),
   ];
-  await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  try {
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  } catch (error) {
+    const committed = await existing();
+    if (!committed) throw error;
+    return { flow: await getFlow(principal, committed.id, { countView: false }) };
+  }
   return { flow: await getFlow(principal, flowId, { countView: false }) };
 }
