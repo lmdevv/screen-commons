@@ -4,6 +4,7 @@
  * Every function validates its input with the core zod schemas.
  */
 export * from "./catalog";
+export * from "./contributions";
 export * from "./collections";
 export * from "./ingest";
 export * from "./library";

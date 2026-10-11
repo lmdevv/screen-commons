@@ -27,6 +27,8 @@ export interface UploadState {
 }
 
 export interface Draft {
+  duplicateChoice?: "keep" | "skip";
+  libraryMatch?: Screen;
   id: string;
   file: File;
   name: string;
@@ -58,6 +60,9 @@ export interface FlowOptions {
 }
 
 export interface SubmitState {
+  paused?: boolean;
+  started?: boolean;
+  submissionId?: string;
   phase: "idle" | "uploading" | "done" | "error";
   flow?: FlowDetail;
   flowError?: string;
@@ -89,6 +94,15 @@ export const initialState = (): WizardState => ({
   flow: { enabled: false, name: "", type: "" },
   submit: { phase: "idle" },
 });
+
+export function isSkipped(draft: Draft, duplicates: ReadonlyMap<string, Draft>): boolean {
+  if (draft.duplicateChoice === "keep") return false;
+  if (draft.duplicateChoice === "skip") return duplicates.has(draft.id) || !!draft.libraryMatch;
+  const original = duplicates.get(draft.id);
+  return (
+    !!original?.processed?.imageHash && original.processed.imageHash === draft.processed?.imageHash
+  );
+}
 
 /**
  * Largest per-channel difference (0–255) between two fingerprints of the same screen. Measured

@@ -1,3 +1,4 @@
+import { ContributionActions } from "./contribution-actions";
 /*
  * Flow viewer overlay (`?flow=<id>`, lazy chunk): the ordered strip of steps. Clicking a step
  * stacks the screen viewer on top (`?flow=…&screen=…`), whose ←/→ then walk the flow's steps.
@@ -105,16 +106,19 @@ export default function FlowViewerOverlay({
         }
       }}
       actions={
-        <Tooltip content="Open page">
-          <Button
-            variant="secondary"
-            icon
-            aria-label="Open as a page"
-            render={<Link to="/flows/$id" params={{ id: flow.id }} />}
-          >
-            <ExternalLink />
-          </Button>
-        </Tooltip>
+        <>
+          <ContributionActions key={id} kind="flow" item={flow} onDeleted={onClose} />
+          <Tooltip content="Open page">
+            <Button
+              variant="secondary"
+              icon
+              aria-label="Open as a page"
+              render={<Link to="/flows/$id" params={{ id: flow.id }} />}
+            >
+              <ExternalLink />
+            </Button>
+          </Tooltip>
+        </>
       }
     />
   );

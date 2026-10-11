@@ -40,6 +40,7 @@ export interface ProcessedImage {
   dominantColor: string;
   /** RGBA pixels of a {@link FINGERPRINT_WIDTH}px-wide downscale, for spotting repeated images. */
   fingerprint: Uint8ClampedArray;
+  imageHash: string;
 }
 
 export class ImageValidationError extends Error {}
@@ -75,7 +76,7 @@ function dominantColor(source: CanvasImageSource, width: number, height: number)
 export const FINGERPRINT_WIDTH = 64;
 
 function fingerprint(source: CanvasImageSource, width: number, height: number) {
-  const fingerprintHeight = Math.max(1, Math.round((height * FINGERPRINT_WIDTH) / width));
+  const fingerprintHeight = FINGERPRINT_WIDTH;
   const [, context] = createCanvas(FINGERPRINT_WIDTH, fingerprintHeight);
   context.drawImage(source, 0, 0, width, height, 0, 0, FINGERPRINT_WIDTH, fingerprintHeight);
   return context.getImageData(0, 0, FINGERPRINT_WIDTH, fingerprintHeight).data;
@@ -132,6 +133,10 @@ export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<
       thumbnailHeight: thumbnail.height,
       dominantColor: dominantColor(bitmap, width, height),
       fingerprint: fingerprint(bitmap, width, height),
+      imageHash: Array.from(
+        new Uint8Array(await crypto.subtle.digest("SHA-256", await image.blob.arrayBuffer())),
+        (byte) => byte.toString(16).padStart(2, "0"),
+      ).join(""),
     };
   } finally {
     bitmap.close();

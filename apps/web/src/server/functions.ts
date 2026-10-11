@@ -8,6 +8,7 @@
  *   Any other failure → throws `Error(message)`.
  */
 import type {
+  AppInput,
   CaptureBatchInput,
   CreateFlowInput,
   ListAppsQuery,
@@ -16,6 +17,9 @@ import type {
   SaveKind,
   SearchQuery,
   User,
+  UpdateScreenInput,
+  UpdateFlowInput,
+  VisualFingerprint,
 } from "@screen-commons/core";
 import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -148,6 +152,31 @@ export const submitCaptures = createServerFn({ method: "POST" })
 export const createFlow = createServerFn({ method: "POST" })
   .validator(identity<CreateFlowInput>())
   .handler(({ data }) => asUser((principal) => services.createFlow(principal, data)));
+
+export const updateScreen = createServerFn({ method: "POST" })
+  .validator(identity<{ id: string; patch: UpdateScreenInput }>())
+  .handler(({ data }) => asUser((p) => services.updateScreen(p, data.id, data.patch)));
+export const updateFlow = createServerFn({ method: "POST" })
+  .validator(identity<{ id: string; patch: UpdateFlowInput }>())
+  .handler(({ data }) => asUser((p) => services.updateFlow(p, data.id, data.patch)));
+export const deleteContribution = createServerFn({ method: "POST" })
+  .validator(identity<{ kind: "screen" | "flow"; id: string }>())
+  .handler(({ data }) => asUser((p) => services.deleteContribution(p, data.kind, data.id)));
+export const requestRemoval = createServerFn({ method: "POST" })
+  .validator(identity<{ kind: "screen" | "flow"; id: string; reason: string }>())
+  .handler(({ data }) => asUser((p) => services.requestRemoval(p, data.kind, data.id, data)));
+export const listRemovalRequests = createServerFn({ method: "GET" }).handler(() =>
+  asUser((p) => services.listRemovalRequests(p)),
+);
+export const reviewRemoval = createServerFn({ method: "POST" })
+  .validator(identity<{ kind: "screen" | "flow"; id: string; remove: boolean }>())
+  .handler(({ data }) => asUser((p) => services.reviewRemoval(p, data.kind, data.id, data.remove)));
+export const duplicateCandidates = createServerFn({ method: "GET" })
+  .validator(identity<{ app: AppInput; after?: string }>())
+  .handler(({ data }) => asUser((p) => services.duplicateCandidates(p, data)));
+export const rememberFingerprint = createServerFn({ method: "POST" })
+  .validator(identity<{ id: string; fingerprint: VisualFingerprint }>())
+  .handler(({ data }) => asUser((p) => services.rememberFingerprint(p, data.id, data.fingerprint)));
 
 // --- collections + saves ---------------------------------------------------------------------
 

@@ -9,6 +9,8 @@ export function progressFetch(onProgress: (fraction: number) => void): typeof fe
     new Promise<Response>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(init?.method ?? "GET", String(input));
+      xhr.timeout = 120_000;
+      xhr.ontimeout = () => reject(new TypeError("Upload timed out. Retry to resume."));
       xhr.withCredentials = init?.credentials === "include";
       new Headers(init?.headers).forEach((value, key) => xhr.setRequestHeader(key, value));
       xhr.upload.onprogress = (event) => {
@@ -28,28 +30,41 @@ export function progressFetch(onProgress: (fraction: number) => void): typeof fe
       };
       xhr.onerror = () => reject(new TypeError("Network error — check your connection"));
       xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
-      init?.signal?.addEventListener("abort", () => xhr.abort());
+      const abort = () => xhr.abort();
+      if (init?.signal?.aborted) {
+        reject(new DOMException("Upload paused", "AbortError"));
+        return;
+      }
+      init?.signal?.addEventListener("abort", abort, { once: true });
+      xhr.addEventListener("loadend", () => init?.signal?.removeEventListener("abort", abort));
       xhr.send((init?.body as XMLHttpRequestBodyInit | null | undefined) ?? null);
     });
 }
 
 /** The core client pulls in zod (via the API schema module): load it only when submitting. */
-async function client(onProgress: (fraction: number) => void) {
+async function client(onProgress: (fraction: number) => void, signal?: AbortSignal) {
   const { createScreenCommonsClient } = await import("@screen-commons/core/client");
-  return createScreenCommonsClient({ baseUrl: location.origin, fetch: progressFetch(onProgress) });
+  return createScreenCommonsClient({
+    baseUrl: location.origin,
+    fetch: (input, init) => progressFetch(onProgress)(input, { ...init, signal }),
+  });
 }
 
 export async function uploadScreen(
   input: { image: Blob; thumbnail: Blob; meta: CreateScreenInput },
   onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
 ): Promise<Screen> {
-  const api = await client(onProgress);
+  const api = await client(onProgress, signal);
   const { screen } = await api.createScreen(input);
   return screen;
 }
 
-export async function createFlow(input: CreateFlowInput): Promise<FlowDetail> {
-  const api = await client(() => undefined);
+export async function createFlow(
+  input: CreateFlowInput,
+  signal?: AbortSignal,
+): Promise<FlowDetail> {
+  const api = await client(() => undefined, signal);
   const { flow } = await api.createFlow(input);
   return flow;
 }

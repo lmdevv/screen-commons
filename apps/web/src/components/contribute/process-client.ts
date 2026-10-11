@@ -45,15 +45,57 @@ function getWorker(): Worker | null {
 }
 
 /** Process an image off the main thread when possible. */
-export function processImage(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage> {
+function processNow(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage> {
   const w = getWorker();
   if (!w) return processOnMainThread(file, kind);
   const id = nextId++;
   return new Promise<ProcessedImage>((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    w.postMessage({ id, file, kind } satisfies WorkerRequest);
+    const timer = setTimeout(() => {
+      w.terminate();
+      worker = null;
+      for (const [jobId, job] of pending) {
+        pending.delete(jobId);
+        job.reject(new Error("Image worker timed out"));
+      }
+    }, 45_000);
+    pending.set(id, {
+      resolve: (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      reject: (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    });
+    try {
+      w.postMessage({ id, file, kind } satisfies WorkerRequest);
+    } catch (error) {
+      clearTimeout(timer);
+      pending.delete(id);
+      reject(error);
+    }
   }).catch((error: unknown) => {
     if (error instanceof ImageValidationError) throw error;
     return processOnMainThread(file, kind);
+  });
+}
+
+// Bound decoded bitmap/canvas memory even when a whole batch arrives at once.
+let active = 0;
+const queue: (() => void)[] = [];
+export function processImage(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage> {
+  return new Promise((resolve, reject) => {
+    const start = () => {
+      active++;
+      void processNow(file, kind)
+        .then(resolve, reject)
+        .finally(() => {
+          active--;
+          queue.shift()?.();
+        });
+    };
+    if (active < 2) start();
+    else queue.push(start);
   });
 }

@@ -11,7 +11,7 @@ import {
 } from "@screen-commons/ui";
 
 import { IMAGE_LIMITS } from "./image-processing";
-import { MAX_SCREENS, type Draft } from "./model";
+import { MAX_SCREENS, isSkipped, type Draft } from "./model";
 
 export function StepUpload({
   platform,
@@ -21,6 +21,7 @@ export function StepUpload({
   onFiles,
   onReject,
   onRemove,
+  onDuplicateChoice,
 }: {
   platform: Platform;
   onPlatformChange: (platform: Platform) => void;
@@ -30,6 +31,7 @@ export function StepUpload({
   onFiles: (files: File[]) => void;
   onReject: (rejected: RejectedFile[]) => void;
   onRemove: (id: string) => void;
+  onDuplicateChoice: (id: string, choice: "keep" | "skip") => void;
 }) {
   const full = drafts.length >= MAX_SCREENS;
   return (
@@ -67,7 +69,8 @@ export function StepUpload({
         <ul aria-label="Selected images" className="grid gap-2 sm:grid-cols-2">
           {drafts.map((draft) => {
             const original = duplicates.get(draft.id);
-            const failed = draft.status === "invalid" || Boolean(original);
+            const skipped = isSkipped(draft, duplicates);
+            const failed = draft.status === "invalid";
             return (
               <li key={draft.id}>
                 <UploadItem
@@ -75,7 +78,7 @@ export function StepUpload({
                   previewUrl={draft.previewUrl}
                   bytes={draft.file.size}
                   status={failed ? "error" : "queued"}
-                  error={original ? `Same as ${original.name}: won’t be uploaded` : draft.error}
+                  error={draft.error}
                   className={cn(failed && "bg-danger-soft")}
                   onRemove={() => onRemove(draft.id)}
                   trailing={
@@ -92,6 +95,34 @@ export function StepUpload({
                     ) : null
                   }
                 />
+                {original ? (
+                  <div className="px-3 py-2 text-sm text-fg-muted">
+                    <p>
+                      {original.processed?.imageHash === draft.processed?.imageHash
+                        ? "Identical image"
+                        : "Looks similar"}{" "}
+                      to {original.name}. {skipped ? "Skipped." : "Both will be kept."}
+                    </p>
+                    <div className="mt-1 flex gap-3">
+                      <button
+                        type="button"
+                        className="ou-focus-ring rounded-xs underline"
+                        aria-pressed={!skipped}
+                        onClick={() => onDuplicateChoice(draft.id, "keep")}
+                      >
+                        Keep both
+                      </button>
+                      <button
+                        type="button"
+                        className="ou-focus-ring rounded-xs underline"
+                        aria-pressed={skipped}
+                        onClick={() => onDuplicateChoice(draft.id, "skip")}
+                      >
+                        Skip this image
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </li>
             );
           })}

@@ -17,6 +17,7 @@ import {
   type Screen,
   type Source,
   type Status,
+  type VisualFingerprint,
   type catalogTools,
 } from "@screen-commons/core";
 import {
@@ -211,7 +212,7 @@ async function uniqueSlug(platform: string, base: string): Promise<string> {
  * The app a contribution belongs to, always on the requested platform: slug (as given, or with
  * the platform suffix `uniqueSlug` adds on collisions) → website host → name slug.
  */
-async function findApp(input: AppInput): Promise<AppRow | undefined> {
+export async function findApp(input: AppInput): Promise<AppRow | undefined> {
   const db = getDb();
   const host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
   const find = async (condition: SQL) =>
@@ -305,6 +306,7 @@ async function appWrite(
 // ---------------------------------------------------------------------------------------------
 
 interface IngestScreen {
+  visualFingerprint?: VisualFingerprint;
   image: ImageSource;
   /** Omitted only by the MCP upload tool; the server generates one. */
   thumbnail?: ImageSource;
@@ -437,6 +439,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       displayVersion,
       displayException,
       title: item.title ?? null,
+      visualFingerprint: item.visualFingerprint ?? null,
       sourceUrl: item.sourceUrl ?? null,
       text: item.text ?? null,
       patterns: [...new Set(item.patterns)],
@@ -548,7 +551,7 @@ export async function createScreen(
   }
   const parsed = parseInput(createScreenInputSchema, meta);
   const { app: appInput, source, ...screenMeta } = parsed;
-  const result = await ingest(principal, {
+  const ingestInput: IngestInput = {
     app: appInput,
     source,
     screens: [
@@ -558,7 +561,17 @@ export async function createScreen(
         thumbnail: blobSource(input.thumbnail, "thumbnail"),
       },
     ],
-  });
+  };
+  let result: IngestResult;
+  try {
+    result = await ingest(principal, ingestInput);
+  } catch (error) {
+    const messages = [error, error instanceof Error ? error.cause : null]
+      .map((e) => (e instanceof Error ? e.message : String(e)))
+      .join(" ");
+    if (!/duplicate_screen|UNIQUE constraint failed: app.slug/u.test(messages)) throw error;
+    result = await ingest(principal, ingestInput);
+  }
   const row = await getScreenRow(principal, result.screens[0]!.id);
   const [apiScreen] = await screensToApi(principal, [row]);
   return { screen: apiScreen! };
@@ -601,6 +614,23 @@ export async function createFlow(
 ): Promise<{ flow: FlowDetail }> {
   const parsed = parseInput(createFlowInputSchema, input);
   const db = getDb();
+  const existingSubmission = async () =>
+    parsed.submissionId
+      ? (
+          await db
+            .select({ id: flow.id })
+            .from(flow)
+            .where(
+              and(
+                eq(flow.contributorId, principal.user.id),
+                eq(flow.submissionId, parsed.submissionId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : undefined;
+  const previous = await existingSubmission();
+  if (previous) return { flow: await getFlow(principal, previous.id, { countView: false }) };
   const [appRow] = await db
     .select({ id: app.id })
     .from(app)
@@ -631,6 +661,7 @@ export async function createFlow(
   const writes: BatchItem<"sqlite">[] = [
     db.insert(flow).values({
       id: flowId,
+      submissionId: parsed.submissionId ?? null,
       appId: appRow.id,
       name: parsed.name,
       type: parsed.type ?? null,
@@ -650,6 +681,12 @@ export async function createFlow(
         .values({ flowId, position, screenId: step.screenId, label: step.label ?? null }),
     ),
   ];
-  await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  try {
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  } catch (error) {
+    const committed = await existingSubmission();
+    if (!committed) throw error;
+    return { flow: await getFlow(principal, committed.id, { countView: false }) };
+  }
   return { flow: await getFlow(principal, flowId, { countView: false }) };
 }

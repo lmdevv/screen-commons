@@ -1,3 +1,4 @@
+import { RemovalRequests } from "./removal-requests";
 import type { FlowSummary, Screen } from "@screen-commons/core";
 import { labelFor } from "@screen-commons/core/taxonomy";
 import {
@@ -169,6 +170,7 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
           ) : null
         }
       />
+      <RemovalRequests />
       <TabNav aria-label="Review queue" className="mt-5">
         {(["screens", "flows"] as const).map((value) => (
           <TabNavItem

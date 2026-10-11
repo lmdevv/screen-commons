@@ -56,7 +56,7 @@ export function TopBar({
       <div
         className={cn(
           "mx-auto grid h-full grid-cols-[1fr_auto] items-center gap-4 px-4 sm:px-6 lg:px-8",
-          hasSearch && "md:grid-cols-[1fr_minmax(0,560px)_1fr]",
+          hasSearch && "lg:grid-cols-[auto_minmax(0,560px)_auto] lg:justify-between",
           !fluid && "max-w-page",
         )}
       >
@@ -65,7 +65,7 @@ export function TopBar({
           {nav ? <div className="hidden min-w-0 items-center sm:flex">{nav}</div> : null}
         </div>
         {hasSearch ? (
-          <div className="hidden min-w-0 md:block">
+          <div className="hidden min-w-0 lg:block">
             {search ?? <SearchPill placeholder={searchPlaceholder} onClick={onSearchClick} />}
           </div>
         ) : null}
@@ -75,7 +75,7 @@ export function TopBar({
               type="button"
               aria-label="Search"
               onClick={onSearchClick}
-              className="ou-focus-ring flex size-9 items-center justify-center rounded-full text-fg transition-colors hover:bg-muted md:hidden"
+              className="ou-focus-ring flex size-9 items-center justify-center rounded-full text-fg transition-colors hover:bg-muted lg:hidden"
             >
               <Search aria-hidden className="size-[18px]" />
             </button>

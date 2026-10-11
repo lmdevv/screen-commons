@@ -83,7 +83,11 @@ export function StepReview({
         ))}
       </ol>
 
-      {drafts.some((d) => d.upload.status === "error") ? (
+      {submit.paused ? (
+        <Callout>
+          Upload paused. Press <strong>Retry</strong> to resume; finished screens are saved.
+        </Callout>
+      ) : drafts.some((d) => d.upload.status === "error") ? (
         <Callout tone="danger" icon={<TriangleAlert />}>
           Some screens didn’t upload. Fix the issue and press <strong>Retry</strong>; finished
           screens won’t be sent twice.
@@ -91,7 +95,7 @@ export function StepReview({
       ) : null}
       {submit.flowError ? (
         <Callout tone="danger" icon={<TriangleAlert />}>
-          The screens uploaded, but the flow couldn’t be created: {submit.flowError}
+          The contribution couldn’t be completed: {submit.flowError}
         </Callout>
       ) : null}
     </div>
@@ -101,26 +105,27 @@ export function StepReview({
 export function SubmitSuccess({
   drafts,
   submit,
-  isAdmin,
   onReset,
 }: {
   drafts: Draft[];
   submit: SubmitState;
-  isAdmin: boolean;
   onReset: () => void;
 }) {
   const app = drafts[0]?.upload.screen?.app;
-  const count = drafts.length;
+  const published =
+    drafts.every((d) => d.upload.screen?.status === "published") &&
+    (!submit.flow || submit.flow.status === "published");
+  const count = new Set(drafts.flatMap((d) => (d.upload.screen ? [d.upload.screen.id] : []))).size;
   return (
     <div className="flex flex-col items-center py-16 text-center" role="status">
       <div className="flex size-12 items-center justify-center rounded-full bg-success-soft text-success">
         <CircleCheck aria-hidden className="size-6" />
       </div>
       <h2 className="mt-6 text-xl font-semibold text-fg">
-        {isAdmin ? "Published" : "Submitted for review"}
+        {published ? "Published" : "Submitted for review"}
       </h2>
       <p className="mt-2 max-w-md text-base text-pretty text-fg-muted">
-        {isAdmin
+        {published
           ? `${pluralize(count, "screen")}${submit.flow ? " and a flow are" : count === 1 ? " is" : " are"} live in the library.`
           : `Thanks! ${pluralize(count, "screen")}${submit.flow ? " and a flow" : ""} will appear in the library once an admin approves ${count === 1 && !submit.flow ? "it" : "them"}.`}
       </p>

@@ -97,7 +97,7 @@ export async function review(
 }
 
 /** Batch writes removing a screen from all flows (renumbering positions, fixing step counts). */
-async function dropScreenFromFlows(screenId: string): Promise<BatchItem<"sqlite">[]> {
+export async function dropScreenFromFlows(screenId: string): Promise<BatchItem<"sqlite">[]> {
   const db = getDb();
   const steps = await db
     .select({ step: flowStep, status: flow.status })
