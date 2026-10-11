@@ -92,7 +92,7 @@ export async function deleteContribution(
   await requireOwner(principal, kind, id);
   const db = getDb();
   const table = kind === "screen" ? screen : flow;
-  const writes: BatchItem<"sqlite">[] = kind === "screen" ? await dropScreenFromFlows(id) : [];
+  const writes: BatchItem<"sqlite">[] = kind === "screen" ? dropScreenFromFlows(id) : [];
   writes.push(
     db
       .delete(collectionItem)
