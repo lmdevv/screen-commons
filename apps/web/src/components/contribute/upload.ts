@@ -30,41 +30,28 @@ export function progressFetch(onProgress: (fraction: number) => void): typeof fe
       };
       xhr.onerror = () => reject(new TypeError("Network error — check your connection"));
       xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
-      const abort = () => xhr.abort();
-      if (init?.signal?.aborted) {
-        reject(new DOMException("Upload paused", "AbortError"));
-        return;
-      }
-      init?.signal?.addEventListener("abort", abort, { once: true });
-      xhr.addEventListener("loadend", () => init?.signal?.removeEventListener("abort", abort));
+      init?.signal?.addEventListener("abort", () => xhr.abort());
       xhr.send((init?.body as XMLHttpRequestBodyInit | null | undefined) ?? null);
     });
 }
 
 /** The core client pulls in zod (via the API schema module): load it only when submitting. */
-async function client(onProgress: (fraction: number) => void, signal?: AbortSignal) {
+async function client(onProgress: (fraction: number) => void) {
   const { createScreenCommonsClient } = await import("@screen-commons/core/client");
-  return createScreenCommonsClient({
-    baseUrl: location.origin,
-    fetch: (input, init) => progressFetch(onProgress)(input, { ...init, signal }),
-  });
+  return createScreenCommonsClient({ baseUrl: location.origin, fetch: progressFetch(onProgress) });
 }
 
 export async function uploadScreen(
   input: { image: Blob; thumbnail: Blob; meta: CreateScreenInput },
   onProgress: (fraction: number) => void,
-  signal?: AbortSignal,
 ): Promise<Screen> {
-  const api = await client(onProgress, signal);
+  const api = await client(onProgress);
   const { screen } = await api.createScreen(input);
   return screen;
 }
 
-export async function createFlow(
-  input: CreateFlowInput,
-  signal?: AbortSignal,
-): Promise<FlowDetail> {
-  const api = await client(() => undefined, signal);
+export async function createFlow(input: CreateFlowInput): Promise<FlowDetail> {
+  const api = await client(() => undefined);
   const { flow } = await api.createFlow(input);
   return flow;
 }

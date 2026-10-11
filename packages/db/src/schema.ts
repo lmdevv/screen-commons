@@ -175,12 +175,6 @@ export const screen = sqliteTable(
     source: text("source").$type<Source>().default("upload").notNull(),
     contributorId: text("contributor_id").references(() => user.id, { onDelete: "set null" }),
     reviewReason: text("review_reason"),
-    visualFingerprint: text("visual_fingerprint", { mode: "json" }).$type<{
-      width: number;
-      height: number;
-      pixels: string;
-    }>(),
-    removalReason: text("removal_reason"),
     viewCount: integer("view_count").default(0).notNull(),
     saveCount: integer("save_count").default(0).notNull(),
     capturedAt: timestamp("captured_at").default(now).notNull(),
@@ -211,8 +205,6 @@ export const flow = sqliteTable(
     status: text("status").$type<Status>().default("pending").notNull(),
     contributorId: text("contributor_id").references(() => user.id, { onDelete: "set null" }),
     reviewReason: text("review_reason"),
-    removalReason: text("removal_reason"),
-    submissionId: text("submission_id"),
     stepCount: integer("step_count").default(0).notNull(),
     viewCount: integer("view_count").default(0).notNull(),
     saveCount: integer("save_count").default(0).notNull(),
@@ -223,9 +215,6 @@ export const flow = sqliteTable(
     index("flow_status_created_idx").on(table.status, table.createdAt),
     index("flow_app_idx").on(table.appId),
     index("flow_contributor_idx").on(table.contributorId),
-    uniqueIndex("flow_submission_idx")
-      .on(table.contributorId, table.submissionId)
-      .where(sql`${table.submissionId} IS NOT NULL`),
   ],
 );
 

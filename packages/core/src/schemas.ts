@@ -110,16 +110,7 @@ export const screenSchema = z.object({
 });
 export type Screen = z.infer<typeof screenSchema>;
 
-export const contributionPermissionsSchema = z.object({
-  edit: z.boolean(),
-  delete: z.boolean(),
-  requestRemoval: z.boolean(),
-  removalRequested: z.boolean(),
-});
-
 export const screenDetailSchema = screenSchema.extend({
-  permissions: contributionPermissionsSchema.optional(),
-  reviewReason: z.string().nullable().optional(),
   /** Neighbours within the same app (ordered by capture), for ←/→ navigation. */
   previousId: id.nullable(),
   nextId: id.nullable(),
@@ -150,8 +141,7 @@ export const flowSummarySchema = z.object({
 export type FlowSummary = z.infer<typeof flowSummarySchema>;
 
 export const flowDetailSchema = flowSummarySchema.extend({
-  permissions: contributionPermissionsSchema.optional(),
-  reviewReason: z.string().nullable().optional(),
+  owned: z.boolean().optional(),
   steps: z.array(flowStepSchema),
 });
 export type FlowDetail = z.infer<typeof flowDetailSchema>;
@@ -207,20 +197,8 @@ export const screenMetaSchema = z.object({
 });
 export type ScreenMeta = z.input<typeof screenMetaSchema>;
 
-/** An advisory browser-generated signature, never grounds for deleting or reusing a screen. */
-export const visualFingerprintSchema = z.object({
-  width: z.number().int().positive().max(LIMITS.maxImageWidth),
-  height: z.number().int().positive().max(LIMITS.maxImageHeight),
-  pixels: z
-    .string()
-    .length(21848)
-    .regex(/^[A-Za-z0-9+/]+={2}$/u),
-});
-export type VisualFingerprint = z.infer<typeof visualFingerprintSchema>;
-
 /** `meta` part of the multipart POST /api/v1/screens. */
 export const createScreenInputSchema = screenMetaSchema.extend({
-  visualFingerprint: visualFingerprintSchema.optional(),
   app: appInputSchema,
   source: sourceSchema.default("upload"),
 });
@@ -260,8 +238,8 @@ export const captureBatchResultSchema = z.object({
 export type CaptureBatchResult = z.infer<typeof captureBatchResultSchema>;
 
 export const createFlowInputSchema = z.object({
-  /** Retry identity, scoped to the contributor. */
-  submissionId: z.string().uuid().optional(),
+  /** Optional client-chosen identity so retrying does not create another flow. */
+  id: z.string().uuid().optional(),
   appId: id,
   name: z.string().trim().min(1).max(80),
   type: flowTypeSchema.optional(),
@@ -273,21 +251,20 @@ export const createFlowInputSchema = z.object({
 });
 export type CreateFlowInput = z.input<typeof createFlowInputSchema>;
 
-export const updateScreenInputSchema = screenMetaSchema
-  .pick({ title: true, patterns: true, elements: true, tags: true })
+export const updateScreenInputSchema = z.object({
+  title: z.string().trim().max(160).nullable().optional(),
+  patterns: screenMetaSchema.shape.patterns.removeDefault().optional(),
+  elements: screenMetaSchema.shape.elements.removeDefault().optional(),
+  tags: screenMetaSchema.shape.tags.removeDefault().optional(),
+});
+export type UpdateScreenInput = z.input<typeof updateScreenInputSchema>;
+export const updateFlowInputSchema = createFlowInputSchema
+  .omit({ appId: true, id: true })
   .partial()
   .extend({
-    title: z.string().trim().max(160).nullable().optional(),
-    patterns: screenMetaSchema.shape.patterns.removeDefault().optional(),
-    elements: screenMetaSchema.shape.elements.removeDefault().optional(),
-    tags: screenMetaSchema.shape.tags.removeDefault().optional(),
+    type: flowTypeSchema.nullable().optional(),
+    description: z.string().trim().max(500).nullable().optional(),
   });
-export type UpdateScreenInput = z.input<typeof updateScreenInputSchema>;
-
-export const updateFlowInputSchema = createFlowInputSchema.omit({
-  appId: true,
-  submissionId: true,
-});
 export type UpdateFlowInput = z.input<typeof updateFlowInputSchema>;
 
 export const createApiKeyInputSchema = z.object({

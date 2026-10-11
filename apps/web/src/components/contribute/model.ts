@@ -27,8 +27,6 @@ export interface UploadState {
 }
 
 export interface Draft {
-  duplicateChoice?: "keep" | "skip";
-  libraryMatch?: Screen;
   id: string;
   file: File;
   name: string;
@@ -60,9 +58,7 @@ export interface FlowOptions {
 }
 
 export interface SubmitState {
-  paused?: boolean;
-  started?: boolean;
-  submissionId?: string;
+  flowId?: string;
   phase: "idle" | "uploading" | "done" | "error";
   flow?: FlowDetail;
   flowError?: string;
@@ -95,46 +91,16 @@ export const initialState = (): WizardState => ({
   submit: { phase: "idle" },
 });
 
-export function isSkipped(draft: Draft, duplicates: ReadonlyMap<string, Draft>): boolean {
-  if (draft.duplicateChoice === "keep") return false;
-  if (draft.duplicateChoice === "skip") return duplicates.has(draft.id) || !!draft.libraryMatch;
-  const original = duplicates.get(draft.id);
-  return (
-    !!original?.processed?.imageHash && original.processed.imageHash === draft.processed?.imageHash
-  );
-}
-
-/**
- * Largest per-channel difference (0–255) between two fingerprints of the same screen. Measured
- * in Chrome on real uploads: re-captures of one screen differed by 8, distinct states by 63+.
- */
-const FINGERPRINT_TOLERANCE = 32;
-
-type Comparable = Pick<ProcessedImage, "width" | "height" | "fingerprint">;
-
-/** Same size, and no fingerprint pixel differs by more than the tolerance. */
-export function looksSame(a: Comparable, b: Comparable): boolean {
-  if (a.width !== b.width || a.height !== b.height) return false;
-  if (a.fingerprint.length !== b.fingerprint.length) return false;
-  for (let i = 0; i < a.fingerprint.length; i += 1) {
-    if (Math.abs(a.fingerprint[i]! - b.fingerprint[i]!) > FINGERPRINT_TOLERANCE) return false;
-  }
-  return true;
-}
-
-/**
- * Ready drafts that repeat an earlier one in the list, mapped to the draft they repeat. Derived
- * on each render, so removing the first copy turns the next one back into a normal draft.
- */
+/** Only skip identical upload bytes; similar screens can represent different states. */
 export function findDuplicates(drafts: readonly Draft[]): Map<string, Draft> {
   const duplicates = new Map<string, Draft>();
-  const kept: { draft: Draft; processed: ProcessedImage }[] = [];
+  const seen = new Map<string, Draft>();
   for (const draft of drafts) {
     if (draft.status !== "ready" || !draft.processed) continue;
-    const { processed } = draft;
-    const original = kept.find((other) => looksSame(other.processed, processed));
-    if (original) duplicates.set(draft.id, original.draft);
-    else kept.push({ draft, processed });
+    const hash = draft.processed.imageHash;
+    const original = seen.get(hash);
+    if (original) duplicates.set(draft.id, original);
+    else seen.set(hash, draft);
   }
   return duplicates;
 }
@@ -155,7 +121,7 @@ export function titleFromFilename(name: string): string {
     .replace(/([a-z])([A-Z])/gu, "$1 $2")
     .replace(/\s+/gu, " ")
     .trim();
-  return words ? words.charAt(0).toUpperCase() + words.slice(1).toLowerCase() : "";
+  return words ? (words.charAt(0).toUpperCase() + words.slice(1).toLowerCase()).slice(0, 160) : "";
 }
 
 /** Suggest patterns from a title / filename using the taxonomy's match words. */

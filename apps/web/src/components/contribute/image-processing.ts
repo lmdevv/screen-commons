@@ -38,8 +38,6 @@ export interface ProcessedImage {
   thumbnailHeight: number;
   /** `#rrggbb` */
   dominantColor: string;
-  /** RGBA pixels of a {@link FINGERPRINT_WIDTH}px-wide downscale, for spotting repeated images. */
-  fingerprint: Uint8ClampedArray;
   imageHash: string;
 }
 
@@ -69,20 +67,7 @@ function dominantColor(source: CanvasImageSource, width: number, height: number)
   return `#${hex(r / n)}${hex(g / n)}${hex(b / n)}`;
 }
 
-/**
- * Wide enough to tell apart states of one screen (a hover, a recoloured button), narrow enough
- * that re-captures of the same screen, which differ only in text anti-aliasing, still match.
- */
-export const FINGERPRINT_WIDTH = 64;
-
-function fingerprint(source: CanvasImageSource, width: number, height: number) {
-  const fingerprintHeight = FINGERPRINT_WIDTH;
-  const [, context] = createCanvas(FINGERPRINT_WIDTH, fingerprintHeight);
-  context.drawImage(source, 0, 0, width, height, 0, 0, FINGERPRINT_WIDTH, fingerprintHeight);
-  return context.getImageData(0, 0, FINGERPRINT_WIDTH, fingerprintHeight).data;
-}
-
-/** Decode → validate → display image + thumbnail + dominant colour + fingerprint. Throws `ImageValidationError` on bad input. */
+/** Decode → validate → display image + thumbnail + dominant colour. */
 export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage> {
   if (file.size > IMAGE_LIMITS.maxImageBytes) {
     throw new ImageValidationError("Larger than 15 MB");
@@ -132,7 +117,6 @@ export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<
       thumbnailWidth: thumbnail.width,
       thumbnailHeight: thumbnail.height,
       dominantColor: dominantColor(bitmap, width, height),
-      fingerprint: fingerprint(bitmap, width, height),
       imageHash: Array.from(
         new Uint8Array(await crypto.subtle.digest("SHA-256", await image.blob.arrayBuffer())),
         (byte) => byte.toString(16).padStart(2, "0"),

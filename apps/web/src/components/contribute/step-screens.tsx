@@ -37,7 +37,6 @@ export function StepScreens({
   flow,
   onFlowChange,
   showErrors,
-  onDuplicateChoice,
 }: {
   drafts: Draft[];
   onReorder: (drafts: Draft[]) => void;
@@ -46,7 +45,6 @@ export function StepScreens({
   flow: FlowOptions;
   onFlowChange: (patch: Partial<FlowOptions>) => void;
   showErrors: boolean;
-  onDuplicateChoice: (id: string, choice: "keep" | "skip") => void;
 }) {
   const canFlow = drafts.length >= 2;
   const nameError = showErrors && flow.enabled && !flow.name.trim();
@@ -118,7 +116,6 @@ export function StepScreens({
             asFlow={flow.enabled && canFlow}
             onChange={(patch) => onChange(draft.id, patch)}
             onRemove={drafts.length > 1 ? () => onRemove(draft.id) : undefined}
-            onDuplicateChoice={(choice) => onDuplicateChoice(draft.id, choice)}
           />
         )}
       />
@@ -139,7 +136,6 @@ function ScreenCard({
   asFlow,
   onChange,
   onRemove,
-  onDuplicateChoice,
 }: {
   draft: Draft;
   index: number;
@@ -148,7 +144,6 @@ function ScreenCard({
   asFlow: boolean;
   onChange: (patch: Partial<Draft>) => void;
   onRemove?: () => void;
-  onDuplicateChoice: (choice: "keep" | "skip") => void;
 }) {
   const [allPatterns, setAllPatterns] = useState(false);
   const [showElements, setShowElements] = useState(draft.elements.length > 0);
@@ -161,7 +156,7 @@ function ScreenCard({
   return (
     <div
       className={cn(
-        "flex flex-wrap gap-3 rounded-tile border border-border bg-surface p-3 transition-shadow duration-150 sm:flex-nowrap sm:gap-5 sm:p-4",
+        "flex flex-wrap gap-3 sm:flex-nowrap rounded-tile border border-border bg-surface p-3 pr-4 transition-shadow duration-150 sm:gap-5 sm:p-4",
         isDragging && "shadow-overlay",
       )}
     >
@@ -214,48 +209,6 @@ function ScreenCard({
             size="sm"
           />
         ) : null}
-        {readOnly ? (
-          <p className="text-sm text-fg-muted">
-            Reusing an existing screen. Its contributor controls its title and tags.
-          </p>
-        ) : null}
-        {draft.libraryMatch && !draft.upload.screen ? (
-          <div className="rounded-card bg-muted p-3 text-sm">
-            <p>
-              Looks similar to{" "}
-              <a
-                href={`/screens/${draft.libraryMatch.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                {draft.libraryMatch.title || "an existing screenshot"}
-              </a>{" "}
-              in this app.{" "}
-              {draft.duplicateChoice === "skip"
-                ? "This screenshot will be skipped."
-                : "Your new screenshot will be kept."}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3">
-              <button
-                type="button"
-                className="ou-focus-ring rounded-xs underline"
-                aria-pressed={draft.duplicateChoice !== "skip"}
-                onClick={() => onDuplicateChoice("keep")}
-              >
-                Keep new screenshot
-              </button>
-              <button
-                type="button"
-                className="ou-focus-ring rounded-xs underline"
-                aria-pressed={draft.duplicateChoice === "skip"}
-                onClick={() => onDuplicateChoice("skip")}
-              >
-                Skip this screenshot
-              </button>
-            </div>
-          </div>
-        ) : null}
         <fieldset>
           <legend className="text-sm font-medium text-fg">Patterns</legend>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -266,7 +219,7 @@ function ScreenCard({
                 size="sm"
                 selected={draft.patterns.includes(slug)}
                 onSelectedChange={() =>
-                  !readOnly && onChange({ patterns: toggle(draft.patterns, slug, MAX_PATTERNS) })
+                  onChange({ patterns: toggle(draft.patterns, slug, MAX_PATTERNS) })
                 }
               >
                 {patternLabel(slug)}
@@ -312,7 +265,6 @@ function ScreenCard({
                   size="sm"
                   selected={draft.elements.includes(slug as ElementSlug)}
                   onSelectedChange={() =>
-                    !readOnly &&
                     onChange({
                       elements: toggle(draft.elements, slug as ElementSlug, MAX_ELEMENTS),
                     })

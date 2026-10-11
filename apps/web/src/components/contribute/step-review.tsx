@@ -83,11 +83,7 @@ export function StepReview({
         ))}
       </ol>
 
-      {submit.paused ? (
-        <Callout>
-          Upload paused. Press <strong>Retry</strong> to resume; finished screens are saved.
-        </Callout>
-      ) : drafts.some((d) => d.upload.status === "error") ? (
+      {drafts.some((d) => d.upload.status === "error") ? (
         <Callout tone="danger" icon={<TriangleAlert />}>
           Some screens didn’t upload. Fix the issue and press <strong>Retry</strong>; finished
           screens won’t be sent twice.

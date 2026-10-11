@@ -36,13 +36,6 @@
       "when": 1791483114920,
       "tag": "0004_display_media",
       "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1791679000000,
-      "tag": "0005_contribution_controls",
-      "breakpoints": true
     }
   ]
 }

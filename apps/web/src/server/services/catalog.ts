@@ -32,7 +32,6 @@ import { and, asc, desc, eq, gt, lt, or, sql, type SQL } from "drizzle-orm";
 import { alias, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { getDb } from "../env";
-import { contributionPermissions } from "./contributions";
 import { notFound, parseInput } from "../errors";
 import {
   SAVE_WEIGHT,
@@ -362,8 +361,6 @@ export async function getScreen(viewer: Viewer, id: string): Promise<ScreenDetai
   if (!apiScreen) throw notFound("Screen");
   return {
     ...apiScreen,
-    permissions: contributionPermissions(viewer, row),
-    reviewReason: row.reviewReason,
     previousId: previous?.id ?? null,
     nextId: next?.id ?? null,
     flows,
@@ -443,8 +440,7 @@ export async function getFlow(
   const byId = new Map(screens.map((item) => [item.id, item]));
   return {
     ...summary,
-    permissions: contributionPermissions(viewer, row),
-    reviewReason: row.reviewReason,
+    owned: row.contributorId === viewer?.user.id,
     steps: steps.flatMap((step) => {
       const item = byId.get(step.screen.id);
       return item ? [{ position: step.position, label: step.label, screen: item }] : [];

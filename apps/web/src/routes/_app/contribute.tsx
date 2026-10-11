@@ -9,5 +9,5 @@ export const Route = createFileRoute("/_app/contribute")({
 
 function Contribute() {
   const { user } = Route.useRouteContext();
-  return <ContributeWizard key={user.id} userId={user.id} isAdmin={user.role === "admin"} />;
+  return <ContributeWizard isAdmin={user.role === "admin"} />;
 }
