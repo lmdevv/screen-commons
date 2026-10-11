@@ -55,7 +55,12 @@ function processNow(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage>
       worker = null;
       for (const [jobId, job] of pending) {
         pending.delete(jobId);
-        job.reject(new Error("Image worker timed out"));
+        // The slow image itself fails outright: redoing it on the main thread would freeze the tab.
+        job.reject(
+          jobId === id
+            ? new ImageValidationError("Took too long to process")
+            : new Error("Image worker restarted"),
+        );
       }
     }, 45_000);
     pending.set(id, {
