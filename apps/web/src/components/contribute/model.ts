@@ -91,16 +91,26 @@ export const initialState = (): WizardState => ({
   submit: { phase: "idle" },
 });
 
-/** Only skip identical upload bytes; similar screens can represent different states. */
+/**
+ * Same size, and no fingerprint channel differs by more than 32/255. Measured in Chrome on real
+ * uploads: re-captures of one screen differed by 8, distinct states by 63+.
+ */
+function looksSame(a: ProcessedImage, b: ProcessedImage): boolean {
+  if (a.width !== b.width || a.height !== b.height) return false;
+  if (a.fingerprint.length !== b.fingerprint.length) return false;
+  return a.fingerprint.every((value, i) => Math.abs(value - b.fingerprint[i]!) <= 32);
+}
+
+/** Ready drafts that look the same as an earlier one, mapped to that draft. */
 export function findDuplicates(drafts: readonly Draft[]): Map<string, Draft> {
   const duplicates = new Map<string, Draft>();
-  const seen = new Map<string, Draft>();
+  const kept: { draft: Draft; processed: ProcessedImage }[] = [];
   for (const draft of drafts) {
     if (draft.status !== "ready" || !draft.processed) continue;
-    const hash = draft.processed.imageHash;
-    const original = seen.get(hash);
-    if (original) duplicates.set(draft.id, original);
-    else seen.set(hash, draft);
+    const { processed } = draft;
+    const original = kept.find((other) => looksSame(other.processed, processed));
+    if (original) duplicates.set(draft.id, original.draft);
+    else kept.push({ draft, processed });
   }
   return duplicates;
 }
