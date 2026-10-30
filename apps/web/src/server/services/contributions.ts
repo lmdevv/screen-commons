@@ -14,7 +14,11 @@ import { visibleSql } from "./shared";
 async function requireOwner(principal: Principal, kind: "screen" | "flow", id: string) {
   kind = parseInput(z.enum(["screen", "flow"]), kind);
   const table = kind === "screen" ? screen : flow;
-  const [row] = await getDb().select().from(table).where(eq(table.id, id)).limit(1);
+  const [row] = await getDb()
+    .select()
+    .from(table)
+    .where(and(eq(table.id, id), visibleSql(table, principal, "detail")))
+    .limit(1);
   if (!row) throw notFound(kind);
   if (row.contributorId !== principal.user.id)
     throw forbidden("Only the contributor can change this contribution");

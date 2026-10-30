@@ -383,3 +383,143 @@ describe("7. hidden full-text matches don't suppress visible results", () => {
     expect(own.items.map((item) => item.id)).toEqual([hidden.screens[0]!.id]);
   });
 });
+
+describe("8. contributors edit and delete only their own contributions", () => {
+  it("lets the contributor edit a screen's metadata and finds it by the new title", async () => {
+    const term = `capybara${suffix}`;
+    const { screens } = await memberApi.captures({
+      app: { name: `Owned edit ${suffix}` },
+      screens: [captureScreen({ title: "Before" })],
+    });
+    const edited = await memberApi.updateScreen(screens[0]!.id, {
+      title: `After ${term}`,
+      patterns: ["pricing"],
+      elements: ["table"],
+    });
+    expect(edited).toMatchObject({
+      title: `After ${term}`,
+      patterns: ["pricing"],
+      elements: ["table"],
+      owned: true,
+    });
+    const found = await memberApi.listScreens({ q: term });
+    expect(found.items.map((item) => item.id)).toEqual([screens[0]!.id]);
+  });
+
+  it("refuses visible contributions with 403 and hides invisible ones with 404", async () => {
+    const published = await adminApi.captures({
+      app: { name: `Owned published ${suffix}` },
+      flow: { name: "Two steps" },
+      screens: [captureScreen(), captureScreen()],
+    });
+    const pending = await memberApi.captures({
+      app: { name: `Owned pending ${suffix}` },
+      flow: { name: "Pending two steps" },
+      screens: [captureScreen(), captureScreen()],
+    });
+    const api = other.client();
+
+    expect((await api.getScreen(published.screens[0]!.id)).owned).toBe(false);
+    for (const attempt of [
+      () => api.updateScreen(published.screens[0]!.id, { title: "Hijacked" }),
+      () => api.deleteScreen(published.screens[0]!.id),
+      () => api.updateFlow(published.flow!.id, { name: "Hijacked" }),
+      () => api.deleteFlow(published.flow!.id),
+    ]) {
+      expect((await apiError(attempt())).status).toBe(403);
+    }
+    for (const attempt of [
+      () => api.updateScreen(pending.screens[0]!.id, { title: "Hijacked" }),
+      () => api.deleteScreen(pending.screens[0]!.id),
+      () => api.updateFlow(pending.flow!.id, { name: "Hijacked" }),
+      () => api.deleteFlow(pending.flow!.id),
+    ]) {
+      expect((await apiError(attempt())).status).toBe(404);
+    }
+    expect((await adminApi.getScreen(published.screens[0]!.id)).title).not.toBe("Hijacked");
+    expect((await memberApi.getFlow(pending.flow!.id)).name).toBe("Pending two steps");
+  });
+
+  it("deleting a screen repairs every flow that used it, including other people's", async () => {
+    const published = await adminApi.captures({
+      app: { name: `Owned delete ${suffix}` },
+      flow: { name: "Admin three steps" },
+      screens: [captureScreen(), captureScreen(), captureScreen()],
+    });
+    const [first, middle, last] = published.screens.map((item) => item.id);
+    const { flow: memberFlow } = await memberApi.createFlow({
+      appId: published.app.id,
+      name: "Member two steps",
+      steps: [{ screenId: middle! }, { screenId: last! }],
+    });
+    await other.client().save("screen", middle!);
+
+    await adminApi.deleteScreen(middle!);
+
+    expect((await apiError(other.client().getScreen(middle!))).status).toBe(404);
+    const adminFlow = await other.client().getFlow(published.flow!.id);
+    expect(adminFlow).toMatchObject({ status: "published", stepCount: 2 });
+    expect(adminFlow.steps.map((step) => [step.position, step.screen.id])).toEqual([
+      [0, first],
+      [1, last],
+    ]);
+    const repaired = await memberApi.getFlow(memberFlow.id);
+    expect(repaired.stepCount).toBe(1);
+    expect(repaired.steps.map((step) => [step.position, step.screen.id])).toEqual([[0, last]]);
+    const { items } = await other.client().listCollections();
+    const saved = await other.client().getCollection(items[0]!.id);
+    expect(saved.screens.map((item) => item.id)).not.toContain(middle);
+  });
+
+  it("lets the contributor reorder and delete their flow", async () => {
+    const { app, screens, flow } = await memberApi.captures({
+      app: { name: `Owned flow ${suffix}` },
+      flow: { name: "Original" },
+      screens: [captureScreen(), captureScreen(), captureScreen()],
+    });
+    const elsewhere = await memberApi.captures({
+      app: { name: `Owned elsewhere ${suffix}` },
+      screens: [captureScreen()],
+    });
+    const reversed = [...screens].reverse().map((item) => ({ screenId: item.id }));
+
+    const edited = await memberApi.updateFlow(flow!.id, { name: "Reversed", steps: reversed });
+    expect(edited).toMatchObject({ name: "Reversed", stepCount: 3, owned: true });
+    expect(edited.steps.map((step) => step.screen.id)).toEqual(reversed.map((s) => s.screenId));
+    const foreign = await apiError(
+      memberApi.updateFlow(flow!.id, {
+        steps: [{ screenId: screens[0]!.id }, { screenId: elsewhere.screens[0]!.id }],
+      }),
+    );
+    expect(foreign.status).toBe(400);
+
+    await memberApi.deleteFlow(flow!.id);
+    expect((await apiError(memberApi.getFlow(flow!.id))).status).toBe(404);
+    expect((await memberApi.listScreens({ app: app.slug })).items).toHaveLength(3);
+  });
+});
+
+describe("9. retrying a flow creation with the same id doesn't duplicate it", () => {
+  it("returns the first flow for a repeated client-chosen id", async () => {
+    const { app, screens } = await memberApi.captures({
+      app: { name: `Retry flow ${suffix}` },
+      screens: [captureScreen(), captureScreen()],
+    });
+    const input = {
+      id: crypto.randomUUID(),
+      appId: app.id,
+      name: "Retried",
+      steps: screens.map((item) => ({ screenId: item.id })),
+    };
+    const first = await memberApi.createFlow(input);
+    const second = await memberApi.createFlow(input);
+    expect(second.flow.id).toBe(input.id);
+    expect(first.flow.id).toBe(input.id);
+    const flows = await memberApi.listFlows({ app: app.slug });
+    expect(flows.items.map((item) => item.id)).toEqual([input.id]);
+
+    const stolen = await apiError(other.client().createFlow({ ...input, name: "Stolen" }));
+    expect(stolen.status).toBeGreaterThanOrEqual(400);
+    expect((await memberApi.getFlow(input.id)).name).toBe("Retried");
+  });
+});

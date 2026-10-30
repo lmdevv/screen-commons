@@ -9,7 +9,13 @@ import {
   type ListScreensQuery,
   type SearchQuery,
 } from "./api";
-import type { CaptureBatchInput, CreateFlowInput, CreateScreenInput } from "./schemas";
+import type {
+  CaptureBatchInput,
+  CreateFlowInput,
+  CreateScreenInput,
+  UpdateFlowInput,
+  UpdateScreenInput,
+} from "./schemas";
 
 export class ScreenCommonsApiError extends Error {
   readonly status: number;
@@ -130,6 +136,13 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
       request<ApiResponses["captures"]>("POST", "/captures", input),
     createFlow: (input: CreateFlowInput) =>
       request<ApiResponses["createFlow"]>("POST", "/flows", input),
+    /** Contributor only: edit or delete your own screens and flows. */
+    updateScreen: (id: string, patch: UpdateScreenInput) =>
+      request<ApiResponses["updateScreen"]>("PATCH", `/screens/${encodeURIComponent(id)}`, patch),
+    deleteScreen: (id: string) => request<void>("DELETE", `/screens/${encodeURIComponent(id)}`),
+    updateFlow: (id: string, patch: UpdateFlowInput) =>
+      request<ApiResponses["updateFlow"]>("PATCH", `/flows/${encodeURIComponent(id)}`, patch),
+    deleteFlow: (id: string) => request<void>("DELETE", `/flows/${encodeURIComponent(id)}`),
 
     listCollections: () => request<ApiResponses["listCollections"]>("GET", "/collections"),
     createCollection: (name: string) =>
