@@ -303,7 +303,18 @@ Returns the screen plus its neighbours in the app (for previous and next navigat
 }
 ```
 
-Screen fields from the list example are omitted above.
+Screen fields from the list example are omitted above. `owned` is `true` when you contributed the screen.
+
+### Edit or delete a screen
+
+```http
+PATCH /api/v1/screens/{id}
+DELETE /api/v1/screens/{id}
+```
+
+Only the screen's contributor can edit or delete it. Other users get `403`, or `404` if they can't see the screen.
+
+`PATCH` takes any of `title` (up to 160 characters, `null` clears it), `patterns`, `elements` and `tags`, with the same rules as an upload, and returns the updated screen. `DELETE` returns `204` and removes the screen from every flow and collection. Flow steps after it move up, and a published flow left with fewer than 2 steps goes back to `pending`.
 
 ### Upload a screen
 
@@ -555,8 +566,20 @@ curl http://localhost:5173/api/v1/flows \
 | `type`        | string   | No       | Flow type slug.                                                        |
 | `description` | string   | No       | Up to 500 characters.                                                  |
 | `steps`       | object[] | Yes      | 2–60 `{ screenId, label? }`, in order. Screens must belong to the app. |
+| `id`          | string   | No       | A UUID you choose, so a retried request returns the same flow.         |
 
-Returns `201 Created` with `{ "flow": FlowDetail }`. The flow is published only if an admin creates it and every screen is published; otherwise it's `pending`.
+Returns `201 Created` with `{ "flow": FlowDetail }`. The flow is published only if an admin creates it and every screen is published; otherwise it's `pending`. Sending the same `id` again returns the flow you already created instead of a second one.
+
+### Edit or delete a flow
+
+```http
+PATCH /api/v1/flows/{id}
+DELETE /api/v1/flows/{id}
+```
+
+Only the flow's contributor can edit or delete it. Other users get `403`, or `404` if they can't see the flow.
+
+`PATCH` takes any of the create fields except `appId` and `id`, and returns the updated `FlowDetail`. Pass `null` for `type` or `description` to clear them. `steps` replaces every step. A published flow goes back to `pending` if a new step isn't published. `DELETE` returns `204`. It keeps the flow's screens.
 
 ## Search
 
@@ -833,6 +856,8 @@ Omit `apiKey` to use the session cookie from same-origin browser code.
 | `createScreen({ image, thumbnail, meta })`                                       | `POST /screens`                             |
 | `captures(batch)`                                                                | `POST /captures`                            |
 | `createFlow(input)`                                                              | `POST /flows`                               |
+| `updateScreen(id, patch)` / `deleteScreen(id)`                                   | `PATCH`, `DELETE /screens/{id}`             |
+| `updateFlow(id, patch)` / `deleteFlow(id)`                                       | `PATCH`, `DELETE /flows/{id}`               |
 | `listCollections()` / `getCollection(id)`                                        | `GET /collections`, `GET /collections/{id}` |
 | `createCollection(name)` / `renameCollection(id, name)` / `deleteCollection(id)` | `POST`, `PATCH`, `DELETE /collections`      |
 | `save(kind, id, collectionId?)` / `unsave(kind, id, collectionId?)`              | `POST /saves`, `DELETE /saves`              |
