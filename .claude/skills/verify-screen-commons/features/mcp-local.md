@@ -4,9 +4,9 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 
 ## Sub-features
 
-- `local-contract` exposes the same input schema and description for each catalog tool as the remote server, plus 6 browser tools.
+- `local-contract` exposes the same definition for each catalog tool as the remote server, plus 6 browser tools.
 - `local-extras` serves the `capture_site` and `find_inspiration` prompts and the `screen-commons://taxonomy` resource.
-- `local-catalog` proxies search, read, upload and flow creation to the instance.
+- `local-catalog` proxies search, read, upload and flow creation to the instance, with the same results as the remote server.
 - `local-status` reports the active driver and the bridge state.
 - `local-browser` navigates, screenshots a viewport, an element or a full page, and extracts metadata.
 - `local-crawl` discovers same-origin pages.
@@ -15,7 +15,7 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 
 ## How to get to it (user POV)
 
-- Start `node packages/mcp/dist/index.js` from an MCP client with `SCREEN_COMMONS_URL` and `SCREEN_COMMONS_API_KEY` (driven, with the SDK's stdio client and a per-run build of the same entry).
+- Start `npx -y screen-commons-mcp` from an MCP client (driven in [npm package](./mcp-package.md)), or in development `node packages/mcp/dist/index.js` with `SCREEN_COMMONS_URL` and `SCREEN_COMMONS_API_KEY` (driven, with the SDK's stdio client and a per-run build of the same entry).
 - Configure Claude Code or Cursor as `docs/mcp` describes (not scripted; `control mcp-config` prints a working config for manual use).
 - Run with `--headful` to watch the browser (not scripted).
 - Capture a mobile viewport with `viewport: "mobile"` (not scripted).
@@ -31,23 +31,23 @@ Preconditions:
 
 Run `control drive mcp-local --run <id>`, which performs these steps.
 
-- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 9 plus the 6 browser tools. Each catalog tool's `inputSchema` and description deep-equal the remote one.
+- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 9 plus the 6 browser tools. Each catalog tool's whole definition, including annotations, deep-equals the remote one.
 - **Extras.** `listPrompts` returns both prompts, and `capture_site` mentions `capture_pages`. `readResource` on `screen-commons://taxonomy` includes `signing-up`.
-- **Catalog.** `search_screens` for `billed yearly` lists screens with absolute thumbnail links. `get_screen` returns a WebP. `list_apps`, `get_app`, `search_flows` and `get_flow` with images returns one image per step, and a missing slug fails with `Not found (404)`. `get_taxonomy` names this instance as its source.
-- **Upload.** `upload_screen` reports `status published`, and a mislabeled image notes `the bytes are image/png`. D1 has `source = mcp`. `create_flow` reports `2 steps`.
+- **Same as remote.** Each of these runs on both servers, and the text and image bytes must be identical: `search_screens` by text, with filters and with no match; `get_screen` as a thumbnail and full size; `list_apps`, `get_app`, `search_flows`, `get_flow` with images, `get_taxonomy`; and the refusals for a missing slug (`not_found: …`), a missing screen, an invalid pattern (`-32602`), bytes that aren't an image (`unsupported_media_type: …`) and a one-step flow.
+- **Upload.** `upload_screen` returns the same fields from both servers, joining one app, with `status` `published`. A mislabeled image gets the same `note` from both. D1 has `source = mcp`. `create_flow` returns the same fields and steps from both.
 - **Status.** `browser_status` reports `Active driver: headless` and `Extension bridge: disabled`.
 - **Browser.** `browser_navigate` to the fixture's `/pricing` reports its title. `browser_screenshot` reports `2880×1800` and a saved file that exists. `selector: "#top"` reports a height of 144. `fullPage: true` is taller than 1800. `browser_extract` returns the title and at least 3 links.
 - **Crawl.** `site_crawl` lists `/pricing`, `/signup` and `/docs`.
 - **Capture without upload.** `capture_pages` with `upload: false` says `not uploaded` and returns 3 thumbnails. The D1 counts of screens, apps and flows, and the R2 key count, don't change.
 - **Capture with upload.** `capture_pages` with `app` and `flow` says `Uploaded 3 screens`. D1 has 3 `mcp`, `published` rows. REST search finds the fixture's page text in all 3, and the flow shows on `/apps/<slug>?tab=flows`.
-- **No key.** With `token: null`, `search_screens` fails naming `SCREEN_COMMONS_API_KEY`, `get_taxonomy` says `built-in`, and an uploading `capture_pages` fails suggesting `upload=false`.
+- **No key.** With `token: null`, `search_screens` fails naming `SCREEN_COMMONS_API_KEY`, `get_taxonomy` returns the same taxonomy from its bundled copy, and an uploading `capture_pages` fails suggesting `upload=false`.
 - **Wrong key.** With a fake key, `search_screens` fails with `rejected the API key (401)`.
 - **Member.** With a member's key, `capture_pages` reports `(pending)` and says an admin must approve it.
 - **Proof.** Read `test-results/verify/<run>/mcp-local-*/result.json`, each tool's JSON, the saved images, and `mcp-*.stderr.log` for the server's logs.
 
 ## Gotchas
 
-- Catalog results are prose lines, unlike the remote server's JSON, and `search_screens` lines carry a thumbnail link but no page `url`. `docs/mcp` says results are JSON text with a `url` on every item, which only the remote server does. Don't parse with a shared helper.
+- Catalog results match the remote server exactly, except that an image too large to send inline is shrunk and explained in a `note` field. The seed never gets that large, so this exception is not scripted.
 - Headless captures desktop pages at 2x, so the 1440×900 viewport reports 2880×1800. The returned image is a preview, so read the size from the text.
 - The fixture is always on `127.0.0.1`, and uploads with the same domain join one app. Set a unique `app.websiteUrl`, or a capture lands in an earlier run's app under its name.
 - Each client starts its own server process, which starts Chromium on first browser use. Closing the client stops both, and `drive` does this for you.

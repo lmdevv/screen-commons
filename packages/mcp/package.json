@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "publish:prepare": "tsup && node scripts/prepare-publish.mjs",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "check-types": "tsc --noEmit",

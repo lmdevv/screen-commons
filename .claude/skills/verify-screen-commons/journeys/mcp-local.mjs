@@ -30,8 +30,7 @@ export default async function mcpLocal(h) {
   assert.deepEqual(names, [...catalog, ...BROWSER].sort());
   for (const tool of remoteTools) {
     const twin = localTools.find((candidate) => candidate.name === tool.name);
-    assert.deepEqual(twin.inputSchema, tool.inputSchema, `${tool.name} has one contract`);
-    assert.equal(twin.description, tool.description);
+    assert.deepEqual(twin, tool, `${tool.name} has one contract`);
   }
   h.record("both servers share one catalog contract", { catalog, local: names });
 
@@ -56,69 +55,139 @@ export default async function mcpLocal(h) {
     bytes: resource.contents[0].text.length,
   });
 
-  const search = await h.call(local, "search_screens proxies to the instance", "search_screens", {
-    query: "billed yearly",
-  });
-  assert.equal(search.isError, false);
-  assert.ok(search.text.includes(`thumb ${h.base}/media/`), "thumbnail links are absolute");
-  const screenId = search.text.match(/^- (\S+) ·/mu)[1];
+  // One format from either server: the same call returns the same bytes.
+  const same = async (label, tool, args = {}) => {
+    const [fromLocal, fromRemote] = [
+      await h.call(local, `local ${label}`, tool, args),
+      await h.call(remote, `remote ${label}`, tool, args),
+    ];
+    assert.equal(fromLocal.isError, fromRemote.isError, `${label}: isError`);
+    assert.equal(fromLocal.text, fromRemote.text, `${label}: text`);
+    assert.deepEqual(
+      fromLocal.images.map((image) => [image.mimeType, image.bytes.toString("base64")]),
+      fromRemote.images.map((image) => [image.mimeType, image.bytes.toString("base64")]),
+      `${label}: images`,
+    );
+    return fromLocal;
+  };
 
-  const screen = await h.call(local, "get_screen returns the image", "get_screen", {
-    id: screenId,
+  const search = await same("search_screens", "search_screens", { query: "billed yearly" });
+  const found = JSON.parse(search.text);
+  assert.ok(found.items.length >= 3, "text inside screenshots is searchable");
+  assert.ok(found.items[0].url.startsWith(`${h.base}/screens/`), "links are absolute");
+  assert.ok(found.items[0].thumbUrl.startsWith(`${h.base}/media/`), "links are absolute");
+  await same("search_screens with filters", "search_screens", {
+    pattern: "pricing",
+    platform: "web",
+    limit: 2,
   });
+  const empty = await same("search_screens with no match", "search_screens", {
+    query: "zzzznothingmatches",
+  });
+  assert.deepEqual(JSON.parse(empty.text), { items: [], nextCursor: null });
+
+  const screen = await same("get_screen", "get_screen", { id: found.items[0].id });
   assert.equal(screen.images.length, 1);
   assert.equal(screen.images[0].mimeType, "image/webp");
-
-  const apps = await h.call(local, "list_apps", "list_apps", { limit: 50 });
-  const slug = apps.text.match(new RegExp(`${h.base}/apps/([\\w-]+)`, "u"))[1];
-  const app = await h.call(local, "get_app", "get_app", { slug });
-  assert.match(app.text, /\d+ screens/u);
-  const missing = await h.call(local, "get_app for a missing slug", "get_app", {
-    slug: "no-such-app",
+  const fullScreen = await same("get_screen full", "get_screen", {
+    id: found.items[0].id,
+    full: true,
   });
-  assert.equal(missing.isError, true);
-  assert.match(missing.text, /^Not found \(404\)/u);
+  assert.ok(fullScreen.images[0].bytes.byteLength > screen.images[0].bytes.byteLength);
 
-  const flows = await h.call(local, "search_flows", "search_flows", { type: "signing-up" });
-  const flowId = flows.text.match(/\/flows\/([\w-]+)/u)[1];
-  const flow = await h.call(local, "get_flow with images", "get_flow", {
-    id: flowId,
+  const apps = JSON.parse((await same("list_apps", "list_apps", { limit: 50 })).text);
+  const { slug } = apps.items.at(-1);
+  const app = JSON.parse((await same("get_app", "get_app", { slug })).text);
+  assert.ok(app.screenCount >= 2);
+
+  const flows = JSON.parse(
+    (await same("search_flows", "search_flows", { type: "signing-up", platform: "web" })).text,
+  );
+  const flow = await same("get_flow with images", "get_flow", {
+    id: flows.items[0].id,
     includeImages: true,
   });
-  const stepCount = Number(flow.text.match(/· (\d+) steps/u)[1]);
-  assert.ok(stepCount >= 2);
-  assert.equal(flow.images.length, stepCount, "a thumbnail per step");
+  const { steps } = JSON.parse(flow.text);
+  assert.ok(steps.length >= 2);
+  assert.equal(flow.images.length, steps.length, "a thumbnail per step");
 
-  const taxonomy = await h.call(local, "get_taxonomy reads the instance", "get_taxonomy");
-  assert.ok(taxonomy.text.includes(`taxonomy (${h.base})`));
+  const taxonomy = await same("get_taxonomy", "get_taxonomy");
+  assert.ok(JSON.parse(taxonomy.text).patterns.length > 10);
+
+  const missing = await same("get_app for a missing slug", "get_app", { slug: "no-such-app" });
+  assert.equal(missing.isError, true);
+  assert.match(missing.text, /^not_found: /u);
+  const noScreen = await same("get_screen for a missing id", "get_screen", { id: "nope" });
+  assert.match(noScreen.text, /^not_found: /u);
+  const invalid = await same("an invalid pattern", "search_screens", { pattern: "not-a-pattern" });
+  assert.match(invalid.text, /-32602.*Invalid option/su);
 
   const appName = `Local MCP ${h.stamp}`;
   const appInput = { name: appName, websiteUrl: `https://local-${h.stamp}.example.com` };
-  const [one, two, mislabeled] = await h.pngs(["Local one", "Local two", "Local mislabeled"]);
-  const upload = (label, file, type = "image/png") =>
-    h.call(local, label, "upload_screen", {
+  const [one, two, mislabeled, remoteOne, remoteMislabeled] = await h.pngs([
+    "Local one",
+    "Local two",
+    "Local mislabeled",
+    "Remote one",
+    "Remote mislabeled",
+  ]);
+  const upload = (client, label, file, type = "image/png") =>
+    h.call(client, label, "upload_screen", {
       app: appInput,
       title: file.name,
       image: { type, base64: file.buffer.toString("base64") },
     });
-  const firstUpload = await upload("upload_screen", one);
-  assert.match(firstUpload.text, /status published/u);
-  const secondUpload = await upload("second upload_screen", two);
-  const relabeled = await upload("a mislabeled image is noted", mislabeled, "image/jpeg");
-  assert.match(relabeled.text, /the bytes are image\/png/u);
-  const idOf = (result) => result.text.match(/\/screens\/([\w-]+)/u)[1];
+  const firstUpload = JSON.parse((await upload(local, "upload_screen", one)).text);
+  assert.equal(firstUpload.screen.status, "published");
+  const secondUpload = JSON.parse((await upload(local, "second upload_screen", two)).text);
+  const relabeled = JSON.parse(
+    (await upload(local, "a mislabeled image is noted", mislabeled, "image/jpeg")).text,
+  );
+  assert.match(relabeled.note, /the bytes are image\/png/u);
+
+  const remoteUpload = JSON.parse(
+    (await upload(remote, "the same upload, remote", remoteOne)).text,
+  );
+  assert.deepEqual(Object.keys(firstUpload).sort(), Object.keys(remoteUpload).sort());
+  assert.deepEqual(firstUpload.app, remoteUpload.app, "both join one app, in one shape");
+  assert.deepEqual(Object.keys(firstUpload.screen).sort(), Object.keys(remoteUpload.screen).sort());
+  const remoteRelabeled = JSON.parse(
+    (await upload(remote, "the same mislabel, remote", remoteMislabeled, "image/jpeg")).text,
+  );
+  assert.equal(relabeled.note, remoteRelabeled.note);
+
+  const garbage = await same("bytes that aren't an image", "upload_screen", {
+    app: appInput,
+    image: { type: "image/png", base64: Buffer.from("not an image").toString("base64") },
+  });
+  assert.match(garbage.text, /^unsupported_media_type: /u);
+
   const [row] = await h.sql(
     "the upload's row in D1",
     "SELECT s.status, s.source, a.id AS app_id FROM screen s JOIN app a ON a.id = s.app_id WHERE s.id = ?1",
-    [idOf(firstUpload)],
+    [firstUpload.screen.id],
   );
   assert.equal(row.source, "mcp");
-  const created = await h.call(local, "create_flow", "create_flow", {
+  const flowArgs = (client) => ({
     appId: row.app_id,
-    name: `Local flow ${h.stamp}`,
-    steps: [{ screenId: idOf(firstUpload) }, { screenId: idOf(secondUpload) }],
+    name: `${client} flow ${h.stamp}`,
+    steps: [{ screenId: firstUpload.screen.id }, { screenId: secondUpload.screen.id }],
   });
-  assert.match(created.text, /2 steps/u);
+  const created = JSON.parse(
+    (await h.call(local, "create_flow", "create_flow", flowArgs("Local"))).text,
+  );
+  const remoteCreated = JSON.parse(
+    (await h.call(remote, "create_flow, remote", "create_flow", flowArgs("Remote"))).text,
+  );
+  assert.equal(created.stepCount, 2);
+  assert.deepEqual(Object.keys(created).sort(), Object.keys(remoteCreated).sort());
+  assert.deepEqual(created.steps, remoteCreated.steps);
+  const tooShort = await same("a one-step flow", "create_flow", {
+    appId: row.app_id,
+    name: "Too short",
+    steps: [{ screenId: firstUpload.screen.id }],
+  });
+  assert.match(tooShort.text, /-32602.*at steps/su);
 
   const site = await h.fixtureSite();
   const status = await h.call(local, "browser_status before use", "browser_status");
@@ -217,7 +286,7 @@ export default async function mcpLocal(h) {
   assert.equal(noKeySearch.isError, true);
   assert.match(noKeySearch.text, /SCREEN_COMMONS_API_KEY/u);
   const noKeyTaxonomy = await h.call(noKey, "no key: taxonomy is bundled", "get_taxonomy");
-  assert.match(noKeyTaxonomy.text, /taxonomy \(built-in\)/u);
+  assert.equal(noKeyTaxonomy.text, taxonomy.text, "the bundled copy is the same contract");
   const noKeyCapture = await h.call(noKey, "no key: upload capture is refused", "capture_pages", {
     urls: [site.url()],
   });

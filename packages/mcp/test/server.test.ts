@@ -6,6 +6,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { findChrome } from "@screen-commons/capture";
 import {
+  TAXONOMY,
   browserTools,
   catalogTools,
   readImageHeader,
@@ -128,13 +129,19 @@ describe("tools, prompts and resources", () => {
 });
 
 describe("catalog tools", () => {
-  it("search_screens summarises results", async () => {
+  it("search_screens returns the shared JSON", async () => {
     const { client } = await connect();
     const result = await call(client, "search_screens", { query: "more", pattern: "pricing" });
     expect(result.isError).toBeFalsy();
-    expect(textOf(result)).toContain("scr_1 · Linear · Pricing – Linear · [Pricing]");
-    expect(textOf(result)).toContain(`${api.url}/media/scr_1-thumb.webp`);
-    expect(textOf(result)).toContain('cursor "c1"');
+    const data = JSON.parse(textOf(result));
+    expect(data.items[0]).toMatchObject({
+      id: "scr_1",
+      title: "Pricing – Linear",
+      patterns: ["pricing"],
+      thumbUrl: `${api.url}/media/scr_1-thumb.webp`,
+      url: `${api.url}/screens/scr_1`,
+    });
+    expect(data.nextCursor).toBe("c1");
   });
 
   it("get_screen returns the thumbnail as image content", async () => {
@@ -146,7 +153,11 @@ describe("catalog tools", () => {
       width: 640,
       height: 400,
     });
-    expect(textOf(result)).toContain("Screen scr_9 · Linear (linear)");
+    expect(JSON.parse(textOf(result))).toMatchObject({
+      id: "scr_9",
+      app: { slug: "linear" },
+      url: `${api.url}/screens/scr_9`,
+    });
 
     const full = await call(client, "get_screen", { id: "scr_9", full: true });
     const fullImage = full.content.find((item) => item.type === "image");
@@ -156,7 +167,10 @@ describe("catalog tools", () => {
   it("get_flow returns ordered steps with optional thumbnails", async () => {
     const { client } = await connect();
     const result = await call(client, "get_flow", { id: "flow_x", includeImages: true });
-    expect(textOf(result)).toContain("1. Landing — screen scr_1");
+    expect(JSON.parse(textOf(result)).steps[0]).toMatchObject({
+      label: "Landing",
+      screen: { id: "scr_1" },
+    });
     expect(result.content.filter((item) => item.type === "image")).toHaveLength(2);
   });
 
@@ -166,7 +180,7 @@ describe("catalog tools", () => {
     expect(noKey.isError).toBe(true);
     expect(textOf(noKey)).toContain("SCREEN_COMMONS_API_KEY is not set");
     // taxonomy still works from the bundled contract
-    expect(textOf(await call(missing.client, "get_taxonomy"))).toContain("built-in");
+    expect(JSON.parse(textOf(await call(missing.client, "get_taxonomy")))).toEqual(TAXONOMY);
 
     const wrong = await connect({ apiKey: "sc_wrong" });
     const rejected = await call(wrong.client, "get_app", { slug: "linear" });
@@ -194,7 +208,7 @@ describe("catalog tools", () => {
       sourceUrl: "https://acme.example/pricing",
     });
     expect(result.isError).toBeFalsy();
-    expect(textOf(result)).toContain(`${api.url}/screens/new_`);
+    expect(JSON.parse(textOf(result)).screen.url).toContain(`${api.url}/screens/new_`);
     const batch = api.batches[before]!;
     expect(batch.source).toBe("mcp");
     expect(batch.screens[0]?.patterns).toEqual(["pricing"]);
@@ -224,7 +238,9 @@ describe("catalog tools", () => {
       image: { type: "image/webp", base64: png.toString("base64") },
     });
     expect(result.isError).toBeFalsy();
-    expect(textOf(result)).toContain("image.type said image/webp, but the bytes are image/png");
+    expect(JSON.parse(textOf(result)).note).toContain(
+      "image.type said image/webp, but the bytes are image/png",
+    );
     const image = api.batches[before]!.screens[0]!.image;
     expect(readImageHeader(Buffer.from(image.base64, "base64"))?.type).toBe(image.type);
   });

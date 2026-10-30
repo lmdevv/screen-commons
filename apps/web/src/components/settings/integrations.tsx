@@ -53,8 +53,8 @@ export function mcpSnippet(client: Client, origin: string, key: string) {
           {
             mcpServers: {
               "screen-commons": {
-                command: "node",
-                args: ["/absolute/path/to/screen-commons/packages/mcp/dist/index.js"],
+                command: "npx",
+                args: ["-y", "screen-commons-mcp"],
                 env: { SCREEN_COMMONS_URL: origin, SCREEN_COMMONS_API_KEY: key },
               },
             },
@@ -69,8 +69,7 @@ export function mcpSnippet(client: Client, origin: string, key: string) {
 const CLIENT_NOTES: Record<Client, string> = {
   claude: "Adds the remote server at /mcp: search and view screens and flows, upload.",
   cursor: "Paste into ~/.cursor/mcp.json, or .cursor/mcp.json in a project.",
-  local:
-    "Build with pnpm --filter @screen-commons/mcp build, then replace the absolute path with your checkout. The local server adds browser capture tools.",
+  local: "Runs on your machine with Node.js 20.9 or newer and adds browser capture tools.",
 };
 
 export function IntegrationsSection({ origin }: { origin: string }) {

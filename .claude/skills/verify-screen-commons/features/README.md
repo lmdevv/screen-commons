@@ -39,10 +39,11 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-MCP is the main client surface, so its three entries come first.
+MCP is the main client surface, so its entries come first.
 
 - [Remote MCP](./mcp-remote.md) covers `/mcp` with a real client: auth, every catalog tool, member and admin behavior, and revocation. Journey: `mcp-remote`.
 - [Local MCP](./mcp-local.md) covers the built stdio server: the shared contract, proxied catalog tools, prompts, resources, headless browser tools and key handling. Journey: `mcp-local`.
+- [npm package](./mcp-package.md) covers the production package as a user installs it, outside the workspace. Journey: `mcp-package`.
 - [Extension bridge](./mcp-extension.md) covers pairing the real extension and running browser tools through it. Journey: `mcp-extension`.
 - [Browse and view](./browse.md) covers public pages, Discover, filters, the screen and flow viewers, and app pages. Journey: `browse`.
 - [Search](./search.md) covers the palette, the results page, text inside screenshots, REST and MCP. Journey: `search`.

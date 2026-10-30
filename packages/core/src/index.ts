@@ -5,4 +5,5 @@ export * from "./client";
 export * from "./utils";
 export * from "./bridge";
 export * from "./mcp";
+export * from "./mcp-results";
 export * from "./image-policy";

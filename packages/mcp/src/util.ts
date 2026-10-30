@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { ScreenCommonsApiError } from "@screen-commons/core";
+import { ScreenCommonsApiError, toolErrorText } from "@screen-commons/core";
 
 import { BridgeError } from "./bridge";
 
@@ -37,11 +37,7 @@ export function describeError(error: unknown, context: { url: string }): string 
     if (error.status === 401) {
       return `Screen Commons rejected the API key (401). Create a new key at ${context.url}/settings and set SCREEN_COMMONS_API_KEY in the MCP server config.`;
     }
-    if (error.status === 403) return `Forbidden (403): ${error.message}`;
-    if (error.status === 404) return `Not found (404): ${error.message}`;
-    if (error.status === 413)
-      return `Payload too large (413): ${error.message}. Capture fewer pages per call.`;
-    return `Screen Commons API error ${error.status} (${error.code}): ${error.message}`;
+    return toolErrorText(error.code, error.message, error.retryAfter);
   }
   if (error instanceof BridgeError) {
     return `Browser extension error (${error.code}): ${error.message}`;

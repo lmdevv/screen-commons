@@ -4,13 +4,18 @@ import {
   TAXONOMY,
   base64ToBytes,
   catalogTools,
-  labelFor,
+  compactApp,
+  compactFlow,
+  compactScreen,
+  createdFlowResult,
+  flowDetailResult,
+  imageTypeNote,
   readImageHeader,
-  type AppSummary,
+  screenDetailResult,
+  toolErrorText,
+  uploadResult,
   type CatalogToolName,
-  type FlowSummary,
   type ScreenCommonsClient,
-  type Screen,
 } from "@screen-commons/core";
 import type { z } from "zod";
 
@@ -41,21 +46,6 @@ function requireKey(context: CatalogContext) {
     );
   }
 }
-
-function screenLine(context: CatalogContext, screen: Screen): string {
-  const patterns = screen.patterns.map(labelFor).join(", ") || "untagged";
-  return `- ${screen.id} · ${screen.app.name} · ${screen.title ?? "(untitled)"} · [${patterns}] · ${screen.width}×${screen.height} · thumb ${absoluteUrl(context.baseUrl, screen.thumbUrl)}`;
-}
-
-function flowLine(context: CatalogContext, flow: FlowSummary): string {
-  return `- ${flow.id} · ${flow.app.name} · ${flow.name}${flow.type ? ` (${labelFor(flow.type)})` : ""} · ${flow.stepCount} steps · ${context.baseUrl}/flows/${flow.id}`;
-}
-
-function appLine(context: CatalogContext, app: AppSummary): string {
-  return `- ${app.slug} · ${app.name}${app.tagline ? ` — ${app.tagline}` : ""} · ${app.platform}${app.category ? ` · ${labelFor(app.category)}` : ""} · ${app.screenCount} screens, ${app.flowCount} flows · ${context.baseUrl}/apps/${app.slug}`;
-}
-
-const more = (cursor: string | null) => (cursor ? `\nMore results: pass cursor "${cursor}".` : "");
 
 /** Download an image from the instance and return it as MCP image content (downscaled if huge). */
 export async function fetchImageContent(
@@ -103,12 +93,15 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
         title: spec.title,
         description: spec.description,
         inputSchema: spec.input,
-        annotations: { title: spec.title, readOnlyHint: spec.readOnly, openWorldHint: true },
+        annotations: { title: spec.title, readOnlyHint: spec.readOnly, openWorldHint: false },
       },
       wrap(handler) as never,
     );
   };
   const { client } = context;
+
+  const json = (value: unknown) => ok(text(JSON.stringify(value)));
+  const origin = context.baseUrl;
 
   register("search_screens", async (args) => {
     requireKey(context);
@@ -121,15 +114,10 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    if (page.items.length === 0)
-      return ok(
-        text("No screens matched. Try a broader query or check get_taxonomy for valid filters."),
-      );
-    return ok(
-      text(
-        `${page.items.length} screens (use get_screen with an id to see one):\n${page.items.map((screen) => screenLine(context, screen)).join("\n")}${more(page.nextCursor)}`,
-      ),
-    );
+    return json({
+      items: page.items.map((screen) => compactScreen(origin, screen)),
+      nextCursor: page.nextCursor,
+    });
   });
 
   register("search_flows", async (args) => {
@@ -142,12 +130,10 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    if (page.items.length === 0) return ok(text("No flows matched."));
-    return ok(
-      text(
-        `${page.items.length} flows (use get_flow for steps):\n${page.items.map((flow) => flowLine(context, flow)).join("\n")}${more(page.nextCursor)}`,
-      ),
-    );
+    return json({
+      items: page.items.map((flow) => compactFlow(origin, flow)),
+      nextCursor: page.nextCursor,
+    });
   });
 
   register("list_apps", async (args) => {
@@ -160,32 +146,15 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    if (page.items.length === 0) return ok(text("No apps matched."));
-    return ok(
-      text(
-        `${page.items.length} apps:\n${page.items.map((app) => appLine(context, app)).join("\n")}${more(page.nextCursor)}`,
-      ),
-    );
+    return json({
+      items: page.items.map((app) => compactApp(origin, app)),
+      nextCursor: page.nextCursor,
+    });
   });
 
   register("get_app", async (args) => {
     requireKey(context);
-    const app = await client.getApp(args.slug);
-    const lines = [
-      `${app.name} (${app.slug}) — ${app.platform}${app.category ? `, ${labelFor(app.category)}` : ""}`,
-      app.tagline ?? "",
-      app.description ?? "",
-      `Website: ${app.websiteUrl ?? "n/a"} · ${app.screenCount} screens · ${app.flowCount} flows · ${context.baseUrl}/apps/${app.slug}`,
-      app.versions.length ? `Versions: ${app.versions.join(", ")}` : "",
-      app.patterns.length
-        ? `Patterns: ${app.patterns.map((entry) => `${labelFor(entry.slug)} (${entry.count})`).join(", ")}`
-        : "",
-      app.elements.length
-        ? `Elements: ${app.elements.map((entry) => `${labelFor(entry.slug)} (${entry.count})`).join(", ")}`
-        : "",
-      "Use search_screens with app=" + app.slug + " to list its screens.",
-    ].filter(Boolean);
-    return ok(text(lines.join("\n")));
+    return json(compactApp(origin, await client.getApp(args.slug)));
   });
 
   register("get_screen", async (args) => {
@@ -195,83 +164,45 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       context,
       args.full ? screen.imageUrl : screen.thumbUrl,
     );
-    const summary = [
-      `Screen ${screen.id} · ${screen.app.name} (${screen.app.slug}) · ${screen.title ?? "(untitled)"}`,
-      `Patterns: ${screen.patterns.map(labelFor).join(", ") || "none"} · Elements: ${screen.elements.map(labelFor).join(", ") || "none"}`,
-      `${screen.width}×${screen.height} · version ${screen.version ?? "n/a"} · source ${screen.sourceUrl ?? "n/a"}`,
-      `View: ${context.baseUrl}/screens/${screen.id} · full image: ${absoluteUrl(context.baseUrl, screen.imageUrl)}`,
-      screen.flows.length
-        ? `In flows: ${screen.flows.map((flow) => `${flow.name} (${flow.id}, step ${flow.position + 1})`).join(", ")}`
-        : "",
-      screen.previousId || screen.nextId
-        ? `Neighbours: previous ${screen.previousId ?? "none"}, next ${screen.nextId ?? "none"}`
-        : "",
-      args.full ? "" : "Showing the thumbnail; call again with full=true for full resolution.",
-      note ?? "",
-    ].filter(Boolean);
-    return ok(text(summary.join("\n")), content);
+    return ok(
+      text(JSON.stringify({ ...screenDetailResult(origin, screen), ...(note ? { note } : {}) })),
+      content,
+    );
   });
 
   register("get_flow", async (args) => {
     requireKey(context);
     const flow = await client.getFlow(args.id);
-    const header = `${flow.name} · ${flow.app.name}${flow.type ? ` · ${labelFor(flow.type)}` : ""} · ${flow.steps.length} steps · ${context.baseUrl}/flows/${flow.id}${flow.description ? `\n${flow.description}` : ""}`;
-    const steps = flow.steps
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map(
-        (step, index) =>
-          `${index + 1}. ${step.label ?? step.screen.title ?? "(untitled)"} — screen ${step.screen.id} [${step.screen.patterns.map(labelFor).join(", ")}]`,
-      );
-    const content: Content[] = [text(`${header}\n${steps.join("\n")}`)];
+    const content: Content[] = [text(JSON.stringify(flowDetailResult(origin, flow)))];
     if (args.includeImages) {
-      const sorted = flow.steps
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .slice(0, 20);
       const images = await Promise.all(
-        sorted.map((step) => fetchImageContent(context, step.screen.thumbUrl).catch(() => null)),
+        flow.steps.map((step) =>
+          fetchImageContent(context, step.screen.thumbUrl).catch(() => null),
+        ),
       );
-      sorted.forEach((step, index) => {
-        const entry = images[index];
-        if (!entry) return;
-        content.push(
-          text(`Step ${index + 1}: ${step.label ?? step.screen.title ?? step.screen.id}`),
-          entry.content,
-        );
-      });
+      for (const entry of images) if (entry) content.push(entry.content);
     }
     return ok(...content);
   });
 
   register("get_taxonomy", async () => {
-    let taxonomy: unknown = TAXONOMY;
-    let source = "built-in";
-    if (context.apiKey) {
-      try {
-        taxonomy = await client.taxonomy();
-        source = context.baseUrl;
-      } catch {
-        // fall back to the bundled taxonomy (same contract)
-      }
-    }
-    return ok(
-      text(
-        `Screen Commons taxonomy (${source}). Use the slugs as filter values.\n${JSON.stringify(taxonomy)}`,
-      ),
-    );
+    // Without a key, the bundled copy of the same contract.
+    const taxonomy = context.apiKey ? await client.taxonomy().catch(() => TAXONOMY) : TAXONOMY;
+    return json(taxonomy);
   });
 
   register("upload_screen", async (args) => {
     requireKey(context);
     const bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
-    // Typed by its bytes: a mislabelled image.type (common from models) is noted, not fatal.
     const header = readImageHeader(bytes);
-    if (!header) throw new FriendlyError("image.base64 is not a valid PNG, JPEG or WebP image.");
-    const note =
-      header.type === args.image.type
-        ? ""
-        : ` (image.type said ${args.image.type}, but the bytes are ${header.type}; uploaded as ${header.type})`;
+    if (!header) {
+      throw new FriendlyError(
+        toolErrorText(
+          "unsupported_media_type",
+          "screens[0].image must be a complete, still PNG, JPEG or WebP image",
+        ),
+      );
+    }
     const viewport = args.app.platform && args.app.platform !== "web" ? "mobile" : "desktop";
     const { screen } = await prepareScreen({
       png: bytes,
@@ -282,21 +213,12 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       elements: args.elements,
     });
     const result = await client.captures({ app: args.app, screens: [screen], source: "mcp" });
-    const created = result.screens[0];
-    return ok(
-      text(
-        `Uploaded to ${result.app.name}: ${absoluteUrl(context.baseUrl, created?.url)} (status ${created?.status})${note}. ${created?.status === "pending" ? "It will appear after an admin approves it." : ""}`.trim(),
-      ),
-    );
+    return json(uploadResult(origin, result, imageTypeNote(args.image)));
   });
 
   register("create_flow", async (args) => {
     requireKey(context);
     const { flow } = await client.createFlow(args);
-    return ok(
-      text(
-        `Created flow "${flow.name}" with ${flow.steps.length} steps: ${context.baseUrl}/flows/${flow.id} (status ${flow.status}).`,
-      ),
-    );
+    return json(createdFlowResult(origin, flow));
   });
 }

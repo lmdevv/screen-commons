@@ -142,3 +142,45 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @screen-commons/web cf:deploy
+
+  publish-mcp:
+    # Production only, and only a version npm doesn't have yet: bump packages/mcp's version to
+    # release. Authenticates through npm trusted publishing (no token); set NPM_TRUSTED_PUBLISHING
+    # to true once npm trusts this workflow and the production environment.
+    needs: validate
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      vars.NPM_TRUSTED_PUBLISHING == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://www.npmjs.com/package/screen-commons-mcp
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: publish-mcp
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @screen-commons/mcp publish:prepare
+      - name: Publish a new version
+        working-directory: packages/mcp/.publish
+        run: |
+          version=$(jq -r .version package.json)
+          if npm view "screen-commons-mcp@$version" version >/dev/null 2>&1; then
+            echo "screen-commons-mcp@$version is already on npm." >> "$GITHUB_STEP_SUMMARY"
+          else
+            npm publish --access public --provenance
+            echo "Published screen-commons-mcp@$version." >> "$GITHUB_STEP_SUMMARY"
+          fi

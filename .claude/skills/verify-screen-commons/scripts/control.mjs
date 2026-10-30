@@ -1034,6 +1034,48 @@ async function commandDrive(flags, positional) {
       mcpClients.push(client);
       return client;
     },
+    /**
+     * The real client over stdio to what npm would serve: the production package, packed and
+     * installed outside the workspace. Installing contacts the npm registry. Returns the client
+     * and the package's manifest and file list.
+     */
+    async packagedMcp({ label = "package", ...options } = {}) {
+      const scratch = join(runDir(run.id), `package-${stamp}`);
+      const staged = join(scratch, "staged");
+      const app = join(scratch, "app");
+      mkdirSync(app, { recursive: true });
+      buildLocalMcp(run);
+      execFileSync(
+        process.execPath,
+        [join(MCP_PACKAGE, "scripts/prepare-publish.mjs"), mcpBuildDir(run.id), staged],
+        { stdio: "pipe" },
+      );
+      const [{ filename, files }] = JSON.parse(
+        execFileSync("npm", ["pack", "--json", "--pack-destination", scratch], {
+          cwd: staged,
+          encoding: "utf8",
+          stdio: "pipe",
+        }),
+      );
+      writeFileSync(join(app, "package.json"), "{}");
+      execFileSync("npm", ["install", "--no-audit", "--no-fund", join(scratch, filename)], {
+        cwd: app,
+        stdio: "pipe",
+      });
+      const logPath = join(out, `mcp-${label}.stderr.log`);
+      const client = await localMcpClient(
+        run,
+        join(app, "node_modules/.bin/screen-commons-mcp"),
+        options,
+        (chunk) => appendFileSync(logPath, chunk),
+      );
+      mcpClients.push(client);
+      return {
+        client,
+        manifest: JSON.parse(readFileSync(join(staged, "package.json"), "utf8")),
+        files: files.map((file) => file.path),
+      };
+    },
     /** Calls a tool and saves the result as proof, with each returned image next to it. */
     async call(client, label, name, args = {}) {
       assertRunning();

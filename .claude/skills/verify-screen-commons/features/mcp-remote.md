@@ -43,7 +43,7 @@ Run `control drive mcp-remote --run <id>`, which performs these steps.
 
 ## Gotchas
 
-- Remote results are JSON text, so parse them. The local server's are prose, so don't share assertions between them. See [Local MCP](./mcp-local.md).
+- Results are JSON text, identical to the local server's; [Local MCP](./mcp-local.md) compares them.
 - The remote server has tools only. `listPrompts` and `listResources` return `Method not found`, and its capabilities don't advertise them.
 - After an approval the review pane moves to the next item, which may be another journey's. Prove the approval with the toast and a `get_screen`, not that screenshot.
 - The server is stateless, so "open connection" means the client object: each call authenticates again.
