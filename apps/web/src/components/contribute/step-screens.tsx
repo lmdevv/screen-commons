@@ -78,7 +78,7 @@ export function StepScreens({
                 value={flow.name}
                 onChange={(event) => onFlowChange({ name: event.target.value })}
                 placeholder="e.g. Signing up with email"
-                maxLength={120}
+                maxLength={80}
               />
               <FieldError match={nameError}>Name the flow.</FieldError>
             </Field>
@@ -150,12 +150,13 @@ function ScreenCard({
   const visiblePatterns = allPatterns
     ? PATTERNS.map((p) => p.slug)
     : [...new Set<PatternSlug>([...draft.patterns, ...COMMON_PATTERNS])];
+  const readOnly = !!draft.upload.screen && !draft.upload.screen.owned;
   const label = draft.title || `Screen ${index + 1}`;
 
   return (
     <div
       className={cn(
-        "flex gap-4 rounded-tile border border-border bg-surface p-3 pr-4 transition-shadow duration-150 sm:gap-5 sm:p-4",
+        "flex flex-wrap gap-3 sm:flex-nowrap rounded-tile border border-border bg-surface p-3 pr-4 transition-shadow duration-150 sm:gap-5 sm:p-4",
         isDragging && "shadow-overlay",
       )}
     >
@@ -165,7 +166,7 @@ function ScreenCard({
           {index + 1}
         </span>
       </div>
-      <div className="w-28 shrink-0 sm:w-44">
+      <div className="w-20 shrink-0 sm:w-44">
         <div className="overflow-hidden rounded-shot bg-tile shadow-[inset_0_0_0_1px_var(--color-shot-border)]">
           <img
             src={draft.previewUrl}
@@ -176,9 +177,10 @@ function ScreenCard({
           />
         </div>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <div className="flex w-full min-w-0 flex-auto flex-col gap-4 sm:w-auto sm:flex-1">
         <div className="flex items-start gap-2">
           <Input
+            readOnly={readOnly}
             value={draft.title}
             onChange={(event) => onChange({ title: event.target.value })}
             placeholder="Title, e.g. Pricing"
@@ -212,6 +214,7 @@ function ScreenCard({
           <div className="mt-2 flex flex-wrap gap-1.5">
             {visiblePatterns.map((slug) => (
               <FilterChip
+                disabled={readOnly}
                 key={slug}
                 size="sm"
                 selected={draft.patterns.includes(slug)}
@@ -257,6 +260,7 @@ function ScreenCard({
             <div className="mt-2 flex flex-wrap gap-1.5">
               {ELEMENTS.map(({ slug }) => (
                 <FilterChip
+                  disabled={readOnly}
                   key={slug}
                   size="sm"
                   selected={draft.elements.includes(slug as ElementSlug)}

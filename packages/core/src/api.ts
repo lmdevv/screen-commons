@@ -156,6 +156,8 @@ export interface ApiResponses {
   createScreen: { screen: Screen };
   captures: CaptureBatchResult;
   createFlow: { flow: FlowDetail };
+  updateScreen: ScreenDetail;
+  updateFlow: FlowDetail;
   listCollections: { items: Collection[] };
   createCollection: { collection: Collection };
   getCollection: {

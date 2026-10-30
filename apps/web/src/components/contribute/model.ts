@@ -58,6 +58,7 @@ export interface FlowOptions {
 }
 
 export interface SubmitState {
+  flowId?: string;
   phase: "idle" | "uploading" | "done" | "error";
   flow?: FlowDetail;
   flowError?: string;
@@ -90,6 +91,30 @@ export const initialState = (): WizardState => ({
   submit: { phase: "idle" },
 });
 
+/**
+ * Same size, and no fingerprint channel differs by more than 32/255. Measured in Chrome on real
+ * uploads: re-captures of one screen differed by 8, distinct states by 63+.
+ */
+function looksSame(a: ProcessedImage, b: ProcessedImage): boolean {
+  if (a.width !== b.width || a.height !== b.height) return false;
+  if (a.fingerprint.length !== b.fingerprint.length) return false;
+  return a.fingerprint.every((value, i) => Math.abs(value - b.fingerprint[i]!) <= 32);
+}
+
+/** Ready drafts that look the same as an earlier one, mapped to that draft. */
+export function findDuplicates(drafts: readonly Draft[]): Map<string, Draft> {
+  const duplicates = new Map<string, Draft>();
+  const kept: { draft: Draft; processed: ProcessedImage }[] = [];
+  for (const draft of drafts) {
+    if (draft.status !== "ready" || !draft.processed) continue;
+    const { processed } = draft;
+    const original = kept.find((other) => looksSame(other.processed, processed));
+    if (original) duplicates.set(draft.id, original.draft);
+    else kept.push({ draft, processed });
+  }
+  return duplicates;
+}
+
 export const frameKindOf = (platform: Platform) => (platform === "web" ? "web" : "mobile");
 
 /** "linear-pricing_page@2x.png" → "Linear pricing page"; camera-roll names → "". */
@@ -106,7 +131,7 @@ export function titleFromFilename(name: string): string {
     .replace(/([a-z])([A-Z])/gu, "$1 $2")
     .replace(/\s+/gu, " ")
     .trim();
-  return words ? words.charAt(0).toUpperCase() + words.slice(1).toLowerCase() : "";
+  return words ? (words.charAt(0).toUpperCase() + words.slice(1).toLowerCase()).slice(0, 160) : "";
 }
 
 /** Suggest patterns from a title / filename using the taxonomy's match words. */

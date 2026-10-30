@@ -104,6 +104,7 @@ export const screenSchema = z.object({
   status: statusSchema,
   source: sourceSchema,
   saved: z.boolean(),
+  owned: z.boolean().optional(),
   capturedAt: isoDate,
   createdAt: isoDate,
 });
@@ -140,6 +141,7 @@ export const flowSummarySchema = z.object({
 export type FlowSummary = z.infer<typeof flowSummarySchema>;
 
 export const flowDetailSchema = flowSummarySchema.extend({
+  owned: z.boolean().optional(),
   steps: z.array(flowStepSchema),
 });
 export type FlowDetail = z.infer<typeof flowDetailSchema>;
@@ -236,6 +238,8 @@ export const captureBatchResultSchema = z.object({
 export type CaptureBatchResult = z.infer<typeof captureBatchResultSchema>;
 
 export const createFlowInputSchema = z.object({
+  /** Optional client-chosen identity so retrying does not create another flow. */
+  id: z.string().uuid().optional(),
   appId: id,
   name: z.string().trim().min(1).max(80),
   type: flowTypeSchema.optional(),
@@ -246,6 +250,22 @@ export const createFlowInputSchema = z.object({
     .max(LIMITS.maxFlowSteps),
 });
 export type CreateFlowInput = z.input<typeof createFlowInputSchema>;
+
+export const updateScreenInputSchema = z.object({
+  title: z.string().trim().max(160).nullable().optional(),
+  patterns: screenMetaSchema.shape.patterns.removeDefault().optional(),
+  elements: screenMetaSchema.shape.elements.removeDefault().optional(),
+  tags: screenMetaSchema.shape.tags.removeDefault().optional(),
+});
+export type UpdateScreenInput = z.input<typeof updateScreenInputSchema>;
+export const updateFlowInputSchema = createFlowInputSchema
+  .omit({ appId: true, id: true })
+  .partial()
+  .extend({
+    type: flowTypeSchema.nullable().optional(),
+    description: z.string().trim().max(500).nullable().optional(),
+  });
+export type UpdateFlowInput = z.input<typeof updateFlowInputSchema>;
 
 export const createApiKeyInputSchema = z.object({
   name: z.string().trim().min(1).max(60),

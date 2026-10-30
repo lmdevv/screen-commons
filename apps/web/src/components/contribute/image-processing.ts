@@ -38,6 +38,8 @@ export interface ProcessedImage {
   thumbnailHeight: number;
   /** `#rrggbb` */
   dominantColor: string;
+  /** RGBA pixels of a 64px-wide downscale, for spotting repeated images. */
+  fingerprint: Uint8ClampedArray;
 }
 
 export class ImageValidationError extends Error {}
@@ -66,7 +68,18 @@ function dominantColor(source: CanvasImageSource, width: number, height: number)
   return `#${hex(r / n)}${hex(g / n)}${hex(b / n)}`;
 }
 
-/** Decode → validate → display image + thumbnail + dominant colour. Throws `ImageValidationError` on bad input. */
+/**
+ * 64px wide tells apart states of one screen (a hover, a recoloured button) while re-captures,
+ * which differ only in text anti-aliasing, still match.
+ */
+function fingerprint(source: CanvasImageSource, width: number, height: number) {
+  const fingerprintHeight = Math.max(1, Math.round((height * 64) / width));
+  const [, context] = createCanvas(64, fingerprintHeight);
+  context.drawImage(source, 0, 0, width, height, 0, 0, 64, fingerprintHeight);
+  return context.getImageData(0, 0, 64, fingerprintHeight).data;
+}
+
+/** Decode → validate → display image + thumbnail + dominant colour. */
 export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<ProcessedImage> {
   if (file.size > IMAGE_LIMITS.maxImageBytes) {
     throw new ImageValidationError("Larger than 15 MB");
@@ -116,6 +129,7 @@ export async function processImage(file: Blob, kind: "web" | "mobile"): Promise<
       thumbnailWidth: thumbnail.width,
       thumbnailHeight: thumbnail.height,
       dominantColor: dominantColor(bitmap, width, height),
+      fingerprint: fingerprint(bitmap, width, height),
     };
   } finally {
     bitmap.close();

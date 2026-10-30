@@ -10,13 +10,15 @@ import {
 } from "@screen-commons/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { updateScreen, updateFlow } from "../../server/functions";
 import { errorMessage, notify } from "../../lib/toast";
 import { ImageValidationError } from "./image-processing";
 import {
   MAX_SCREENS,
   STEPS,
+  findDuplicates,
   frameKindOf,
   initialState,
   isValidUrl,
@@ -35,16 +37,29 @@ import { createFlow, uploadScreen } from "./upload";
 
 let draftSeq = 0;
 
+function keepUploadable(drafts: Draft[]): Draft[] {
+  const duplicates = findDuplicates(drafts);
+  return drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
+}
+
+/** Screens uploaded in parallel: each request's time is mostly server round trips, not bytes. */
+const UPLOAD_CONCURRENCY = 4;
+
 export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
-  const [state, setState] = useState<WizardState>(initialState);
+  const [state, renderState] = useState<WizardState>(initialState);
   const [showErrors, setShowErrors] = useState(false);
   const stateRef = useRef(state);
-  stateRef.current = state;
+  const setState = useCallback((update: WizardState | ((state: WizardState) => WizardState)) => {
+    stateRef.current = typeof update === "function" ? update(stateRef.current) : update;
+    renderState(stateRef.current);
+  }, []);
+  const mounted = useRef(true);
   const headingRef = useRef<HTMLDivElement>(null);
 
   const { step, drafts, platform, submit } = state;
-  const ready = drafts.filter((d) => d.status === "ready");
+  const duplicates = useMemo(() => findDuplicates(drafts), [drafts]);
+  const ready = drafts.filter((d) => d.status === "ready" && !duplicates.has(d.id));
   const processing = drafts.some((d) => d.status === "processing");
 
   const patchDraft = useCallback((id: string, patch: Partial<Draft>) => {
@@ -59,12 +74,14 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
       processImage(draft.file, kind)
         .then((processed) => {
           const current = stateRef.current.drafts.find((d) => d.id === draft.id);
-          if (!current) return;
+          if (!mounted.current || !current || frameKindOf(stateRef.current.platform) !== kind)
+            return;
           const previewUrl = URL.createObjectURL(processed.thumbnail);
           URL.revokeObjectURL(current.previewUrl);
           patchDraft(draft.id, { status: "ready", processed, previewUrl, error: undefined });
         })
         .catch((error: unknown) => {
+          if (!mounted.current || frameKindOf(stateRef.current.platform) !== kind) return;
           patchDraft(draft.id, {
             status: "invalid",
             error:
@@ -127,23 +144,24 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
       // App lists are per platform.
       app: s.app?.mode === "existing" && s.app.app.platform !== next ? null : s.app,
       drafts: changedKind
-        ? s.drafts.map((d) => (d.status === "ready" ? { ...d, status: "processing" } : d))
+        ? s.drafts.map((d) => (d.status !== "invalid" ? { ...d, status: "processing" } : d))
         : s.drafts,
     }));
     // Thumbnail crops differ between desktop and phone frames.
     if (changedKind) {
       for (const draft of state.drafts)
-        if (draft.status === "ready") runProcessing(draft, frameKindOf(next));
+        if (draft.status !== "invalid") runProcessing(draft, frameKindOf(next));
     }
   };
 
   // Revoke object URLs when leaving the page.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       for (const draft of stateRef.current.drafts) URL.revokeObjectURL(draft.previewUrl);
-    },
-    [],
-  );
+    };
+  }, []);
 
   // Warn before closing the tab with unsent work.
   const dirty = drafts.length > 0 && submit.phase !== "done";
@@ -161,7 +179,10 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
       (!state.newApp.websiteUrl.trim() || isValidUrl(normalizeUrl(state.newApp.websiteUrl))));
   const flowValid = !state.flow.enabled || ready.length < 2 || state.flow.name.trim().length > 0;
 
-  const stepValid = [ready.length > 0 && !processing, appValid, flowValid, true][step] ?? false;
+  const stepValid =
+    [ready.length > 0 && !processing, appValid, ready.length > 0 && flowValid, ready.length > 0][
+      step
+    ] ?? false;
   const blockedReason =
     step === 0
       ? processing
@@ -178,8 +199,9 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     setState((s) => ({
       ...s,
       step: next,
-      // Images that failed validation are dropped once you move on.
-      drafts: next > 0 ? s.drafts.filter((d) => d.status === "ready") : s.drafts,
+      // Images that failed validation, and repeats of an earlier image, are dropped once you
+      // move on.
+      drafts: next > 0 ? keepUploadable(s.drafts) : s.drafts,
     }));
     requestAnimationFrame(() => {
       headingRef.current?.focus({ preventScroll: true });
@@ -197,8 +219,12 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
 
   async function onSubmit() {
     const current = stateRef.current;
-    if (current.submit.phase === "uploading" || !current.app) return;
-    setState((s) => ({ ...s, submit: { ...s.submit, phase: "uploading", flowError: undefined } }));
+    if (current.submit.phase === "uploading" || !current.app || !current.drafts.length) return;
+    const flowId = current.submit.flowId ?? crypto.randomUUID();
+    setState((s) => ({
+      ...s,
+      submit: { ...s.submit, phase: "uploading", flowId, flowError: undefined },
+    }));
 
     const base: CreateScreenInput["app"] =
       current.app.mode === "existing"
@@ -218,42 +244,88 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     if (firstDone)
       appInput = { slug: firstDone.app.slug, name: firstDone.app.name, platform: current.platform };
 
-    // Track results locally: state updates from this loop haven't rendered yet.
     const uploaded = new Map<string, Screen>();
-    for (const draft of current.drafts)
-      if (draft.upload.screen) uploaded.set(draft.id, draft.upload.screen);
     let failed = false;
-    for (const draft of current.drafts) {
-      if (uploaded.has(draft.id) || !draft.processed) continue;
-      patchDraft(draft.id, { upload: { status: "uploading", progress: 0 } });
+    const uploadOne = async (draft: Draft, processed: NonNullable<Draft["processed"]>) => {
       try {
-        const screen = await uploadScreen(
-          {
-            image: draft.processed.image,
-            thumbnail: draft.processed.thumbnail,
-            meta: {
-              app: appInput,
-              title: draft.title.trim() || undefined,
-              patterns: draft.patterns,
-              elements: draft.elements,
-              width: draft.processed.imageWidth,
-              height: draft.processed.imageHeight,
-              dominantColor: draft.processed.dominantColor,
-              source: "upload",
+        let screen = draft.upload.screen;
+        // Retry checks that completed screens still exist without resending their images.
+        if (screen) {
+          const response = await fetch(`/api/v1/screens/${screen.id}`);
+          if (response.status === 404) screen = undefined;
+          else if (!response.ok) throw new Error("Couldn’t check the completed upload. Retry.");
+          else {
+            const fresh = (await response.json()) as Screen;
+            if (fresh.status === "rejected") screen = undefined;
+            else if (
+              screen.owned &&
+              ((draft.title.trim() || null) !== screen.title ||
+                JSON.stringify(draft.patterns) !== JSON.stringify(screen.patterns) ||
+                JSON.stringify(draft.elements) !== JSON.stringify(screen.elements))
+            )
+              screen = await updateScreen({
+                data: {
+                  id: screen.id,
+                  patch: {
+                    title: draft.title.trim() || null,
+                    patterns: draft.patterns,
+                    elements: draft.elements,
+                  },
+                },
+              });
+            else screen = fresh;
+          }
+        }
+        if (!screen) {
+          patchDraft(draft.id, { upload: { status: "uploading", progress: 0 } });
+          screen = await uploadScreen(
+            {
+              image: processed.image,
+              thumbnail: processed.thumbnail,
+              meta: {
+                app: appInput,
+                title: draft.title.trim() || undefined,
+                patterns: draft.patterns,
+                elements: draft.elements,
+                width: processed.imageWidth,
+                height: processed.imageHeight,
+                dominantColor: processed.dominantColor,
+                source: "upload",
+              },
             },
-          },
-          (progress) => patchDraft(draft.id, { upload: { status: "uploading", progress } }),
-        );
+            (progress) => patchDraft(draft.id, { upload: { status: "uploading", progress } }),
+          );
+        }
         uploaded.set(draft.id, screen);
-        patchDraft(draft.id, { upload: { status: "done", progress: 1, screen } });
+        patchDraft(draft.id, {
+          title: screen.title ?? "",
+          patterns: screen.patterns,
+          elements: screen.elements,
+          upload: { status: "done", progress: 1, screen },
+        });
         appInput = { slug: screen.app.slug, name: screen.app.name, platform: current.platform };
       } catch (error) {
         failed = true;
         patchDraft(draft.id, {
-          upload: { status: "error", progress: 0, error: errorMessage(error) },
+          upload: { ...draft.upload, status: "error", progress: 0, error: errorMessage(error) },
         });
       }
+    };
+    const pending = current.drafts.flatMap((draft) =>
+      draft.processed ? [{ draft, processed: draft.processed }] : [],
+    );
+    // A new app is created by the first upload that succeeds: send one at a time until then, so
+    // concurrent requests don't each create it.
+    while (!appInput.slug && pending.length > 0) {
+      const next = pending.shift()!;
+      await uploadOne(next.draft, next.processed);
     }
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, async () => {
+        for (let next = pending.shift(); next; next = pending.shift())
+          await uploadOne(next.draft, next.processed);
+      }),
+    );
 
     void queryClient.invalidateQueries();
     if (failed) {
@@ -267,6 +339,7 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
     if (current.flow.enabled && screens.length >= 2 && !flow) {
       try {
         flow = await createFlow({
+          id: flowId,
           appId: screens[0]!.app.id,
           name: current.flow.name.trim(),
           type: current.flow.type || undefined,
@@ -275,6 +348,28 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
             label: d.stepLabel.trim() || undefined,
           })),
         });
+        // A lost response can leave a committed flow; keep retry edits in that same flow.
+        if (
+          flow.name !== current.flow.name.trim() ||
+          flow.type !== (current.flow.type || null) ||
+          JSON.stringify(flow.steps.map((s) => [s.screen.id, s.label])) !==
+            JSON.stringify(
+              current.drafts.map((d) => [uploaded.get(d.id)!.id, d.stepLabel.trim() || null]),
+            )
+        )
+          flow = await updateFlow({
+            data: {
+              id: flow.id,
+              patch: {
+                name: current.flow.name.trim(),
+                type: current.flow.type || null,
+                steps: current.drafts.map((d) => ({
+                  screenId: uploaded.get(d.id)!.id,
+                  label: d.stepLabel.trim() || undefined,
+                })),
+              },
+            },
+          });
       } catch (error) {
         setState((s) => ({
           ...s,
@@ -307,12 +402,13 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
       />
       <div ref={headingRef} tabIndex={-1} className="mt-10 pb-32 outline-none">
         {done ? (
-          <SubmitSuccess drafts={drafts} submit={submit} isAdmin={isAdmin} onReset={reset} />
+          <SubmitSuccess drafts={drafts} submit={submit} onReset={reset} />
         ) : step === 0 ? (
           <StepUpload
             platform={platform}
             onPlatformChange={changePlatform}
             drafts={drafts}
+            duplicates={duplicates}
             onFiles={addFiles}
             onReject={onReject}
             onRemove={removeDraft}
@@ -357,7 +453,11 @@ export function ContributeWizard({ isAdmin }: { isAdmin: boolean }) {
             <Button
               variant="ghost"
               onClick={() => goTo(step - 1)}
-              disabled={step === 0 || submit.phase === "uploading"}
+              disabled={
+                step === 0 ||
+                submit.phase === "uploading" ||
+                (submit.phase === "error" && step <= 2)
+              }
               className={step === 0 ? "invisible" : undefined}
             >
               <ArrowLeft />

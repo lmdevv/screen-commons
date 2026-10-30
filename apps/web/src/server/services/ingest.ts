@@ -601,6 +601,21 @@ export async function createFlow(
 ): Promise<{ flow: FlowDetail }> {
   const parsed = parseInput(createFlowInputSchema, input);
   const db = getDb();
+  const retried = async () => {
+    if (!parsed.id) return undefined;
+    const [row] = await db
+      .select({ contributorId: flow.contributorId, appId: flow.appId })
+      .from(flow)
+      .where(eq(flow.id, parsed.id))
+      .limit(1);
+    if (!row) return undefined;
+    if (row.contributorId !== principal.user.id || row.appId !== parsed.appId)
+      throw badRequest("This flow id is already in use");
+    return { flow: await getFlow(principal, parsed.id, { countView: false }) };
+  };
+  const previous = await retried();
+  if (previous) return previous;
+
   const [appRow] = await db
     .select({ id: app.id })
     .from(app)
@@ -627,7 +642,7 @@ export async function createFlow(
   }
 
   const now = new Date();
-  const flowId = newId();
+  const flowId = parsed.id ?? newId();
   const writes: BatchItem<"sqlite">[] = [
     db.insert(flow).values({
       id: flowId,
@@ -650,6 +665,12 @@ export async function createFlow(
         .values({ flowId, position, screenId: step.screenId, label: step.label ?? null }),
     ),
   ];
-  await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  try {
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+  } catch (error) {
+    const committed = await retried();
+    if (!committed) throw error;
+    return committed;
+  }
   return { flow: await getFlow(principal, flowId, { countView: false }) };
 }

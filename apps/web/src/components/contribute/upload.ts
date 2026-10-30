@@ -9,6 +9,8 @@ export function progressFetch(onProgress: (fraction: number) => void): typeof fe
     new Promise<Response>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(init?.method ?? "GET", String(input));
+      xhr.timeout = 120_000;
+      xhr.ontimeout = () => reject(new TypeError("Upload timed out. Retry to resume."));
       xhr.withCredentials = init?.credentials === "include";
       new Headers(init?.headers).forEach((value, key) => xhr.setRequestHeader(key, value));
       xhr.upload.onprogress = (event) => {
