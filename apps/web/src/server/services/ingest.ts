@@ -601,24 +601,20 @@ export async function createFlow(
 ): Promise<{ flow: FlowDetail }> {
   const parsed = parseInput(createFlowInputSchema, input);
   const db = getDb();
-  const existing = async () =>
-    parsed.id
-      ? (
-          await db
-            .select({ id: flow.id })
-            .from(flow)
-            .where(
-              and(
-                eq(flow.id, parsed.id),
-                eq(flow.contributorId, principal.user.id),
-                eq(flow.appId, parsed.appId),
-              ),
-            )
-            .limit(1)
-        )[0]
-      : undefined;
-  const previous = await existing();
-  if (previous) return { flow: await getFlow(principal, previous.id, { countView: false }) };
+  const retried = async () => {
+    if (!parsed.id) return undefined;
+    const [row] = await db
+      .select({ contributorId: flow.contributorId, appId: flow.appId })
+      .from(flow)
+      .where(eq(flow.id, parsed.id))
+      .limit(1);
+    if (!row) return undefined;
+    if (row.contributorId !== principal.user.id || row.appId !== parsed.appId)
+      throw badRequest("This flow id is already in use");
+    return { flow: await getFlow(principal, parsed.id, { countView: false }) };
+  };
+  const previous = await retried();
+  if (previous) return previous;
 
   const [appRow] = await db
     .select({ id: app.id })
@@ -672,9 +668,9 @@ export async function createFlow(
   try {
     await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   } catch (error) {
-    const committed = await existing();
+    const committed = await retried();
     if (!committed) throw error;
-    return { flow: await getFlow(principal, committed.id, { countView: false }) };
+    return committed;
   }
   return { flow: await getFlow(principal, flowId, { countView: false }) };
 }

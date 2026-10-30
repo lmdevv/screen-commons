@@ -501,7 +501,7 @@ describe("8. contributors edit and delete only their own contributions", () => {
 
 describe("9. retrying a flow creation with the same id doesn't duplicate it", () => {
   it("returns the first flow for a repeated client-chosen id", async () => {
-    const { app, screens } = await memberApi.captures({
+    const { app, screens } = await adminApi.captures({
       app: { name: `Retry flow ${suffix}` },
       screens: [captureScreen(), captureScreen()],
     });
@@ -511,15 +511,28 @@ describe("9. retrying a flow creation with the same id doesn't duplicate it", ()
       name: "Retried",
       steps: screens.map((item) => ({ screenId: item.id })),
     };
-    const first = await memberApi.createFlow(input);
-    const second = await memberApi.createFlow(input);
-    expect(second.flow.id).toBe(input.id);
+    const first = await adminApi.createFlow(input);
+    const second = await adminApi.createFlow(input);
     expect(first.flow.id).toBe(input.id);
-    const flows = await memberApi.listFlows({ app: app.slug });
+    expect(second.flow.id).toBe(input.id);
+    const flows = await adminApi.listFlows({ app: app.slug });
     expect(flows.items.map((item) => item.id)).toEqual([input.id]);
+  });
 
-    const stolen = await apiError(other.client().createFlow({ ...input, name: "Stolen" }));
-    expect(stolen.status).toBeGreaterThanOrEqual(400);
-    expect((await memberApi.getFlow(input.id)).name).toBe("Retried");
+  it("rejects an id that belongs to someone else's flow", async () => {
+    const { app, screens } = await adminApi.captures({
+      app: { name: `Taken flow ${suffix}` },
+      screens: [captureScreen(), captureScreen()],
+    });
+    const input = {
+      id: crypto.randomUUID(),
+      appId: app.id,
+      name: "Original",
+      steps: screens.map((item) => ({ screenId: item.id })),
+    };
+    await adminApi.createFlow(input);
+    const taken = await apiError(memberApi.createFlow({ ...input, name: "Taken" }));
+    expect(taken).toMatchObject({ status: 400, code: "bad_request" });
+    expect((await adminApi.getFlow(input.id)).name).toBe("Original");
   });
 });
