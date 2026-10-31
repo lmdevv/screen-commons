@@ -82,6 +82,12 @@ describe("errors", () => {
     const missing = await run(["screens", "get", "missing"], withKey());
     expect(missing.code).toBe(4);
     expect(missing.stderr).toBe("not_found: Screen not found\n");
+    const newApp = await run(
+      ["upload", "./missing.png", "--app", "new-app", "--app-name", "New app"],
+      withKey(),
+    );
+    expect(newApp.code).toBe(4);
+    expect(newApp.stderr).toContain("pass --app-name on its own");
     const rejected = await run(["whoami"], {
       ...withKey(),
       SCREEN_COMMONS_API_KEY: "sc_wrong_key",

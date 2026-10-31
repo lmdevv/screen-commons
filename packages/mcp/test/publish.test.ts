@@ -418,6 +418,83 @@ describe("a truncated image", () => {
   });
 });
 
+describe("source decoding limits", () => {
+  const validate = async (sources: Record<string, Buffer>) => {
+    const screens = await Promise.all(
+      Object.entries(sources).map(async ([localId, bytes]) => {
+        const file = join(dir, `limits-${localId}`);
+        await writeFile(file, bytes);
+        return { localId, source: { file }, patterns: [], elements: [] };
+      }),
+    );
+    const manifestFile = join(dir, "limits.json");
+    await writeFile(
+      manifestFile,
+      JSON.stringify({ version: 1, id: "limits", app: { name: "Limits" }, screens }),
+    );
+    return (await validateManifest(manifestFile)).issues;
+  };
+
+  it("refuses a small file with too many pixels, whichever source, without decoding", async () => {
+    const bomb = await sharp({
+      create: { width: 9100, height: 9100, channels: 3, background: "#000" },
+    })
+      .png({ compressionLevel: 1 })
+      .toBuffer();
+    const started = Date.now();
+    const issues = await validate(
+      Object.fromEntries(
+        names.flatMap((name) => [
+          [name, bomb],
+          [`${name}2`, bomb],
+        ]),
+      ),
+    );
+    expect(issues).toHaveLength(8);
+    for (const issue of issues) {
+      expect(issue.code).toBe("invalid_image");
+      expect(issue.message).toContain("9100x9100");
+    }
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  it("accepts the tallest screenshot the server stores", async () => {
+    const tall = await sharp({
+      create: {
+        width: LIMITS.maxImageWidth,
+        height: LIMITS.maxImageHeight,
+        channels: 3,
+        background: "#fff",
+      },
+    })
+      .png({ compressionLevel: 1 })
+      .toBuffer();
+    expect(await validate({ tall })).toEqual([]);
+  });
+
+  it("refuses animated WebP and PNG, as the server does", async () => {
+    const frame = (value: number) => Buffer.alloc(40 * 40 * 3, value);
+    const webp = await sharp(Buffer.concat([frame(40), frame(200)]), {
+      raw: { width: 40, height: 80, channels: 3, pageHeight: 40 },
+    })
+      .webp({ loop: 0, delay: [100, 100] })
+      .toBuffer();
+    const still = await png(1);
+    const actl = Buffer.from([
+      0, 0, 0, 8, 0x61, 0x63, 0x54, 0x4c, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    const apng = Buffer.concat([still.subarray(0, 33), actl, still.subarray(33)]);
+    const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+    expect(
+      (await validate({ webp, apng, gif })).map((issue) => [issue.localId, issue.code]),
+    ).toEqual([
+      ["webp", "invalid_image"],
+      ["apng", "invalid_image"],
+      ["gif", "invalid_image"],
+    ]);
+  });
+});
+
 describe("retryingFetch reading the body", () => {
   const options = { baseDelayMs: 1, sleep: () => Promise.resolve() };
   /** Successful headers, then the connection drops partway through the body, `drops` times. */

@@ -41,6 +41,8 @@ screen-commons flows create --app acme --name "Sign up" --step <id>=Start --step
 screen-commons flows update <id> --patch '{"description":null}'
 ```
 
+`upload --app <slug>` adds to an app that exists. `--app-name <name>` on its own creates the app if it's new.
+
 You can edit and delete only what you contributed.
 
 ## Output and exit codes
@@ -108,7 +110,7 @@ screen-commons manifest validate manifest.json
 screen-commons manifest publish manifest.json
 ```
 
-`validate` checks the manifest and decodes its local files, so a truncated image is reported as `invalid_image`, without using the network. Agents can use the local MCP server's `publish_manifest` tool instead, which takes a `path` and returns the same report.
+`validate` checks the manifest and decodes its local files, so a truncated or animated image, or one over 81.92 million pixels (4096 × 20,000 in any shape), is reported as `invalid_image`, without using the network. Agents can use the local MCP server's `publish_manifest` tool instead, which takes a `path` and returns the same report.
 
 ### Repeating a publish
 

@@ -9,8 +9,9 @@ import {
   ScreenCommonsApiError,
   captureManifestSchema,
   downloadImage,
+  exceedsSourcePixels,
   isLocalOrigin,
-  readImageHeader,
+  sniffImage,
   thumbnailKindFor,
   type AppRef,
   type CaptureManifest,
@@ -114,12 +115,24 @@ async function downloadSource(url: string, source: SourceDownload): Promise<Buff
   }
 }
 
-/** Whether the whole image decodes, since a truncated file can have a valid header. */
+/**
+ * Whether the whole image decodes, since a truncated file can have a valid header. Its size comes
+ * from the header first, because a small file can decode to billions of pixels.
+ */
 export async function assertDecodes(bytes: Buffer): Promise<void> {
   const invalid = new CodedError("invalid_image", "Not a complete, still PNG, JPEG or WebP image");
-  if (!readImageHeader(bytes)) throw invalid;
+  const header = sniffImage(bytes);
+  if (!header) throw invalid;
+  if (exceedsSourcePixels(header)) {
+    throw new CodedError(
+      "invalid_image",
+      `The image is ${header.width}x${header.height}; the limit is ${LIMITS.maxSourcePixels} pixels`,
+    );
+  }
+  const decoder = () => sharp(bytes, { limitInputPixels: LIMITS.maxSourcePixels });
   try {
-    await sharp(bytes, { limitInputPixels: false }).stats();
+    if (((await decoder().metadata()).pages ?? 1) > 1) throw invalid;
+    await decoder().stats();
   } catch {
     throw invalid;
   }

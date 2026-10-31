@@ -21,6 +21,7 @@ import {
   type ListFlowsQuery,
   type ListScreensQuery,
   type ScreenCommonsClient,
+  ScreenCommonsApiError,
 } from "@screen-commons/core";
 import type { z } from "zod";
 
@@ -205,7 +206,17 @@ async function upload(context: Context) {
   const name = str(values, "app-name");
   if (!slug && !name) throw usage("Pass --app <slug> or --app-name <name>");
   const client = context.client();
-  const existing = slug ? await client.getApp(slug) : undefined;
+  const existing = slug
+    ? await client.getApp(slug).catch((error: unknown) => {
+        if (error instanceof ScreenCommonsApiError && error.code === "not_found") {
+          throw new CodedError(
+            "not_found",
+            `App ${slug} not found. --app only names an app that exists; pass --app-name on its own to create one.`,
+          );
+        }
+        throw error;
+      })
+    : undefined;
   const title = str(values, "title");
   const sourceUrl = str(values, "source-url");
   const { parseManifest, publishManifest } = await import("./publish");
