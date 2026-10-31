@@ -1188,8 +1188,8 @@ async function commandDrive(flags, positional) {
     },
     /**
      * The real client over stdio to what npm would serve: the production package, packed and
-     * installed outside the workspace. Installing contacts the npm registry. Returns the client
-     * and the package's manifest and file list.
+     * installed outside the workspace. Installing contacts the npm registry. Returns the client,
+     * the package's manifest and file list, and where it's installed.
      */
     async packagedMcp({ label = "package", ...options } = {}) {
       const scratch = join(runDir(run.id), `package-${stamp}`);
@@ -1226,7 +1226,15 @@ async function commandDrive(flags, positional) {
         client,
         manifest: JSON.parse(readFileSync(join(staged, "package.json"), "utf8")),
         files: files.map((file) => file.path),
+        /** Where it's installed, outside the workspace, with its bins in `node_modules/.bin`. */
+        app,
+        tarball: join(scratch, filename),
       };
+    },
+    /** Path to a fresh build of the `screen-commons` CLI, for running as a subprocess. */
+    builtCli() {
+      localEntry ??= buildLocalMcp(run);
+      return join(mcpBuildDir(run.id), "cli.js");
     },
     /** Calls a tool and saves the result as proof, with each returned image next to it. */
     async call(client, label, name, args = {}) {

@@ -67,7 +67,7 @@ A revision mismatch means you changed branch or committed after launching. `vite
 .agents/skills/verify-screen-commons/scripts/control.mjs drive <journey> --run <id>
 ```
 
-Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
+Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `cli`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
 
 - a failed step, or a rejected promise nothing handled;
 - a page error or console error on a watched page, meaning an `h.newPage` page or the extension's Options page;
@@ -110,7 +110,8 @@ export default async function (h) {
 | `h.mcp(method, params, token?)`                          | Raw JSON-RPC call to `/mcp` with the admin key. Returns `{ status, body }`.                                                                                            |
 | `h.remoteMcp(token?)`                                    | The SDK's MCP client connected to `/mcp` over Streamable HTTP. Defaults to the admin key.                                                                              |
 | `h.localMcp({ label, token, bridgePort, pairingToken })` | The SDK's MCP client connected over stdio to a fresh build of the local server. `token: null` runs it with no key.                                                     |
-| `h.packagedMcp({ label, token })`                        | The SDK\'s client over stdio to the production package, packed and installed outside the workspace. Contacts the npm registry. Returns `{ client, manifest, files }`.  |
+| `h.packagedMcp({ label, token })`                        | The SDK\'s client over stdio to the production package, packed and installed outside the workspace. Contacts the npm registry. Returns `{ client, manifest, files, app, tarball }`. |
+| `h.builtCli()`                                           | Path to a fresh build of the `screen-commons` CLI, to run as a subprocess.                                                                                                          |
 | `h.call(client, label, tool, args?)`                     | Call a tool and save the result and first image as proof. Returns `{ isError, text, images }`.                                                                         |
 | `h.fixtureSite()`                                        | A local site with `/`, `/pricing`, `/signup` and `/docs`, for the browser tools. Returns `{ origin, url(path) }`.                                                      |
 | `h.extensionBrowser()`                                   | Chromium with the freshly built extension in a throwaway profile. Returns `{ context, worker, options }`, where `options` is its Options page.                         |
