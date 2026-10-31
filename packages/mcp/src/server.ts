@@ -7,6 +7,7 @@ import { registerCatalogTools } from "./catalog";
 import type { McpConfig } from "./config";
 import { DriverManager, HeadlessDriver } from "./drivers";
 import { registerPrompts } from "./prompts";
+import { imageFetchFor } from "./public-fetch";
 
 export { BridgeServer, isAllowedOrigin } from "./bridge";
 export { loadConfig, loadOrCreateToken, parseArgs, type McpConfig } from "./config";
@@ -16,7 +17,7 @@ export const SERVER_INFO = { name: "screen-commons-mcp", version: "0.1.1" } as c
 
 const INSTRUCTIONS = `Screen Commons is a UI reference library of real product screens and flows.
 - Catalog tools (search_screens, search_flows, list_apps, get_app, get_screen, get_flow, get_taxonomy) browse it for design inspiration; get_screen returns the screenshot as an image.
-- To move screens in yourself: upload_screen (base64, a public URL, or a local file path), then create_flow. update_screen, delete_screen, update_flow and delete_flow manage what you contributed.
+- To move screens in yourself: upload_screen (a local file path, a URL, or base64 as a last resort), then create_flow. update_screen, delete_screen, update_flow and delete_flow manage what you contributed.
 - Browser tools capture new references: site_crawl a site, then capture_pages the canonical pages (home, pricing, login, signup, docs, blog, changelog, about) with upload=true to publish them as one app, optionally as a flow.
 - browser_status tells you whether captures run in the user's real browser (extension) or headless Chromium.`;
 
@@ -65,6 +66,7 @@ export function createScreenCommonsMcpServer(options: CreateServerOptions): Scre
     apiKey: config.apiKey,
     client,
     fetch: doFetch,
+    imageFetch: options.fetch ?? imageFetchFor(config.url),
   });
   registerBrowserTools(server, {
     baseUrl: config.url,

@@ -24,7 +24,7 @@ Create an API key in **Settings → API keys** on your instance, then add the se
 }
 ```
 
-The browser tools need Chrome or Chromium installed; set `CHROME_PATH` if it isn't found automatically. Node.js 20.9 or newer is required. Run `npx screen-commons-mcp --help` for every option.
+The browser tools need Chrome or Chromium installed; set `CHROME_PATH` if it isn't found automatically. Node.js 20.18.1 or newer is required. Run `npx screen-commons-mcp --help` for every option.
 
 See the [MCP documentation](https://github.com/lmdevv/screen-commons/blob/main/apps/web/content/docs/mcp.md) for the tool reference and extension pairing.
 

@@ -340,6 +340,9 @@ importers:
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.6.1)
+      undici:
+        specifier: ^7.29.1
+        version: 7.29.1
       ws:
         specifier: ^8.22.0
         version: 8.22.0

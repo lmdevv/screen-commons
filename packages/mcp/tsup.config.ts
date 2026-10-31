@@ -11,7 +11,7 @@ export default defineConfig({
   splitting: true,
   // Workspace packages ship TypeScript source: bundle them; keep npm deps external.
   noExternal: [/^@screen-commons\//u],
-  external: ["playwright-core", "sharp", "ws", "zod", /^@modelcontextprotocol\/sdk/u],
+  external: ["playwright-core", "sharp", "undici", "ws", "zod", /^@modelcontextprotocol\/sdk/u],
   esbuildOptions(options) {
     options.keepNames = false;
   },

@@ -46,6 +46,8 @@ export interface CatalogContext {
   apiKey: string | undefined;
   client: ScreenCommonsClient;
   fetch: typeof fetch;
+  /** Downloads `image.url`, on every hop. Separate from `fetch`, which only talks to the instance. */
+  imageFetch: typeof fetch;
 }
 
 const MAX_INLINE_IMAGE_BYTES = 3.5 * 1024 * 1024;
@@ -119,7 +121,7 @@ async function uploadBytes(
       return Buffer.from(
         await downloadImage(image.url, {
           allowLocal: isLocalOrigin(context.baseUrl),
-          fetch: context.fetch,
+          fetch: context.imageFetch,
         }),
       );
     } catch (error) {
