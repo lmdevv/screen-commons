@@ -2,7 +2,7 @@
 
 The local [Model Context Protocol](https://modelcontextprotocol.io) server for [Screen Commons](https://github.com/lmdevv/screen-commons), an open-source UI reference library. It runs next to your agent over stdio and exposes:
 
-- **Catalog tools** with the same names, arguments and results as an instance's remote `/mcp` server: search screens and flows, view images, upload.
+- **Catalog tools** with the same names, arguments and results as an instance's remote `/mcp` server: search screens and flows, view images, upload screens as base64, a URL or a local file path, create flows, and edit or delete what you contributed.
 - **Browser tools** that navigate, screenshot, crawl and capture sites, through your real browser with the Screen Commons extension, or through headless Chromium.
 
 ## Use it
