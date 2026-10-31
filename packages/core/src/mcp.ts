@@ -295,5 +295,22 @@ export const browserTools = {
   }),
 } as const;
 
+/** Local server only: it reads the manifest and its images from this machine. */
+export const publishTools = {
+  publish_manifest: tool({
+    name: "publish_manifest",
+    title: "Publish a capture manifest",
+    description:
+      "Publish a capture manifest file: its screens and ordered flows. Safe to repeat: running it again, even after a crash or an edit to the manifest, converges on the same catalog. Returns a JSON report with each screen's and flow's id, status, url or error, and an overall ok. Run the screen-commons CLI's `manifest validate` to check a file first.",
+    input: z.object({
+      path: z
+        .string()
+        .min(1)
+        .describe("Path to the manifest JSON. Relative source files resolve against its folder."),
+    }),
+    readOnly: false,
+  }),
+} as const;
+
 export type CatalogToolName = keyof typeof catalogTools;
 export type BrowserToolName = keyof typeof browserTools;

@@ -10,6 +10,7 @@ import { findChrome } from "@screen-commons/capture";
 import {
   TAXONOMY,
   browserTools,
+  publishTools,
   catalogTools,
   readImageHeader,
   type BridgeMessage,
@@ -102,7 +103,13 @@ describe("tools, prompts and resources", () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
     const names = tools.map((tool) => tool.name).sort();
-    expect(names).toEqual([...Object.keys(catalogTools), ...Object.keys(browserTools)].sort());
+    expect(names).toEqual(
+      [
+        ...Object.keys(catalogTools),
+        ...Object.keys(browserTools),
+        ...Object.keys(publishTools),
+      ].sort(),
+    );
     const capture = tools.find((tool) => tool.name === "capture_pages")!;
     expect(capture.description).toBe(browserTools.capture_pages.description);
     expect(Object.keys(capture.inputSchema.properties ?? {})).toEqual(
@@ -580,5 +587,44 @@ describe("browser tools (extension driver over the bridge)", () => {
     expect(textOf(shot)).toContain("1280×800 viewport screenshot of https://real.example/");
     expect(seen).toEqual(["listTabs", "navigate", "screenshot"]);
     socket.close();
+  });
+});
+
+describe("publish_manifest", () => {
+  it("reports an unreadable manifest as a tool error", async () => {
+    const { client } = await connect();
+    const result = (await client.callTool({
+      name: "publish_manifest",
+      arguments: { path: join(outputDir, "no-such.json") },
+    })) as { isError: boolean; content: { text: string }[] };
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toMatch(/^invalid_manifest: /u);
+  });
+
+  it("publishes a manifest through the server's own client", async () => {
+    const { client } = await connect();
+    const image = join(outputDir, "manifest-shot.png");
+    await writeFile(
+      image,
+      await sharp({ create: { width: 64, height: 40, channels: 3, background: "#abcdef" } })
+        .png()
+        .toBuffer(),
+    );
+    const path = join(outputDir, "manifest.json");
+    await writeFile(
+      path,
+      JSON.stringify({
+        version: 1,
+        id: "tool",
+        app: { name: "Tool" },
+        screens: [{ localId: "a", source: { file: image }, patterns: [], elements: [] }],
+      }),
+    );
+    const result = (await client.callTool({
+      name: "publish_manifest",
+      arguments: { path },
+    })) as { isError?: boolean; content: { text: string }[] };
+    expect(result.content[0]!.text).toContain('"localId":"a"');
+    expect(api.batches.at(-1)?.source).toBe("mcp");
   });
 });
