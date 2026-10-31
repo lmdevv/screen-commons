@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { LIMITS } from "./limits";
 import {
   appInputSchema,
   categorySchema,
@@ -90,8 +91,7 @@ export const catalogTools = {
   get_flow: tool({
     name: "get_flow",
     title: "Get flow",
-    description:
-      "Get a flow with its ordered steps. Set includeImages=true to receive step thumbnails as image content.",
+    description: `Get a flow with its ordered steps. Set includeImages=true to receive thumbnails of the first ${LIMITS.maxFlowImages} steps as image content; imagePositions gives the step position of each image, in order.`,
     input: z.object({
       id: z.string().min(1),
       includeImages: z.boolean().default(false),

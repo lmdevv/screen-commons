@@ -5,9 +5,16 @@ import {
   LIMITS,
   bytesToBase64,
   catalogTools,
+  compactApp,
+  compactFlow,
+  compactScreen,
+  createdFlowResult,
+  flowDetailResult,
+  flowImageSteps,
+  imageTypeNote,
+  screenDetailResult,
+  toolErrorText,
   type CatalogToolName,
-  type FlowSummary,
-  type Screen,
 } from "@screen-commons/core";
 import type { z } from "zod";
 
@@ -37,67 +44,31 @@ async function imageContent(url: string): Promise<CallToolResult["content"][numb
 }
 
 function createHandlers(principal: Principal, origin: string) {
-  const absolute = (path: string | null) => (path ? `${origin}${path}` : null);
-  const compactScreen = (screen: Screen) => ({
-    id: screen.id,
-    title: screen.title,
-    app: {
-      id: screen.app.id,
-      slug: screen.app.slug,
-      name: screen.app.name,
-      platform: screen.app.platform,
-    },
-    patterns: screen.patterns,
-    elements: screen.elements,
-    tags: screen.tags,
-    sourceUrl: screen.sourceUrl,
-    width: screen.width,
-    height: screen.height,
-    status: screen.status,
-    thumbUrl: absolute(screen.thumbUrl),
-    imageUrl: absolute(screen.imageUrl),
-    url: `${origin}/screens/${screen.id}`,
-  });
-  const compactFlow = (flow: FlowSummary) => ({
-    id: flow.id,
-    name: flow.name,
-    type: flow.type,
-    description: flow.description,
-    app: { id: flow.app.id, slug: flow.app.slug, name: flow.app.name, platform: flow.app.platform },
-    stepCount: flow.stepCount,
-    status: flow.status,
-    url: `${origin}/flows/${flow.id}`,
-  });
-
   const handlers: { [N in CatalogToolName]: Handler<N> } = {
     search_screens: async ({ query, ...rest }) => {
       const page = await services.listScreens(principal, { ...rest, q: query });
-      return json({ items: page.items.map(compactScreen), nextCursor: page.nextCursor });
+      return json({
+        items: page.items.map((screen) => compactScreen(origin, screen)),
+        nextCursor: page.nextCursor,
+      });
     },
     search_flows: async ({ query, ...rest }) => {
       const page = await services.listFlows(principal, { ...rest, q: query });
-      return json({ items: page.items.map(compactFlow), nextCursor: page.nextCursor });
+      return json({
+        items: page.items.map((flow) => compactFlow(origin, flow)),
+        nextCursor: page.nextCursor,
+      });
     },
     list_apps: async ({ query, ...rest }) => {
       const page = await services.listApps(principal, { ...rest, q: query });
       return json({
-        items: page.items.map((app) => ({
-          ...app,
-          logoUrl: absolute(app.logoUrl),
-          previews: undefined,
-          url: `${origin}/apps/${app.slug}`,
-        })),
+        items: page.items.map((app) => compactApp(origin, app)),
         nextCursor: page.nextCursor,
       });
     },
     get_app: async ({ slug }) => {
       const app = await services.getApp(principal, slug);
-      return json({
-        ...app,
-        logoUrl: absolute(app.logoUrl),
-        previews: undefined,
-        url: `${origin}/apps/${app.slug}`,
-      });
+      return json(compactApp(origin, app));
     },
     get_screen: async ({ id, full }) => {
       const screen = await services.getScreen(principal, id);
@@ -106,14 +77,7 @@ function createHandlers(principal: Principal, origin: string) {
         content: [
           {
             type: "text",
-            text: JSON.stringify({
-              ...compactScreen(screen),
-              version: screen.version,
-              capturedAt: screen.capturedAt,
-              previousId: screen.previousId,
-              nextId: screen.nextId,
-              flows: screen.flows,
-            }),
+            text: JSON.stringify(screenDetailResult(origin, screen)),
           },
           ...(image ? [image] : []),
         ],
@@ -121,33 +85,31 @@ function createHandlers(principal: Principal, origin: string) {
     },
     get_flow: async ({ id, includeImages }) => {
       const flow = await services.getFlow(principal, id);
-      const content: CallToolResult["content"] = [
-        {
-          type: "text",
-          text: JSON.stringify({
-            ...compactFlow(flow),
-            steps: flow.steps.map((step) => ({
-              position: step.position,
-              label: step.label,
-              screen: compactScreen(step.screen),
-            })),
-          }),
-        },
-      ];
-      if (includeImages) {
-        for (const step of flow.steps) {
-          const image = await imageContent(step.screen.thumbUrl);
-          if (image) content.push(image);
-        }
+      if (!includeImages) return json(flowDetailResult(origin, flow));
+      const images: CallToolResult["content"] = [];
+      const positions: number[] = [];
+      for (const step of flowImageSteps(flow)) {
+        const image = await imageContent(step.screen.thumbUrl);
+        if (!image) continue;
+        images.push(image);
+        positions.push(step.position);
       }
-      return { content };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(flowDetailResult(origin, flow, positions)) },
+          ...images,
+        ],
+      };
     },
     get_taxonomy: async () => json(services.getTaxonomy()),
-    upload_screen: async (args) =>
-      json(await services.uploadScreenFromTool(principal, args, origin)),
+    upload_screen: async (args) => {
+      const result = await services.uploadScreenFromTool(principal, args, origin);
+      const note = imageTypeNote(args.image);
+      return json({ ...result, ...(note ? { note } : {}) });
+    },
     create_flow: async (args) => {
       const { flow } = await services.createFlow(principal, args);
-      return json({ ...compactFlow(flow), steps: flow.steps.map((step) => step.screen.id) });
+      return json(createdFlowResult(origin, flow));
     },
   };
   return handlers;
@@ -178,11 +140,14 @@ function createServer(principal: Principal, origin: string): McpServer {
           return await handler(args);
         } catch (error) {
           const failure = toServiceError(error);
-          const retry =
-            failure.retryAfter === undefined ? "" : ` Retry in ${failure.retryAfter} seconds.`;
           return {
             isError: true,
-            content: [{ type: "text", text: `${failure.code}: ${failure.message}${retry}` }],
+            content: [
+              {
+                type: "text",
+                text: toolErrorText(failure.code, failure.message, failure.retryAfter),
+              },
+            ],
           };
         }
       }) as never,

@@ -65,5 +65,8 @@ test-results
 playwright-report
 .seed-cache
 
+# npm package staging (packages/mcp)
+.publish
+
 # Agent worktrees
 .claude/worktrees

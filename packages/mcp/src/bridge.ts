@@ -82,7 +82,7 @@ export class BridgeServer extends EventEmitter {
       helloTimeoutMs: 10_000,
       idleTimeoutMs: 75_000,
       maxPayload: 64 * 1024 * 1024,
-      serverInfo: { name: "screen-commons-mcp", version: "0.1.0" },
+      serverInfo: { name: "screen-commons-mcp", version: "0.1.1" },
       log: () => undefined,
       ...options,
     };

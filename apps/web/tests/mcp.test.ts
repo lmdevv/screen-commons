@@ -135,6 +135,10 @@ describe("remote MCP (/mcp)", () => {
     const flow = await call("get_flow", { id: batch.flow!.id, includeImages: true });
     expect(JSON.parse(flow.content![0]!.text!).steps).toHaveLength(2);
     expect(flow.content!.filter((item) => item.type === "image")).toHaveLength(2);
+    const detail = JSON.parse(flow.content![0]!.text!);
+    expect(detail.imagePositions).toEqual(
+      detail.steps.map((step: { position: number }) => step.position),
+    );
 
     const app = JSON.parse((await call("get_app", { slug: batch.app.slug })).content![0]!.text!);
     expect(app).toMatchObject({ id: batch.app.id, screenCount: 2, flowCount: 1 });
@@ -188,6 +192,13 @@ describe("remote MCP (/mcp)", () => {
     );
     expect(created.stepCount).toBe(2);
     expect(created.steps).toEqual([batch.screens[1]!.id, upload.screen.id]);
+
+    const notBase64 = await call("upload_screen", {
+      app: { slug: batch.app.slug, name: "Mcp Demo" },
+      image: { type: "image/png", base64: "not base64!" },
+    });
+    expect(notBase64.isError).toBe(true);
+    expect(notBase64.content![0]!.text).toMatch(/^bad_request: /u);
 
     const invalid = await rpc("tools/call", {
       name: "search_screens",

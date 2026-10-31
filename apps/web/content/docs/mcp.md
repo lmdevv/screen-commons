@@ -97,16 +97,21 @@ The server is stateless and answers with plain JSON. It accepts `POST` only. Req
 - **Extension** (preferred). Your real browser, through the [Screen Commons Capture extension](/docs/extension) connected to the local bridge. Pages render exactly as you see them.
 - **Headless** (fallback). A local Chrome or Chromium driven by `playwright-core`. Used automatically when no extension is connected.
 
-### Build
+### Install
 
-From the repository root:
+Requires Node.js 20.9 or newer. MCP clients start it with `npx`, so there's nothing to install first:
+
+```bash
+npx -y screen-commons-mcp --help
+```
+
+When developing Screen Commons, build from your checkout instead. The workspace package itself is private, and only the production pipeline publishes to npm:
 
 ```bash
 pnpm install
 pnpm --filter @screen-commons/mcp build
+node packages/mcp/dist/index.js
 ```
-
-Then run it with `node packages/mcp/dist/index.js`. The workspace package is currently private and unpublished; `screen-commons-mcp` is its executable name, not an available npm install.
 
 ### Configure
 
@@ -127,7 +132,7 @@ All logs, including the pairing token, go to stderr; stdout carries only MCP mes
 claude mcp add --transport stdio \
   --env SCREEN_COMMONS_URL=http://localhost:5173 \
   --env SCREEN_COMMONS_API_KEY=sc_… \
-  screen-commons -- node /absolute/path/to/screen-commons/packages/mcp/dist/index.js
+  screen-commons -- npx -y screen-commons-mcp
 ```
 
 ### Cursor and other clients
@@ -136,8 +141,8 @@ claude mcp add --transport stdio \
 {
   "mcpServers": {
     "screen-commons": {
-      "command": "node",
-      "args": ["/absolute/path/to/screen-commons/packages/mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "screen-commons-mcp"],
       "env": {
         "SCREEN_COMMONS_URL": "http://localhost:5173",
         "SCREEN_COMMONS_API_KEY": "sc_…"
@@ -146,8 +151,6 @@ claude mcp add --transport stdio \
   }
 }
 ```
-
-Use the built local file above until an npm package is published.
 
 ## Pair the browser extension
 
@@ -190,14 +193,14 @@ Catalog tools are available on both servers. Browser tools are local only.
 | `list_apps`      | List apps.                                                                                            | `query?`, `platform?`, `category?`, `sort` (`latest` \| `popular`), `limit` (1–50, default 20), `cursor?`                                                       |
 | `get_app`        | One app with screen and flow counts, versions, patterns and elements.                                 | `slug`                                                                                                                                                          |
 | `get_screen`     | One screen's metadata plus the image as MCP image content.                                            | `id`, `full` (default `false`: thumbnail; `true`: full resolution)                                                                                              |
-| `get_flow`       | A flow with its ordered steps.                                                                        | `id`, `includeImages` (default `false`; `true` adds step thumbnails as image content)                                                                           |
+| `get_flow`       | A flow with its ordered steps.                                                                        | `id`, `includeImages` (default `false`; `true` adds thumbnails of the first 20 steps as image content, with `imagePositions` naming each image's step)          |
 | `get_taxonomy`   | Valid platforms, categories, patterns, UI elements and flow types.                                    | none                                                                                                                                                            |
 | `upload_screen`  | Upload one screenshot under an app, creating the app if needed.                                       | `app` (`name`, `websiteUrl?`, `platform?`, `category?`, `slug?`), `image` (`type`, `base64`), `title?`, `sourceUrl?`, `patterns?` (max 8), `elements?` (max 24) |
 | `create_flow`    | Create a flow from existing screens of one app.                                                       | `appId`, `name`, `type?`, `steps` (at least 2 of `{ screenId, label? }`)                                                                                        |
 
-Results are JSON text. URLs in tool output are absolute, and every item includes a `url` to open it on your instance.
+Both servers return the same results: JSON text, plus image content for `get_screen` and `get_flow`. URLs are absolute, and every item includes a `url` to open it on your instance. Errors read `code: message`, such as `not_found: App not found`. The one difference is that the local server shrinks an image too large to send inline and says so in a `note` field.
 
-`upload_screen` types the image by its bytes: an `image.type` that doesn't match is ignored (the local server notes it in the result). The server makes the thumbnail, so an upload it can't make one for fails: `unavailable` (retry after the stated time) when the Images binding failed, `unprocessable` when retrying can't help, such as a PNG or JPEG taller than 12,000 px (send it as WebP, at most 16,383 px tall) or an instance without an Images binding.
+`upload_screen` types the image by its bytes: an `image.type` that doesn't match is ignored, and the result's `note` field says so. The remote server makes the thumbnail, so an upload it can't make one for fails: `unavailable` (retry after the stated time) when the Images binding failed, `unprocessable` when retrying can't help, such as a PNG or JPEG taller than 12,000 px (send it as WebP, at most 16,383 px tall) or an instance without an Images binding.
 
 ### Browser tools (local only)
 

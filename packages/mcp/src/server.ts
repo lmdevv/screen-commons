@@ -12,7 +12,7 @@ export { BridgeServer, isAllowedOrigin } from "./bridge";
 export { loadConfig, loadOrCreateToken, parseArgs, type McpConfig } from "./config";
 export { DriverManager, ExtensionDriver, HeadlessDriver, type CaptureDriver } from "./drivers";
 
-export const SERVER_INFO = { name: "screen-commons-mcp", version: "0.1.0" } as const;
+export const SERVER_INFO = { name: "screen-commons-mcp", version: "0.1.1" } as const;
 
 const INSTRUCTIONS = `Screen Commons is a UI reference library of real product screens and flows.
 - Catalog tools (search_screens, search_flows, list_apps, get_app, get_screen, get_flow, get_taxonomy) browse it for design inspiration; get_screen returns the screenshot as an image.
