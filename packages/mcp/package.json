@@ -1,10 +1,11 @@
 {
   "name": "@screen-commons/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
-  "description": "screen-commons-mcp: stdio MCP server for Screen Commons (catalog tools + browser capture via the extension bridge or headless Chromium).",
+  "description": "screen-commons-mcp: stdio MCP server and screen-commons CLI for Screen Commons (catalog tools, manifest publishing, browser capture via the extension bridge or headless Chromium).",
   "license": "Apache-2.0",
   "bin": {
+    "screen-commons": "./dist/cli.js",
     "screen-commons-mcp": "./dist/index.js"
   },
   "files": [
