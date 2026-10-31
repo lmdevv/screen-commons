@@ -56,6 +56,8 @@ type AppInput = z.output<typeof appInputSchema>;
 type ImageKind = "img" | "thumb" | "logo";
 
 const MAX_SLUG_ATTEMPTS = 100;
+/** Rejections racing one upload hard enough to use these up should be reported, not looped on. */
+const MAX_CLAIM_ATTEMPTS = 3;
 
 export const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: number }> = {
   img: { bytes: LIMITS.maxImageBytes, width: LIMITS.maxImageWidth, height: LIMITS.maxImageHeight },
@@ -451,8 +453,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
     now,
   );
   const appRow = resolved.row;
-  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
-  for (const { item, id, media } of created) {
+  const claimWrites = ({ item, media }: (typeof created)[number], id: string) => {
     const { full, thumb, originalKey, displayVersion, displayException } = media;
     const capturedAt = parseDate(item.capturedAt);
     const values: NewScreenRow = {
@@ -484,8 +485,26 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       createdAt: now,
       updatedAt: now,
     };
-    writes.push(db.insert(screen).values(values).onConflictDoNothing());
-  }
+    // A rejected row isn't an answer, whatever wrote it: code that rejects without clearing its
+    // claim can be serving during a deploy. Releasing in the insert's own batch means parallel
+    // uploads hitting that row still settle on one replacement, the first batch's.
+    return [
+      db
+        .update(screen)
+        .set({ dedupeImageKey: null })
+        .where(
+          and(
+            eq(screen.appId, appRow.id),
+            eq(screen.contributorId, principal.user.id),
+            eq(screen.dedupeImageKey, full.key),
+            eq(screen.status, "rejected"),
+          ),
+        ),
+      db.insert(screen).values(values).onConflictDoNothing(),
+    ];
+  };
+  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
+  for (const entry of created) writes.push(...claimWrites(entry, entry.id));
   const claimed = new Map(created.map(({ id, media }) => [id, media.full.key]));
 
   let flowResult: IngestResult["flow"] = null;
@@ -530,24 +549,46 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
   // 5. Report the rows that hold each claim, and clean up after any upload that lost one. Same
   //    bytes mean the same image keys, but a client can send its own thumbnail.
   if (created.length === 0) return { app: appRow, screens, flow: flowResult };
-  const holders = await db
-    .select({
-      id: screen.id,
-      status: screen.status,
-      dedupeImageKey: screen.dedupeImageKey,
-      imageKey: screen.imageKey,
-      thumbKey: screen.thumbKey,
-      originalKey: screen.originalKey,
-    })
-    .from(screen)
-    .where(
-      and(
-        eq(screen.appId, appRow.id),
-        eq(screen.contributorId, principal.user.id),
-        inJsonArray(screen.dedupeImageKey, [...claimed.values()]),
-      ),
+  const readHolders = async () => {
+    const holders = await db
+      .select({
+        id: screen.id,
+        status: screen.status,
+        dedupeImageKey: screen.dedupeImageKey,
+        imageKey: screen.imageKey,
+        thumbKey: screen.thumbKey,
+        originalKey: screen.originalKey,
+      })
+      .from(screen)
+      .where(
+        and(
+          eq(screen.appId, appRow.id),
+          eq(screen.contributorId, principal.user.id),
+          inJsonArray(screen.dedupeImageKey, [...claimed.values()]),
+        ),
+      );
+    return new Map(holders.map((row) => [row.dedupeImageKey, row]));
+  };
+  let holderOf = await readHolders();
+  // A holder rejected or deleted since the batch above, under any code, leaves nothing to report.
+  for (let attempt = 1; ; attempt += 1) {
+    const unanswered = created.filter(({ media }) => {
+      const holder = holderOf.get(media.full.key);
+      return !holder || holder.status === "rejected";
+    });
+    if (unanswered.length === 0) break;
+    if (attempt === MAX_CLAIM_ATTEMPTS) {
+      throw new ServiceError(
+        "conflict",
+        "This image kept being rejected or deleted while it uploaded. Try again.",
+      );
+    }
+    const retries: BatchItem<"sqlite">[] = unanswered.flatMap((entry) =>
+      claimWrites(entry, newId()),
     );
-  const holderOf = new Map(holders.map((row) => [row.dedupeImageKey, row]));
+    await db.batch(retries as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    holderOf = await readHolders();
+  }
   const unused = created.flatMap(({ id, media }) => {
     const holder = holderOf.get(media.full.key);
     if (!holder || holder.id === id) return [];

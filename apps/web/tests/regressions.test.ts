@@ -9,7 +9,7 @@ import {
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng, makeWebp } from "./images";
-import { Session, b64, baseUrl, captureScreen, keyClient, uniqueSuffix } from "./helpers";
+import { Session, b64, baseUrl, captureScreen, d1, keyClient, uniqueSuffix } from "./helpers";
 
 const suffix = uniqueSuffix();
 
@@ -180,6 +180,65 @@ describe("parallel captures of the same image", () => {
     expect(second.screens[0]!.id).not.toBe(first.screens[0]!.id);
     const third = await memberApi.captures({ app, screens: [shot] });
     expect(third.screens[0]!.id).toBe(second.screens[0]!.id);
+  });
+
+  describe("after a rejection that keeps the claim, as the previous version's review did", () => {
+    const rejectAsPreviousVersion = (id: string) =>
+      d1(`UPDATE screen SET status='rejected', review_reason='old code' WHERE id='${id}'`);
+    const rows = (appId: string) =>
+      d1(`SELECT id, status, dedupe_image_key FROM screen WHERE app_id='${appId}'`) as Promise<
+        { id: string; status: string; dedupe_image_key: string | null }[]
+      >;
+
+    it("an upload never answers with the rejected row, and replaces it", async () => {
+      const shot = captureScreen();
+      const batch = { app: { name: `Old review ${suffix}` }, screens: [shot] };
+      const first = await memberApi.captures(batch);
+      const rejected = first.screens[0]!.id;
+      await rejectAsPreviousVersion(rejected);
+      expect((await rows(first.app.id))[0]!.dedupe_image_key).not.toBeNull();
+
+      const second = await memberApi.captures(batch);
+      expect(second.screens[0]!.id).not.toBe(rejected);
+      expect(second.screens[0]!.status).toBe("pending");
+      const after = await rows(first.app.id);
+      expect(after.find((row) => row.id === rejected)).toMatchObject({
+        status: "rejected",
+        dedupe_image_key: null,
+      });
+      expect(after.find((row) => row.id === second.screens[0]!.id)!.dedupe_image_key).toBeTruthy();
+      expect((await memberApi.captures(batch)).screens[0]!.id).toBe(second.screens[0]!.id);
+    });
+
+    it("parallel uploads settle on one replacement, flows included", async () => {
+      const shot = captureScreen();
+      const other = captureScreen();
+      const batch = { app: { name: `Old review race ${suffix}` }, screens: [shot] };
+      const first = await adminApi.captures(batch);
+      const rejected = first.screens[0]!.id;
+      await rejectAsPreviousVersion(rejected);
+
+      const results = await Promise.all(
+        [1, 2, 3, 4, 5, 6].map(() =>
+          adminApi.captures({ ...batch, screens: [shot, other], flow: { name: "After reject" } }),
+        ),
+      );
+      const ids = new Set(results.map((result) => result.screens[0]!.id));
+      expect(ids.size).toBe(1);
+      expect(ids.has(rejected)).toBe(false);
+      for (const result of results) {
+        expect(result.screens.map((item) => item.status)).toEqual(["published", "published"]);
+        const flow = await adminApi.getFlow(result.flow!.id);
+        expect(flow.steps.map((step) => step.screen.id)).toEqual(
+          result.screens.map((item) => item.id),
+        );
+      }
+      const after = await rows(first.app.id);
+      expect(after.filter((row) => row.status === "published")).toHaveLength(2);
+      expect(after.filter((row) => row.status === "rejected")).toEqual([
+        expect.objectContaining({ id: rejected, dedupe_image_key: null }),
+      ]);
+    });
   });
 });
 
