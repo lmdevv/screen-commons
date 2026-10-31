@@ -362,9 +362,8 @@ describe("4. upload limits are enforced before allocation, on every transport", 
     expect(response.headers.get("content-length")).not.toBe(String(sent));
     expect(response.status).toBe(413);
     expect((await response.json()).error.code).toBe("payload_too_large");
-    // `vite dev` only: Miniflare reuses its connection to workerd after this half-read upload, and
-    // the next request through it fails with ECONNRESET (a 500). Spend that on a throwaway request.
-    await fetch(`${baseUrl()}/api/v1/apps`).catch(() => undefined);
+    // The rest of the upload was read, so the connection it used is still good for the next one.
+    expect((await fetch(`${baseUrl()}/api/v1/apps`)).status).toBe(401);
   });
 
   it("rejects declared oversize bodies and non-upload bodies over 1 MiB", async () => {
@@ -453,6 +452,7 @@ describe("4. upload limits are enforced before allocation, on every transport", 
       body: "x".repeat(LIMITS.maxRequestBytes + 1),
     });
     expect(body.status).toBe(413);
+    expect((await fetch(`${baseUrl()}/api/v1/apps`)).status).toBe(401);
   });
 
   it("accepts MCP uploads above the SDK's default 4 MiB body cap", async () => {
