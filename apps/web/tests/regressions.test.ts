@@ -130,6 +130,59 @@ describe("1. flows never expose screens the viewer can't see", () => {
   });
 });
 
+describe("parallel captures of the same image", () => {
+  const sha = (base64: string) =>
+    createHash("sha256").update(Buffer.from(base64, "base64")).digest("hex");
+
+  it("make one screen, keep one thumbnail, and every flow points at that screen", async () => {
+    const image = captureScreen().image;
+    const other = captureScreen();
+    const thumbnails = [1, 2, 3, 4].map(() => captureScreen().thumbnail);
+    const results = await Promise.all(
+      thumbnails.map((thumbnail) =>
+        adminApi.captures({
+          app: { name: `Parallel ${suffix}` },
+          flow: { name: "Parallel flow" },
+          screens: [{ ...other, image, thumbnail }, other],
+        }),
+      ),
+    );
+    const ids = new Set(results.map((result) => result.screens[0]!.id));
+    expect(ids.size).toBe(1);
+    expect(new Set(results.map((result) => result.screens[1]!.id)).size).toBe(1);
+    expect(new Set(results.map((result) => result.app.id)).size).toBe(1);
+
+    for (const result of results) {
+      const flow = await adminApi.getFlow(result.flow!.id);
+      expect(flow.steps.map((step) => step.screen.id)).toEqual(
+        result.screens.map((item) => item.id),
+      );
+    }
+
+    // The thumbnails that lost the race are gone from storage; the winner's still loads.
+    const statuses = await Promise.all(
+      thumbnails.map(async (thumbnail) => {
+        const response = await fetch(`${baseUrl()}/media/thumb/${sha(thumbnail!.base64)}.webp`);
+        await response.body?.cancel();
+        return response.status;
+      }),
+    );
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 404)).toHaveLength(3);
+  });
+
+  it("rejecting a screen frees its image for another upload", async () => {
+    const shot = captureScreen();
+    const app = { name: `Freed ${suffix}` };
+    const first = await memberApi.captures({ app, screens: [shot] });
+    await admin.client().review("screen", first.screens[0]!.id, "reject");
+    const second = await memberApi.captures({ app, screens: [shot] });
+    expect(second.screens[0]!.id).not.toBe(first.screens[0]!.id);
+    const third = await memberApi.captures({ app, screens: [shot] });
+    expect(third.screens[0]!.id).toBe(second.screens[0]!.id);
+  });
+});
+
 describe("2. member uploads don't modify published app metadata", () => {
   it("keeps tagline/description/category/website/logo when a member uploads", async () => {
     const adminLogo = makePng(48, 48, 501);

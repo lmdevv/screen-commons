@@ -103,6 +103,103 @@ describe("save_count triggers (regression: counters diverging)", () => {
   });
 });
 
+describe("0005_screen_dedupe (migration safety)", () => {
+  it("keeps duplicate rows, and only new uploads are held to one per image", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "screen-commons-migration-test-"));
+    try {
+      const source = join(webDir, "../../packages/db/migrations");
+      const migrations = join(dir, "migrations");
+      await mkdir(migrations);
+      const files = (await readdir(source)).filter((file) => file.endsWith(".sql")).sort();
+      const copy = (names: string[]) =>
+        Promise.all(names.map((file) => copyFile(join(source, file), join(migrations, file))));
+      const config = writeTestWranglerConfig(dir, { migrationsDir: migrations });
+      const wrangler = (...args: string[]) =>
+        execFileSync(
+          "pnpm",
+          [
+            "exec",
+            "wrangler",
+            "d1",
+            ...args,
+            "--local",
+            "--config",
+            config,
+            "--persist-to",
+            join(dir, "state"),
+          ],
+          { cwd: webDir, env: { ...process.env, CI: "1" }, stdio: "pipe" },
+        ).toString();
+      const query = <T>(command: string) =>
+        (
+          JSON.parse(wrangler("execute", "DB", "--json", "--command", command)) as [
+            { results: T[] },
+          ]
+        )[0].results;
+      const row = (id: string, app: string, key: string, by: string, at: number, status: string) =>
+        `('${id}', '${app}', '${key}', 't', 1, 1, 1, 1, 1, ${by === "none" ? "NULL" : `'${by}'`}, ${at}, '${status}')`;
+      const insert = `INSERT INTO screen (id, app_id, image_key, thumb_key, width, height, bytes, thumb_width, thumb_height, contributor_id, created_at, status) VALUES `;
+
+      await copy(files.filter((file) => file < "0005"));
+      wrangler("migrations", "apply", "DB");
+      wrangler(
+        "execute",
+        "DB",
+        "--command",
+        `INSERT INTO user (id, name, email) VALUES ('u1', 'u1', 'u1@db.test'), ('u2', 'u2', 'u2@db.test');
+         INSERT INTO app (id, slug, name, platform) VALUES ('a1', 'a1', 'A1', 'web'), ('a2', 'a2', 'A2', 'web');
+         INSERT INTO flow (id, app_id, name, step_count) VALUES ('f1', 'a1', 'Flow', 2);
+         ${insert}
+          ${row("dup-new", "a1", "same", "u1", 3, "published")},
+          ${row("dup-old", "a1", "same", "u1", 1, "published")},
+          ${row("dup-mid", "a1", "same", "u1", 2, "pending")},
+          ${row("gone", "a1", "same", "u1", 0, "rejected")},
+          ${row("other-user", "a1", "same", "u2", 1, "pending")},
+          ${row("other-app", "a2", "same", "u1", 1, "published")},
+          ${row("no-owner-1", "a1", "same", "none", 1, "published")},
+          ${row("no-owner-2", "a1", "same", "none", 2, "published")},
+          ${row("alone", "a1", "alone", "u1", 1, "published")};
+         INSERT INTO flow_step (flow_id, position, screen_id) VALUES ('f1', 0, 'dup-new'), ('f1', 1, 'dup-mid');`,
+      );
+
+      await copy(files.filter((file) => file >= "0005"));
+      wrangler("migrations", "apply", "DB");
+
+      const rows = query<{ id: string; dedupe_image_key: string | null }>(
+        "SELECT id, dedupe_image_key FROM screen ORDER BY id",
+      );
+      expect(Object.fromEntries(rows.map((item) => [item.id, item.dedupe_image_key]))).toEqual({
+        alone: "alone",
+        "dup-mid": null,
+        "dup-new": null,
+        "dup-old": "same",
+        gone: null,
+        "no-owner-1": null,
+        "no-owner-2": null,
+        "other-app": "same",
+        "other-user": "same",
+      });
+      expect(query("SELECT 1 FROM flow_step")).toHaveLength(2);
+
+      // A parallel upload's insert does nothing against the claim, for old images and new.
+      const claim = (id: string, key: string) =>
+        `INSERT INTO screen (id, app_id, image_key, thumb_key, width, height, bytes, thumb_width, thumb_height, contributor_id, dedupe_image_key) VALUES ('${id}', 'a1', '${key}', 't', 1, 1, 1, 1, 1, 'u1', '${key}') ON CONFLICT DO NOTHING`;
+      wrangler(
+        "execute",
+        "DB",
+        "--command",
+        `${claim("lost-old", "same")}; ${claim("won", "fresh")}; ${claim("lost-new", "fresh")};`,
+      );
+      const after = query<{ id: string }>(
+        "SELECT id FROM screen WHERE id IN ('lost-old', 'won', 'lost-new')",
+      );
+      expect(after.map((item) => item.id)).toEqual(["won"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("0003_global_app_slugs (migration safety)", () => {
   it("renames cross-platform duplicate slugs before enforcing global uniqueness", async () => {
     const dir = await mkdtemp(join(tmpdir(), "screen-commons-migration-test-"));
