@@ -485,13 +485,16 @@ describe("source decoding limits", () => {
     ]);
     const apng = Buffer.concat([still.subarray(0, 33), actl, still.subarray(33)]);
     const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
-    expect(
-      (await validate({ webp, apng, gif })).map((issue) => [issue.localId, issue.code]),
-    ).toEqual([
-      ["webp", "invalid_image"],
-      ["apng", "invalid_image"],
-      ["gif", "invalid_image"],
-    ]);
+    // Sources validate concurrently, so issues arrive in whichever order they finish.
+    const issues = await validate({ webp, apng, gif });
+    expect(issues.map((issue) => [issue.localId, issue.code])).toEqual(
+      expect.arrayContaining([
+        ["webp", "invalid_image"],
+        ["apng", "invalid_image"],
+        ["gif", "invalid_image"],
+      ]),
+    );
+    expect(issues).toHaveLength(3);
   });
 });
 
