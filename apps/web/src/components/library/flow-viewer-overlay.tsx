@@ -4,6 +4,7 @@ import { ContributionActions } from "./contribution-actions";
  * stacks the screen viewer on top (`?flow=…&screen=…`), whose ←/→ then walk the flow's steps.
  * "Open as a page" leads to the standalone /flows/$id page.
  */
+import { distinctStepScreens } from "@screen-commons/core/utils";
 import {
   Button,
   Lightbox,
@@ -53,7 +54,7 @@ export default function FlowViewerOverlay({
       flow && open
         ? {
             key: `flow:${flow.id}`,
-            screens: flow.steps.map((step) => step.screen),
+            screens: distinctStepScreens(flow.steps),
             hasMore: false,
             priority: 1,
           }
@@ -96,11 +97,9 @@ export default function FlowViewerOverlay({
       }}
       onDownload={async () => {
         try {
-          notify.message(`Preparing ${flow.steps.length} screens…`);
-          await downloadScreensZip(
-            flow.steps.map((step) => step.screen),
-            `${flow.app.name} ${flow.name}`,
-          );
+          const screens = distinctStepScreens(flow.steps);
+          notify.message(`Preparing ${screens.length} screens…`);
+          await downloadScreensZip(screens, `${flow.app.name} ${flow.name}`);
         } catch (error) {
           notify.error(errorMessage(error));
         }

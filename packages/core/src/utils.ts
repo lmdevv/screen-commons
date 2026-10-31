@@ -175,3 +175,14 @@ export function bytesToBase64(bytes: Uint8Array): string {
   }
   return btoa(binary);
 }
+
+/**
+ * A flow's distinct screens, in first-seen order. Steps can repeat a screen (A → B → A → C, and
+ * re-uploading identical bytes returns the same screen), so anything keyed or navigated by screen
+ * id walks this list rather than the steps.
+ */
+export function distinctStepScreens<T extends { id: string }>(
+  steps: readonly { screen: T }[],
+): T[] {
+  return [...new Map(steps.map((step) => [step.screen.id, step.screen])).values()];
+}

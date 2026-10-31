@@ -348,10 +348,16 @@ export async function getScreen(viewer: Viewer, id: string): Promise<ScreenDetai
       .orderBy(desc(screen.createdAt), desc(screen.id))
       .limit(1),
     db
-      .select({ id: flow.id, name: flow.name, position: flowStep.position })
+      // Each flow once, at the screen's first step: a flow can return to a screen.
+      .select({
+        id: flow.id,
+        name: flow.name,
+        position: sql<number>`min(${flowStep.position})`,
+      })
       .from(flowStep)
       .innerJoin(flow, eq(flow.id, flowStep.flowId))
       .where(and(eq(flowStep.screenId, row.id), visibleSql(flow, viewer, "list")))
+      .groupBy(flow.id)
       .orderBy(desc(flow.createdAt)),
   ]);
   await db

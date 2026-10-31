@@ -1,5 +1,6 @@
 import { ContributionActions } from "../../components/library/contribution-actions";
 import { labelFor } from "@screen-commons/core/taxonomy";
+import { distinctStepScreens } from "@screen-commons/core/utils";
 import {
   AppLogo,
   Button,
@@ -40,7 +41,7 @@ function FlowPage() {
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
   const activeScreen = Route.useSearch({ select: (s) => s.screen });
-  const screens = useMemo(() => flow.steps.map((step) => step.screen), [flow.steps]);
+  const screens = useMemo(() => distinctStepScreens(flow.steps), [flow.steps]);
   const activeIndex = flow.steps.findIndex((step) => step.screen.id === activeScreen);
   const first = screens[0];
   usePagePlatform(flow.app.platform);

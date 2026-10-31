@@ -4,6 +4,7 @@ import {
   appNameFromUrl,
   bytesToBase64,
   base64ToBytes,
+  distinctStepScreens,
   readImageHeader,
   slugify,
   suggestPatterns,
@@ -41,5 +42,12 @@ describe("readImageHeader", () => {
     );
     expect(readImageHeader(png)).toEqual({ type: "image/png", width: 1, height: 1 });
     expect(base64ToBytes(bytesToBase64(png))).toEqual(png);
+  });
+});
+
+describe("distinctStepScreens", () => {
+  it("keeps each screen once, at its first step", () => {
+    const steps = ["a", "b", "a", "c"].map((id) => ({ screen: { id } }));
+    expect(distinctStepScreens(steps).map((screen) => screen.id)).toEqual(["a", "b", "c"]);
   });
 });
