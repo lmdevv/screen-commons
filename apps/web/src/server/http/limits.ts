@@ -36,23 +36,34 @@ export class BodyTooLargeError extends Error {
 
 /** How much of a refused body is read before giving up on leaving the connection reusable. */
 const DRAIN_BYTES = LIMITS.maxRequestBytes * 2;
-const DRAIN_MS = 10_000;
+const DRAIN_MS = 3_000;
 
-/** Read and discard the rest of a body, up to the bounds above. */
-async function drain(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+/**
+ * Read and discard the rest of a body, up to the bounds above. The deadline covers `pending`, a read
+ * already in flight, so a client that stops sending can't hold the answer back.
+ */
+async function drain(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  pending: Promise<unknown> = Promise.resolve(),
+): Promise<void> {
   const deadline = Date.now() + DRAIN_MS;
+  const beforeDeadline = <T>(work: Promise<T>, expired: T): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+      work,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(expired), deadline - Date.now());
+      }),
+    ]).finally(() => clearTimeout(timer));
+  };
   let drained = 0;
   try {
-    while (drained <= DRAIN_BYTES) {
-      const left = deadline - Date.now();
-      if (left <= 0) break;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const { done, value } = await Promise.race([
+    await beforeDeadline(pending, undefined);
+    while (drained <= DRAIN_BYTES && Date.now() < deadline) {
+      const { done, value } = await beforeDeadline<ReadableStreamReadResult<Uint8Array>>(
         reader.read(),
-        new Promise<{ done: true; value?: undefined }>((resolve) => {
-          timer = setTimeout(() => resolve({ done: true }), left);
-        }),
-      ]).finally(() => clearTimeout(timer));
+        { done: true, value: undefined },
+      );
       if (done) break;
       drained += value.byteLength;
     }
@@ -97,11 +108,8 @@ export function limitRequestBody(
     },
   });
   return {
-    request: new Request(request, { body: limited } as RequestInit),
-    drain: async () => {
-      await reading;
-      await drain(reader);
-    },
+    request: new Request(request, { body: limited, duplex: "half" } as RequestInit),
+    drain: () => drain(reader, reading),
   };
 }
 

@@ -8,6 +8,7 @@ import {
 } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
+import { limitRequestBody } from "../src/server/http/limits";
 import { makePng, makeWebp } from "./images";
 import { Session, b64, baseUrl, captureScreen, d1, keyClient, uniqueSuffix } from "./helpers";
 
@@ -388,6 +389,23 @@ describe("4. upload limits are enforced before allocation, on every transport", 
     expect(crossOrigin.status).toBe(413);
     expect(crossOrigin.headers.get("access-control-allow-origin")).toBe("*");
     await crossOrigin.body?.cancel();
+  });
+
+  it("answers within the drain deadline when a client stops sending", async () => {
+    const stalled = new ReadableStream<Uint8Array>({ pull: () => new Promise(() => undefined) });
+    const limited = limitRequestBody(
+      new Request("http://localhost/", {
+        method: "POST",
+        body: stalled,
+        duplex: "half",
+      } as RequestInit),
+      1024,
+    );
+    // A handler that gave up with a read still in flight, the case that used to wait forever.
+    void limited.request.body?.getReader().read();
+    const started = Date.now();
+    await limited.drain();
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 
   it("bounds each base64 image before decoding it", async () => {
