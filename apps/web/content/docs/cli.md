@@ -99,7 +99,7 @@ A manifest describes an app, its screens and the flows through them. A screen ca
 
 - `id` names this transfer. Keep it when you publish again. Only you can publish flows under it.
 - `app` matches an existing app the way [uploads do](/docs/contributing), or creates one.
-- `source` is a `file`, relative to the manifest's folder, or an `https` `url`. Each is a PNG, JPEG or WebP.
+- `source` is a `file`, relative to the manifest's folder, or an `https` `url`. Each is a PNG, JPEG or WebP. A `url`, like `upload <url>`, follows the same rules as the MCP servers' [`image: { url }`](/docs/mcp): a public hostname, up to 3 redirects that meet the same rules, 20 seconds and 15 MiB. An instance on `localhost` also accepts `localhost`.
 - `patterns` and `elements` are required and may be empty. `taxonomy` lists the valid slugs.
 - A flow has 2 to 60 steps.
 
@@ -142,7 +142,10 @@ Images are converted and scaled as the extension does, and are never cropped. Th
       "id": null,
       "status": "failed",
       "url": null,
-      "error": { "code": "source_unreadable", "message": "https://… answered HTTP 404" }
+      "error": {
+        "code": "source_unreadable",
+        "message": "Could not download source.url from cdn.example.com (HTTP 404). …"
+      }
     }
   ],
   "flows": [

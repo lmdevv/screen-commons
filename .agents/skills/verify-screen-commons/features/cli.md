@@ -44,7 +44,7 @@ Run `control drive cli --run <id> --timeout 900`, which performs these steps.
 - **Bad item.** With one corrupt file the publish exits 1 with `publish_failed:`, a report naming it, the other screens up, and only the flow that needs it failed. Fixing the file and rerunning converges with the same ids.
 - **Batches.** 52 screens arrive as requests of at most 50.
 - **Roles.** A member's publish is `pending`, and an admin's is `published`. Another member gets `not_found` deleting the pending screen and `forbidden` once it's approved, and the rows stay. Publishing someone else's manifest id fails its flows with `bad_request`.
-- **Manage.** `screens search` pages with no overlap, `apps list`, `apps get`, `flows search`, `flows create`, `flows update`, `screens update` and the owner's deletes work, with a read back each time. `upload` takes a file and an https URL, and refuses `http://`.
+- **Manage.** `screens search` pages with no overlap, `apps list`, `apps get`, `flows search`, `flows create`, `flows update`, `screens update` and the owner's deletes work, with a read back each time. `upload` takes a file and an https URL, and refuses `http://`. `upload` and a manifest `url` both follow a redirect, and refuse a redirect off https, a redirect loop, an image over 15 MiB and a page that isn't an image, with the same message.
 - **Tool.** `publish_manifest` returns the same ids with no new rows, and refuses a missing file.
 - **Package.** The installed bin publishes from outside the workspace, and `npx -p <tarball> screen-commons` answers.
 - **Secrets.** No key appears in anything any command printed.

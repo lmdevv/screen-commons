@@ -4,14 +4,18 @@ import { dirname, resolve } from "node:path";
 
 import { prepareScreen } from "@screen-commons/capture/screen";
 import {
+  ImageDownloadError,
   LIMITS,
   ScreenCommonsApiError,
   captureManifestSchema,
+  downloadImage,
+  isLocalOrigin,
   readImageHeader,
   thumbnailKindFor,
   type AppRef,
   type CaptureManifest,
   type CaptureScreen,
+  type DownloadImageOptions,
   type FlowDetail,
   type ManifestFlow,
   type ManifestScreen,
@@ -26,9 +30,8 @@ import { CodedError, errorInfo, type ErrorInfo } from "./errors";
 import { mapLimit } from "./util";
 
 const FLOW_ID_NAMESPACE = Buffer.from("9f1c6f0e8d3b4a57a1e2c47b6d05e3aa", "hex");
-/** What a source may weigh before preparation shrinks it to `LIMITS.maxImageBytes`. */
+/** What a local file may weigh before preparation shrinks it to `LIMITS.maxImageBytes`. */
 const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
-const MAX_SOURCE_REDIRECTS = 5;
 const VALIDATE_CONCURRENCY = 8;
 
 /** The flow's id for this manifest: a v5 UUID, so every publish names the same flow. */
@@ -71,6 +74,8 @@ export async function readManifest(path: string): Promise<CaptureManifest> {
   return parseManifest(json);
 }
 
+type SourceDownload = Pick<DownloadImageOptions, "allowLocal" | "fetch">;
+
 async function readFileSource(baseDir: string, file: string): Promise<Buffer> {
   const path = resolve(baseDir, file);
   try {
@@ -85,59 +90,35 @@ async function readFileSource(baseDir: string, file: string): Promise<Buffer> {
   }
 }
 
-/** Follows redirects by hand so a hop can't downgrade the https a manifest promises. */
-async function fetchSource(url: string, doFetch: typeof fetch): Promise<Buffer> {
-  let current = url;
-  for (let hop = 0; hop <= MAX_SOURCE_REDIRECTS; hop += 1) {
-    if (new URL(current).protocol !== "https:") {
-      throw new CodedError("source_unreadable", `${url} redirects to non-https ${current}`);
-    }
-    const response = await doFetch(current, {
-      redirect: "manual",
-      headers: { accept: "image/*" },
-    });
-    const location = response.headers.get("location");
-    if (response.status >= 300 && response.status < 400 && location) {
-      await response.body?.cancel().catch(() => undefined);
-      current = new URL(location, current).href;
-      continue;
-    }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new CodedError("source_unreadable", `${current} answered HTTP ${response.status}`);
-    }
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    for await (const chunk of response.body ?? []) {
-      total += chunk.byteLength;
-      if (total > MAX_SOURCE_BYTES) {
-        throw new CodedError("source_too_large", `${current} is over ${MAX_SOURCE_BYTES} bytes`);
-      }
-      chunks.push(chunk);
-    }
-    return Buffer.concat(chunks);
+/** The same rules as `upload_screen`'s URLs, under the publisher's own error codes. */
+async function downloadSource(url: string, source: SourceDownload): Promise<Buffer> {
+  try {
+    return Buffer.from(
+      await downloadImage(url, {
+        ...source,
+        label: "source.url",
+        alternative: "or use a local file",
+      }),
+    );
+  } catch (error) {
+    if (!(error instanceof ImageDownloadError)) throw error;
+    const code =
+      error.code === "payload_too_large"
+        ? "source_too_large"
+        : error.code === "unsupported_media_type"
+          ? "invalid_image"
+          : "source_unreadable";
+    throw new CodedError(code, error.message);
   }
-  throw new CodedError(
-    "source_unreadable",
-    `${url} redirects more than ${MAX_SOURCE_REDIRECTS} times`,
-  );
 }
 
 async function loadSource(
   screen: ManifestScreen,
   baseDir: string,
-  doFetch: typeof fetch,
+  source: SourceDownload,
 ): Promise<Buffer> {
-  const bytes =
-    "file" in screen.source
-      ? await readFileSource(baseDir, screen.source.file)
-      : await fetchSource(screen.source.url, doFetch).catch((error: unknown) => {
-          const info = errorInfo(error);
-          throw new CodedError(
-            info.code === "internal" ? "source_unreadable" : info.code,
-            info.message,
-          );
-        });
+  if ("url" in screen.source) return downloadSource(screen.source.url, source);
+  const bytes = await readFileSource(baseDir, screen.source.file);
   if (!readImageHeader(bytes)) {
     throw new CodedError("invalid_image", "Not a complete, still PNG, JPEG or WebP image");
   }
@@ -254,7 +235,7 @@ export async function publishManifest(
   options: PublishOptions,
 ): Promise<PublishReport> {
   const { client, baseDir } = options;
-  const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const source = { allowLocal: isLocalOrigin(client.baseUrl), fetch: options.fetch };
   const batchSize = Math.min(options.batchSize ?? Infinity, LIMITS.maxScreensPerBatch);
   const maxBatchBytes = options.maxBatchBytes ?? LIMITS.maxBatchBytes;
   const viewport = thumbnailKindFor(manifest.app.platform);
@@ -312,7 +293,7 @@ export async function publishManifest(
       continue;
     }
     try {
-      const bytes = await loadSource(screen, baseDir, doFetch);
+      const bytes = await loadSource(screen, baseDir, source);
       const { screen: prepared } = await prepareScreen({
         png: bytes,
         title: screen.title,
@@ -492,7 +473,7 @@ export async function validateManifest(path: string): Promise<ValidationResult> 
   await mapLimit(manifest.screens, VALIDATE_CONCURRENCY, async (screen) => {
     if (!("file" in screen.source)) return;
     try {
-      await loadSource(screen, baseDir, globalThis.fetch);
+      await loadSource(screen, baseDir, {});
     } catch (error) {
       issues.push({ localId: screen.localId, ...errorInfo(error) });
     }

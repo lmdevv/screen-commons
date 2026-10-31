@@ -286,6 +286,62 @@ describe("publishManifest", () => {
     expect(JSON.stringify(seen)).not.toContain("sc_test_key");
   });
 
+  it("holds URL sources to the upload_screen rules", async () => {
+    const catalog = fakeCatalog();
+    const image = await png(98);
+    const seen: string[] = [];
+    const source: typeof fetch = async (input) => {
+      seen.push(String(input));
+      const path = new URL(String(input)).pathname;
+      if (path === "/huge") {
+        return new Response(new Uint8Array(LIMITS.maxImageBytes + 1));
+      }
+      if (path === "/page") return new Response("<html>");
+      if (path === "/inside") {
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://metadata.internal/a.png" },
+        });
+      }
+      if (path.startsWith("/loop")) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/loop${Number(path.slice(5)) + 1}` },
+        });
+      }
+      return new Response(image);
+    };
+    const urls = {
+      huge: "https://x.example.com/huge",
+      page: "https://x.example.com/page",
+      inside: "https://x.example.com/inside",
+      loop: "https://x.example.com/loop0",
+      named: "https://localhost/a.png",
+      login: "https://me:pw@x.example.com/a.png",
+    };
+    const input = manifestInput();
+    input.screens = Object.entries(urls).map(([localId, url]) => ({
+      localId,
+      source: { url },
+      patterns: [],
+      elements: [],
+    }));
+    input.flows = [];
+    const report = await publish(catalog, input, { fetch: source });
+    expect(report.screens.map((item) => [item.localId, item.error?.code])).toEqual([
+      ["huge", "source_too_large"],
+      ["page", "invalid_image"],
+      ["inside", "source_unreadable"],
+      ["loop", "source_unreadable"],
+      ["named", "source_unreadable"],
+      ["login", "source_unreadable"],
+    ]);
+    expect(report.screens[3]!.error?.message).toContain("redirected more than 3 times");
+    expect(seen.filter((url) => url.includes("/loop"))).toHaveLength(4);
+    expect(seen).not.toContain(urls.named);
+    expect(seen).not.toContain("https://metadata.internal/a.png");
+  });
+
   it("converges after a retry whose first try landed", async () => {
     const catalog = fakeCatalog();
     let dropped = 0;

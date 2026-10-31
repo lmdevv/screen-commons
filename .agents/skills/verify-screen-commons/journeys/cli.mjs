@@ -98,6 +98,10 @@ function imageHost(dir, images) {
         response.writeHead(404).end();
         return;
       }
+      if (typeof image === "string") {
+        response.writeHead(302, { location: image }).end();
+        return;
+      }
       response.writeHead(200, { "content-type": "image/png" }).end(image);
     },
   );
@@ -800,6 +804,14 @@ async function journey(h, dir, closers) {
   const host = await imageHost(dir, {
     "/hosted.png": hostImage.buffer,
     "/twice.png": (await h.pngs([`Twice ${h.stamp}`]))[0].buffer,
+    "/moved.png": "/hosted.png",
+    "/to-ftp.png": "ftp://localhost/x.png",
+    "/loop0.png": "/loop1.png",
+    "/loop1.png": "/loop2.png",
+    "/loop2.png": "/loop3.png",
+    "/loop3.png": "/loop0.png",
+    "/huge.png": Buffer.alloc(16 * 1024 * 1024),
+    "/page.png": Buffer.from("<html>"),
   });
   closers.push(host.close);
   ca = host.ca;
@@ -827,6 +839,42 @@ async function journey(h, dir, closers) {
   assert.equal(fromUrls.json.screens[0].id, fromUrl.json.id, "the same bytes are the same screen");
   assert.equal(fromUrls.json.screens[1].status, "published");
   assert.equal(fromUrls.json.screens[2].error.code, "source_unreadable");
+
+  // The one download policy, through both CLI ways in: a good redirect, then each refusal.
+  const moved = await run("upload follows a redirect", [
+    "upload",
+    host.url("/moved.png"),
+    "--app-name",
+    `Hosted ${h.stamp}`,
+    "--website-url",
+    `https://hosted-${h.stamp}.example.com`,
+  ]);
+  assert.equal(moved.code, 0, moved.stderr);
+  assert.equal(moved.json.id, fromUrl.json.id);
+  for (const [path, code, text] of [
+    ["/to-ftp.png", "source_unreadable", "must use https, not ftp"],
+    ["/loop0.png", "source_unreadable", "redirected more than 3 times"],
+    ["/huge.png", "source_too_large", "the limit is 15728640"],
+    ["/page.png", "invalid_image", "not a complete, still PNG, JPEG or WebP"],
+  ]) {
+    const refused = await run(`upload refuses ${path}`, [
+      "upload",
+      host.url(path),
+      "--app-name",
+      `Hosted ${h.stamp}`,
+    ]);
+    assert.notEqual(refused.code, 0);
+    assert.ok(refused.stderr.includes(text), refused.stderr);
+    const manifest = write(`refused${path.replace(/\W/gu, "-")}.json`, {
+      version: 1,
+      id: `refused-${path.replace(/\W/gu, "-")}-${h.stamp}`,
+      app: { name: `Hosted ${h.stamp}` },
+      screens: [{ localId: "a", source: { url: host.url(path) }, patterns: [], elements: [] }],
+    });
+    const report = await run(`a manifest refuses ${path}`, ["manifest", "publish", manifest]);
+    assert.equal(report.json.screens[0].error.code, code);
+    assert.ok(report.json.screens[0].error.message.includes(text), report.stdout);
+  }
 
   const updated = await run("screens update", [
     "screens",
