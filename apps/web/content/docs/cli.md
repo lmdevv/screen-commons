@@ -99,7 +99,7 @@ A manifest describes an app, its screens and the flows through them. A screen ca
 
 - `id` names this transfer. Keep it when you publish again. Only you can publish flows under it.
 - `app` matches an existing app the way [uploads do](/docs/contributing), or creates one.
-- `source` is a `file`, relative to the manifest's folder, or an `https` `url`. Each is a PNG, JPEG or WebP. A `url`, like `upload <url>`, follows the same rules as the MCP servers' [`image: { url }`](/docs/mcp): a public hostname, up to 3 redirects that meet the same rules, 20 seconds and 15 MiB. An instance on `localhost` also accepts `localhost`.
+- `source` is a `file`, relative to the manifest's folder, or an `https` `url`. Each is a PNG, JPEG or WebP. A `url`, like `upload <url>`, follows the same rules as the MCP servers' [`image: { url }`](/docs/mcp): a public hostname that doesn't resolve to a private address, up to 3 redirects that meet the same rules, 20 seconds and 15 MiB. An instance on `localhost` also accepts `localhost`.
 - `patterns` and `elements` are required and may be empty. `taxonomy` lists the valid slugs.
 - A flow has 2 to 60 steps.
 
@@ -108,7 +108,7 @@ screen-commons manifest validate manifest.json
 screen-commons manifest publish manifest.json
 ```
 
-`validate` checks the manifest and its local files without using the network. Agents can use the local MCP server's `publish_manifest` tool instead, which takes a `path` and returns the same report.
+`validate` checks the manifest and decodes its local files, so a truncated image is reported as `invalid_image`, without using the network. Agents can use the local MCP server's `publish_manifest` tool instead, which takes a `path` and returns the same report.
 
 ### Repeating a publish
 

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  ImageDownloadError,
   LIMITS,
   captureManifestSchema,
   createFlowInputSchema,
@@ -12,7 +13,8 @@ import {
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { flowIdFor, publishManifest, type PublishOptions } from "../src/publish";
+import { errorInfo } from "../src/errors";
+import { flowIdFor, publishManifest, validateManifest, type PublishOptions } from "../src/publish";
 import { retryAfterMs, retryingFetch } from "../src/retry";
 import { fakeCatalog, refusal } from "./fake-catalog";
 
@@ -370,6 +372,116 @@ describe("publishManifest", () => {
     expect(report.ok).toBe(true);
     expect(slept).toEqual([1000, 2000]);
     expect(catalog.screens.size).toBe(4);
+  });
+});
+
+describe("a truncated image", () => {
+  const truncated = async () => {
+    const whole = await png(9);
+    const path = join(dir, "truncated.png");
+    await writeFile(path, whole.subarray(0, 33));
+    const half = join(dir, "half.png");
+    await writeFile(half, whole.subarray(0, Math.floor(whole.length / 2)));
+    const manifest: CaptureManifestInput = {
+      version: 1,
+      id: "truncated",
+      app: { name: "Acme" },
+      screens: [
+        { localId: "header-only", source: { file: "truncated.png" }, patterns: [], elements: [] },
+        { localId: "half", source: { file: "half.png" }, patterns: [], elements: [] },
+      ],
+      flows: [],
+    };
+    const file = join(dir, "truncated.json");
+    await writeFile(file, JSON.stringify(manifest));
+    return { file, manifest };
+  };
+
+  it("fails manifest validate as invalid_image", async () => {
+    const { file } = await truncated();
+    const result = await validateManifest(file);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => [issue.localId, issue.code]).sort()).toEqual([
+      ["half", "invalid_image"],
+      ["header-only", "invalid_image"],
+    ]);
+  });
+
+  it("fails publishing as invalid_image, without an internal error", async () => {
+    const { manifest } = await truncated();
+    const catalog = fakeCatalog();
+    const report = await publish(catalog, manifest);
+    expect(report.screens.map((screen) => screen.error?.code)).toEqual([
+      "invalid_image",
+      "invalid_image",
+    ]);
+  });
+});
+
+describe("retryingFetch reading the body", () => {
+  const options = { baseDelayMs: 1, sleep: () => Promise.resolve() };
+  /** Successful headers, then the connection drops partway through the body, `drops` times. */
+  const flaky = (drops: number) => {
+    let calls = 0;
+    const doFetch = (async () => {
+      calls += 1;
+      if (calls > drops) return new Response('{"ok":true}');
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"ok"'));
+        },
+        pull(controller) {
+          controller.error(new TypeError("terminated", { cause: { code: "UND_ERR_SOCKET" } }));
+        },
+      });
+      return new Response(body, { status: 200 });
+    }) as typeof fetch;
+    return { doFetch, calls: () => calls };
+  };
+
+  it("retries a connection lost after the headers", async () => {
+    const { doFetch, calls } = flaky(2);
+    const response = await retryingFetch({ ...options, fetch: doFetch, readBody: true })(
+      "http://x",
+    );
+    expect(await response.json()).toEqual({ ok: true });
+    expect(calls()).toBe(3);
+  });
+
+  it("ends as a network error when the connection keeps dropping", async () => {
+    const { doFetch, calls } = flaky(99);
+    const error = await retryingFetch({ ...options, fetch: doFetch, readBody: true, attempts: 3 })(
+      "http://x",
+    ).catch((caught: unknown) => caught);
+    expect(calls()).toBe(3);
+    expect(errorInfo(error, "http://x").code).toBe("network");
+  });
+
+  it("doesn't repeat a DELETE whose answer was lost, since it may have landed", async () => {
+    const { doFetch, calls } = flaky(99);
+    const error = await retryingFetch({ ...options, fetch: doFetch, readBody: true })("http://x", {
+      method: "DELETE",
+    }).catch((caught: unknown) => caught);
+    expect(calls()).toBe(1);
+    expect(errorInfo(error, "http://x").code).toBe("network");
+  });
+
+  it("keeps a status with no body", async () => {
+    const doFetch = (async () => new Response(null, { status: 204 })) as typeof fetch;
+    const response = await retryingFetch({ fetch: doFetch, readBody: true })("http://x");
+    expect(response.status).toBe(204);
+  });
+
+  it("doesn't retry a refused image URL", async () => {
+    let calls = 0;
+    const doFetch = (async () => {
+      calls += 1;
+      throw new ImageDownloadError("bad_request", "private");
+    }) as typeof fetch;
+    await expect(retryingFetch({ ...options, fetch: doFetch })("http://x")).rejects.toThrow(
+      "private",
+    );
+    expect(calls).toBe(1);
   });
 });
 

@@ -25,8 +25,10 @@ import {
   type UpdateFlowInput,
   type UpdateScreenInput,
 } from "@screen-commons/core";
+import sharp from "sharp";
 
 import { CodedError, errorInfo, type ErrorInfo } from "./errors";
+import { imageFetchFor } from "./public-fetch";
 import { mapLimit } from "./util";
 
 const FLOW_ID_NAMESPACE = Buffer.from("9f1c6f0e8d3b4a57a1e2c47b6d05e3aa", "hex");
@@ -112,16 +114,27 @@ async function downloadSource(url: string, source: SourceDownload): Promise<Buff
   }
 }
 
+/** Whether the whole image decodes, since a truncated file can have a valid header. */
+export async function assertDecodes(bytes: Buffer): Promise<void> {
+  const invalid = new CodedError("invalid_image", "Not a complete, still PNG, JPEG or WebP image");
+  if (!readImageHeader(bytes)) throw invalid;
+  try {
+    await sharp(bytes, { limitInputPixels: false }).stats();
+  } catch {
+    throw invalid;
+  }
+}
+
 async function loadSource(
   screen: ManifestScreen,
   baseDir: string,
   source: SourceDownload,
 ): Promise<Buffer> {
-  if ("url" in screen.source) return downloadSource(screen.source.url, source);
-  const bytes = await readFileSource(baseDir, screen.source.file);
-  if (!readImageHeader(bytes)) {
-    throw new CodedError("invalid_image", "Not a complete, still PNG, JPEG or WebP image");
-  }
+  const bytes =
+    "url" in screen.source
+      ? await downloadSource(screen.source.url, source)
+      : await readFileSource(baseDir, screen.source.file);
+  await assertDecodes(bytes);
   return bytes;
 }
 
@@ -235,7 +248,10 @@ export async function publishManifest(
   options: PublishOptions,
 ): Promise<PublishReport> {
   const { client, baseDir } = options;
-  const source = { allowLocal: isLocalOrigin(client.baseUrl), fetch: options.fetch };
+  const source = {
+    allowLocal: isLocalOrigin(client.baseUrl),
+    fetch: options.fetch ?? imageFetchFor(client.baseUrl),
+  };
   const batchSize = Math.min(options.batchSize ?? Infinity, LIMITS.maxScreensPerBatch);
   const maxBatchBytes = options.maxBatchBytes ?? LIMITS.maxBatchBytes;
   const viewport = thumbnailKindFor(manifest.app.platform);

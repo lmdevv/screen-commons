@@ -358,12 +358,9 @@ async function journey(h, dir, closers) {
   assert.equal(await flowPage.getByRole("button", { name: /^Open step/u }).count(), 4);
   await h.goto(flowPage, `/flows/${flowId.tour}?screen=${screenId.s3}`);
   await flowPage.keyboard.press("ArrowRight");
-  await flowPage.waitForURL((url) => url.searchParams.get("screen") !== screenId.s3);
-  assert.equal(
-    new URL(flowPage.url()).searchParams.get("screen"),
-    screenId.tall,
-    "the arrow keys get past a repeated screen",
-  );
+  await flowPage.waitForURL((url) => url.searchParams.get("screen") === screenId.s2);
+  await flowPage.keyboard.press("ArrowRight");
+  await flowPage.waitForURL((url) => url.searchParams.get("screen") === screenId.tall);
   await h.step("the viewer walks past the repeated screen", flowPage);
   await flowPage.close();
 
@@ -852,7 +849,7 @@ async function journey(h, dir, closers) {
   assert.equal(moved.code, 0, moved.stderr);
   assert.equal(moved.json.id, fromUrl.json.id);
   for (const [path, code, text] of [
-    ["/to-ftp.png", "source_unreadable", "must use https, not ftp"],
+    ["/to-ftp.png", "source_unreadable", "must use http or https, not ftp"],
     ["/loop0.png", "source_unreadable", "redirected more than 3 times"],
     ["/huge.png", "source_too_large", "the limit is 15728640"],
     ["/page.png", "invalid_image", "not a complete, still PNG, JPEG or WebP"],

@@ -27,6 +27,7 @@ import type { z } from "zod";
 import { version } from "../package.json";
 import { resolveInstance } from "./config";
 import { CodedError, errorInfo } from "./errors";
+import { imageFetchFor } from "./public-fetch";
 import { retryingFetch } from "./retry";
 
 const EXIT_CODES: Record<string, number> = {
@@ -62,7 +63,10 @@ interface Context {
   client: () => ScreenCommonsClient;
   anonymousClient: () => ScreenCommonsClient;
   origin: string;
+  /** Media from this instance. */
   download: typeof fetch;
+  /** A screen's own source URL, anywhere on the web. */
+  sourceFetch: typeof fetch;
   apiKey: string | undefined;
 }
 
@@ -232,7 +236,7 @@ async function upload(context: Context) {
   const report = await publishManifest(manifest, {
     client,
     baseDir: process.cwd(),
-    fetch: context.download,
+    fetch: context.sourceFetch,
   });
   const item = report.screens[0]!;
   if (report.error ?? item.error) {
@@ -251,7 +255,7 @@ async function publish(context: Context) {
   const { publishManifestFile } = await import("./publish");
   const report = await publishManifestFile(context.positionals[0]!, {
     client: context.client(),
-    fetch: context.download,
+    fetch: context.sourceFetch,
     batchSize,
   });
   if (report.ok) return report;
@@ -722,7 +726,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
     }
     if (instance.apiKey) secrets.push(instance.apiKey);
     origin = instance.url;
-    const doFetch = retryingFetch();
+    const doFetch = retryingFetch({ readBody: true });
     const headers = { "x-screen-commons-client": `screen-commons-cli/${version}` };
     const anonymousClient = () =>
       createScreenCommonsClient({ baseUrl: instance.url, fetch: doFetch, headers });
@@ -732,6 +736,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
       origin: instance.url,
       apiKey: instance.apiKey,
       download: doFetch,
+      sourceFetch: retryingFetch({ fetch: imageFetchFor(instance.url) }),
       anonymousClient,
       client: () => {
         if (!instance.apiKey) {

@@ -1,5 +1,12 @@
+import { ImageDownloadError } from "@screen-commons/core";
+
 export interface RetryOptions {
   fetch?: typeof fetch;
+  /**
+   * Read the whole body before returning, so a connection lost partway is retried like any other
+   * network failure. Leave off for third-party downloads, whose size limit needs them streamed.
+   */
+  readBody?: boolean;
   /** Total tries per request, including the first. */
   attempts?: number;
   baseDelayMs?: number;
@@ -21,6 +28,20 @@ export function retryAfterMs(value: string | null, now = Date.now()): number | n
   if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
   const date = Date.parse(value);
   return Number.isNaN(date) ? null : Math.max(0, date - now);
+}
+
+/** The same response with its body in memory. A lost connection fails as `fetch` itself does. */
+async function withBody(response: Response): Promise<Response> {
+  let body: ArrayBuffer;
+  try {
+    body = await response.arrayBuffer();
+  } catch (error) {
+    const name = (error as Error).name;
+    if (name === "TimeoutError" || name === "AbortError") throw error;
+    throw new TypeError("fetch failed", { cause: (error as Error).cause ?? error });
+  }
+  const { status, statusText, headers } = response;
+  return new Response(body.byteLength > 0 ? body : null, { status, statusText, headers });
 }
 
 /**
@@ -51,13 +72,17 @@ export function retryingFetch(options: RetryOptions = {}): typeof fetch {
         const retryable = canRepeatLanded
           ? RETRYABLE_STATUS.has(response.status)
           : REFUSED_STATUS.has(response.status);
-        if (!retryable || attempt >= attempts) return response;
         const after = retryAfterMs(response.headers.get("retry-after"));
-        if (after !== null && after > maxRetryAfter) return response;
+        if (!retryable || attempt >= attempts || (after !== null && after > maxRetryAfter)) {
+          return options.readBody ? await withBody(response) : response;
+        }
         await response.body?.cancel().catch(() => undefined);
         await sleep(after ?? backoff);
       } catch (error) {
-        if (!canRepeatLanded || attempt >= attempts) throw error;
+        // A refused image URL won't change, and a DELETE that may have landed isn't repeated.
+        if (error instanceof ImageDownloadError || !canRepeatLanded || attempt >= attempts) {
+          throw error;
+        }
         await sleep(backoff);
       }
     }

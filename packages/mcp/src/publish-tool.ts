@@ -6,6 +6,7 @@ import type { z } from "zod";
 
 import { errorInfo } from "./errors";
 import { publishManifestFile } from "./publish";
+import { imageFetchFor } from "./public-fetch";
 import { retryingFetch } from "./retry";
 import { reportProgress, text, type ToolResult } from "./util";
 
@@ -21,7 +22,7 @@ type Args = z.output<typeof publishTools.publish_manifest.input>;
 export function registerPublishTools(server: McpServer, context: PublishToolContext) {
   const spec = publishTools.publish_manifest;
   // Publishing converges on retry, which the plain catalog tools' writes can't all promise.
-  const doFetch = retryingFetch({ fetch: context.fetch });
+  const doFetch = retryingFetch({ fetch: context.fetch, readBody: true });
   const handler = async (args: Args, extra: unknown): Promise<ToolResult> => {
     if (!context.apiKey) {
       return {
@@ -41,7 +42,7 @@ export function registerPublishTools(server: McpServer, context: PublishToolCont
           fetch: doFetch,
           headers: context.headers,
         }),
-        fetch: retryingFetch({ fetch: globalThis.fetch.bind(globalThis) }),
+        fetch: retryingFetch({ fetch: imageFetchFor(context.baseUrl) }),
         onProgress: (done, total, message) => void reportProgress(extra, done, total, message),
       });
       return { content: [text(JSON.stringify(report))], isError: !report.ok };
