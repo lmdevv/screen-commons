@@ -12,7 +12,7 @@ Screen Commons speaks the [Model Context Protocol](https://modelcontextprotocol.
 | **Remote** | Inside your instance at `/mcp`          | Streamable HTTP | Catalog           | Search screens and flows, view images, upload.                        |
 | **Local**  | On your machine as `screen-commons-mcp` | stdio           | Catalog + browser | Everything above, plus navigate, screenshot, crawl and capture sites. |
 
-Pick one per client. The local server proxies the catalog tools to your instance, so you don't need both.
+Pick one per client. The local server proxies the catalog tools to your instance, so you don't need both. For scripts, or for agents without MCP, the same package includes a [CLI](/docs/cli).
 
 Both servers authenticate with an API key and act as you: they see what you can see, and member uploads wait for review. [Create a key](/docs/api-keys) in **Settings → API keys** first.
 
@@ -234,6 +234,12 @@ The local server's `image: { path }` reads a file on the same machine. It's enco
 | `browser_extract`    | Title, description, favicon, Open Graph image, theme color, headings and same-origin links.        | none                                                                                                                                                                                       |
 | `site_crawl`         | Breadth-first crawl of same-origin pages. Returns pages with titles and suggested screen patterns. | `url`, `maxPages` (1–50, default 12), `maxDepth` (0–4, default 1), `include?`, `exclude?` (path substrings)                                                                                |
 | `capture_pages`      | Capture URLs, auto-tag patterns and, with `upload`, publish them as one app, optionally as a flow. | `urls` (1–50), `app` (`name?`, `websiteUrl?`, `platform`, `category?`), `flow?` (`name`, `type?`), `viewport` (default `desktop`), `fullPage` (default `false`), `upload` (default `true`) |
+
+### Publishing (local only)
+
+| Tool               | Purpose                                                                                                       | Arguments |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- | --------- |
+| `publish_manifest` | Publish a [capture manifest](/docs/cli#manifests)'s screens and flows. Safe to repeat. Returns a JSON report. | `path`    |
 
 Valid values for `platform`, `pattern`, `element`, `type` and `category` come from `get_taxonomy`.
 
