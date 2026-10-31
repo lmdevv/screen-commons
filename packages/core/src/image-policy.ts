@@ -263,8 +263,8 @@ export async function encodeWithinBudget<T extends EncodedResult>(
 
 /**
  * Type and dimensions read from a whole encoded file, never from a declared type or file name.
- * Null unless the header parses, the image is still (an animated WebP would display only its
- * first frame) and the file is complete, so truncated uploads and encoder output are rejected
+ * Null unless the header parses, the image is still (an animated PNG or WebP would display
+ * differently from what was reviewed, or only its first frame) and the file is complete, so truncated uploads and encoder output are rejected
  * too: the RIFF length is covered (WebP), an `IEND` chunk is reached (PNG), or an end-of-image
  * marker follows the scan (JPEG). Trailing bytes after the end are tolerated.
  */
@@ -276,9 +276,14 @@ export function sniffImage(bytes: Uint8Array): (ImageSize & { type: StoredImageT
     header.type === "image/webp"
       ? stillWebpComplete(bytes, view)
       : header.type === "image/png"
-        ? pngComplete(view)
+        ? stillPngComplete(view)
         : jpegComplete(bytes);
   return complete ? header : null;
+}
+
+/** Whether decoding this source could use more memory than any image the server stores. */
+export function exceedsSourcePixels({ width, height }: ImageSize): boolean {
+  return width * height > LIMITS.maxSourcePixels;
 }
 
 /** RIFF length covered, and no VP8X animation flag. */
@@ -288,10 +293,15 @@ function stillWebpComplete(bytes: Uint8Array, view: DataView): boolean {
   return !(extended && (bytes[20]! & 0x02) !== 0);
 }
 
-/** Walks the chunks (length, type, data, CRC) to `IEND`; a truncated file runs out first. */
-function pngComplete(view: DataView): boolean {
+/**
+ * Walks the chunks (length, type, data, CRC) to `IEND`; a truncated file runs out first, and an
+ * `acTL` chunk marks an animated PNG.
+ */
+function stillPngComplete(view: DataView): boolean {
   for (let offset = 8; offset + 12 <= view.byteLength; offset += 12 + view.getUint32(offset)) {
-    if (view.getUint32(offset + 4) === 0x49454e44) return true;
+    const chunk = view.getUint32(offset + 4);
+    if (chunk === 0x6163544c) return false;
+    if (chunk === 0x49454e44) return true;
   }
   return false;
 }

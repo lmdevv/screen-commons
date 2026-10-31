@@ -6,6 +6,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { makePreview, prepareScreen } from "@screen-commons/capture";
 import {
   ImageDownloadError,
+  LIMITS,
   TAXONOMY,
   base64ToBytes,
   compactApp,
@@ -14,6 +15,7 @@ import {
   createdFlowResult,
   deletedResult,
   downloadImage,
+  exceedsSourcePixels,
   flowDetailResult,
   flowImageSteps,
   imageTypeNote,
@@ -259,11 +261,20 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
   register("upload_screen", async (args) => {
     requireKey(context);
     const bytes = await uploadBytes(context, args.image);
-    if (!sniffImage(bytes)) {
+    const header = sniffImage(bytes);
+    if (!header) {
       throw new FriendlyError(
         toolErrorText(
           "unsupported_media_type",
           "screens[0].image must be a complete, still PNG, JPEG or WebP image",
+        ),
+      );
+    }
+    if (exceedsSourcePixels(header)) {
+      throw new FriendlyError(
+        toolErrorText(
+          "bad_request",
+          `screens[0].image is ${header.width}x${header.height}; the limit is ${LIMITS.maxSourcePixels} pixels`,
         ),
       );
     }

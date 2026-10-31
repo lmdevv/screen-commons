@@ -47,6 +47,7 @@ for (const pattern of PATTERNS) {
 /**
  * Suggest screen patterns for a captured page from its URL path and title.
  * `https://x.com/` → `["landing"]`, `/blog/my-post` → `["article"]`, `/pricing` → `["pricing"]`.
+ * Without a URL there is no page to read, so nothing is suggested.
  */
 export function suggestPatterns(url: string, title?: string | null): PatternSlug[] {
   const found = new Set<PatternSlug>();
@@ -57,7 +58,7 @@ export function suggestPatterns(url: string, title?: string | null): PatternSlug
       .map((segment) => segment.toLowerCase())
       .filter(Boolean);
   } catch {
-    // not a URL; rely on title
+    return [];
   }
   // skip locale prefixes like /en or /en-us
   if (segments[0] && /^[a-z]{2}(?:-[a-z]{2})?$/u.test(segments[0])) segments = segments.slice(1);

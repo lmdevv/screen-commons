@@ -1,5 +1,6 @@
 import {
   DISPLAY_POLICY,
+  LIMITS,
   displaySize,
   encodeWithinBudget,
   isDisplayReady,
@@ -25,6 +26,9 @@ export async function imageSize(input: Buffer): Promise<{ width: number; height:
   const meta = await sharp(input).metadata();
   return { width: meta.width ?? 0, height: meta.height ?? 0 };
 }
+
+/** A decoder that refuses anything over the source pixel limit, however small its file is. */
+const decode = (input: Buffer) => sharp(input, { limitInputPixels: LIMITS.maxSourcePixels });
 
 const SOURCE_TYPES: Record<string, ImageType> = {
   png: "image/png",
@@ -64,7 +68,7 @@ export async function encodeDisplay(input: Buffer): Promise<EncodedImage> {
 
   const size = displaySize(source.width, source.height);
   const pipeline = () => {
-    const image = sharp(input, { limitInputPixels: false });
+    const image = decode(input);
     return size.scaled
       ? image.resize({ width: size.width, height: size.height, fit: "fill", kernel: "lanczos3" })
       : image;
@@ -109,7 +113,7 @@ export async function makeThumbnail(
   const source = await imageSize(input);
   const box = thumbnailBox(source.width, source.height, options.viewport ?? "desktop");
   // Crop the top first so tall pages aren't resized in full, then scale the crop.
-  const cropped = await sharp(input, { limitInputPixels: false })
+  const cropped = await decode(input)
     .extract({ left: 0, top: 0, width: source.width, height: box.sourceHeight })
     .resize({ width: box.width, height: box.height, fit: "fill", kernel: "lanczos3" })
     .png()
@@ -132,7 +136,7 @@ export async function makeThumbnail(
 
 /** Dominant colour of an image as `#rrggbb`. */
 export async function dominantColor(input: Buffer): Promise<string> {
-  const { data, info } = await sharp(input, { limitInputPixels: false })
+  const { data, info } = await decode(input)
     .resize({ width: 96, height: 96, fit: "inside", kernel: "nearest" })
     .removeAlpha()
     .raw()
@@ -191,7 +195,7 @@ export async function makePreview(
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const scaledHeight = Math.max(1, Math.round((source.height * maxWidth) / source.width));
     const height = Math.min(scaledHeight, maxHeight);
-    const buffer = await sharp(input, { limitInputPixels: false })
+    const buffer = await decode(input)
       .resize({ width: maxWidth, height: scaledHeight, fit: "fill" })
       .extract({ left: 0, top: 0, width: maxWidth, height })
       .webp({ quality })

@@ -22,6 +22,11 @@ describe("suggestPatterns", () => {
   it("falls back to detail for unknown paths", () => {
     expect(suggestPatterns("https://x.com/whatever/deep")).toEqual(["detail"]);
   });
+  it("suggests nothing without a URL, not even from a title", () => {
+    expect(suggestPatterns("")).toEqual([]);
+    expect(suggestPatterns("", "Pricing")).toEqual([]);
+    expect(suggestPatterns("not a url", "Pricing")).toEqual([]);
+  });
 });
 
 describe("naming", () => {

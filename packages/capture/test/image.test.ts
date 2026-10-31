@@ -40,6 +40,21 @@ const noisy = async (width: number, height: number) => {
     .toBuffer();
 };
 
+describe("source pixel limit", () => {
+  it("refuses a small file with too many pixels at every step of the encode path", async () => {
+    const png = await sharp({
+      create: { width: 9100, height: 9100, channels: 3, background: "#fff" },
+    })
+      .png({ compressionLevel: 1 })
+      .toBuffer();
+    expect(png.byteLength).toBeLessThan(4 * 1024 * 1024);
+    await expect(encodeDisplay(png)).rejects.toThrow(/pixel limit/u);
+    await expect(makeThumbnail(png)).rejects.toThrow(/pixel limit/u);
+    await expect(dominantColor(png)).rejects.toThrow(/pixel limit/u);
+    await expect(makePreview(png)).rejects.toThrow(/pixel limit/u);
+  });
+});
+
 describe("image encoding", () => {
   it("makes 640px WebP thumbnails anchored at the top", async () => {
     // top half red, bottom half blue: the 16:10 crop of a tall image keeps only red

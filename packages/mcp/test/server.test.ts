@@ -207,6 +207,40 @@ describe("catalog tools", () => {
     );
   });
 
+  it("upload_screen suggests no pattern without a source URL", async () => {
+    const { client } = await connect();
+    const png = await sharp({
+      create: { width: 800, height: 600, channels: 3, background: "#123456" },
+    })
+      .png()
+      .toBuffer();
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { type: "image/png", base64: png.toString("base64") },
+      title: "Acme pricing",
+    });
+    expect(result.isError).toBeFalsy();
+    expect(api.batches[before]!.screens[0]?.patterns).toEqual([]);
+  });
+
+  it("upload_screen refuses a source with too many pixels before decoding it", async () => {
+    const { client } = await connect();
+    const png = await sharp({
+      create: { width: 9100, height: 9100, channels: 3, background: "#000" },
+    })
+      .png({ compressionLevel: 1 })
+      .toBuffer();
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { type: "image/png", base64: png.toString("base64") },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("bad_request: screens[0].image is 9100x9100");
+    expect(api.batches.length).toBe(before);
+  });
+
   it("upload_screen posts a one-screen capture batch", async () => {
     const { client } = await connect();
     const png = await sharp({
