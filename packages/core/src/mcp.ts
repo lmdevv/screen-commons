@@ -45,8 +45,10 @@ const pathImage = z.object({
   path: z.string().min(1).describe("Image file on the machine running this server"),
 });
 
-const REMOTE_PATH_REFUSAL =
-  "image { path } only works on the local screen-commons-mcp server or the screen-commons CLI, because this remote server can't read your files. Use either of those for a file on disk, or { url } for an image already at a URL this server can reach. Send { type, base64 } only as a last resort, because it passes through your context.";
+/** What base64 can carry on the remote server, and what not to try when it can't carry a file. */
+const REMOTE_BASE64_NOTE = `Send { type, base64 } only as a last resort: it takes at most ${LIMITS.maxImageBytes / (1024 * 1024)} MiB of image, about ${Math.ceil(((LIMITS.maxImageBytes / (1024 * 1024)) * 4) / 3)} MiB of text, and you have to write all of it into this tool call, so it only suits small images. Don't post to /mcp by hand or read an MCP config for its API key. If a file on disk is too large and neither the local server nor the CLI is available, say so and ask the user to set one up.`;
+
+const REMOTE_PATH_REFUSAL = `image { path } only works on the local screen-commons-mcp server or the screen-commons CLI, because this remote server can't read your files. Use either of those for a file on disk, or { url } for an image already at a URL this server can reach. ${REMOTE_BASE64_NOTE}`;
 
 const uploadDescription = (sources: string) =>
   `Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing). ${sources} Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.`;
@@ -135,7 +137,7 @@ export const catalogTools = {
     name: "upload_screen",
     title: "Upload screen",
     description: uploadDescription(
-      "For image, prefer { url } if the image is already at a URL this server can reach. This server can't read your files: for a file on disk, use the local screen-commons-mcp server or the screen-commons CLI rather than serving files over HTTP. Send { type, base64 } only as a last resort, because it passes through your context.",
+      `For image, prefer { url } if the image is already at a URL this server can reach. This server can't read your files: for a file on disk, use the local screen-commons-mcp server or the screen-commons CLI rather than serving files over HTTP. ${REMOTE_BASE64_NOTE}`,
     ),
     input: z.object({
       app: appInputSchema,

@@ -212,7 +212,9 @@ Choose `image` by where the file is:
 
 - **A file on disk:** use the local server's `image: { path }`, or the `screen-commons` CLI. The remote server can't read your files and refuses `{ path }`. Don't start a web server to give it a URL for one: that can expose whatever else is in the folder.
 - **An image already at a URL:** use `image: { url }`, on either server.
-- **Neither is possible:** send `image: { type, base64 }`. It's the last resort, because the whole image passes through the agent's context.
+- **Neither is possible:** send `image: { type, base64 }`. It's the last resort. The remote server takes at most 15 MiB of image, about 20 MiB of base64 text, and the agent has to write all of it into the tool call, which only suits small images. An agent's own limit on one tool call is usually much lower than the server's, and differs by agent.
+
+An agent on the remote server with a larger file on disk has no other route. It shouldn't post to `/mcp` by hand, read its MCP config for the API key, or serve the file over HTTP. It should say so and ask you to add the local server or install the CLI.
 
 With `image: { url }`, the server downloads the image, on your machine for the local server. The URL must be `https` on a public hostname, with no IP addresses, `localhost` or login details in it. Up to 3 redirects are followed, and each must meet the same rules. The download has 20 seconds and the 15 MiB image limit. Screens uploaded this way don't get `sourceUrl` set from the URL, because an image's address isn't the page it shows. Pass `sourceUrl` yourself. An instance whose `APP_URL` is on `localhost` also accepts `http`, `localhost` and IP addresses, for development.
 
