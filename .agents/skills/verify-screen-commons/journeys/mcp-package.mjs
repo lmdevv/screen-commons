@@ -25,7 +25,7 @@ export default async function mcpPackage(h) {
   assert.equal(server.version, manifest.version);
   const remote = await h.remoteMcp();
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, (await remote.listTools()).tools.length + 6);
+  assert.equal(tools.length, (await remote.listTools()).tools.length + 7);
 
   const args = { query: "billed yearly" };
   const packaged = await h.call(client, "search_screens from the package", "search_screens", args);

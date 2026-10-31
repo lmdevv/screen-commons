@@ -27,10 +27,10 @@ Run `control drive mcp-package --run <id>`, which performs these steps.
 - **Manifest.** The staged manifest is named `screen-commons-mcp`, isn't private, and every dependency is a `^x.y.z` range with no `@screen-commons/` package.
 - **Files.** They include `dist/index.js`, `README.md` and `LICENSE`, with no source maps or `src/`.
 - **Private.** `packages/mcp/package.json` still has `private: true`.
-- **Runs.** The installed bin connects as `screen-commons-mcp` at the manifest's version, with 6 more tools than the remote server.
+- **Runs.** The installed bin connects as `screen-commons-mcp` at the manifest's version, with 7 more tools than the remote server.
 - **One format.** `search_screens` returns the same text as the remote server, and `get_screen` returns a WebP.
 - **Capture.** `capture_pages` on the fixture site says `Uploaded 2 screens`, and D1 has 2 `mcp`, `published` rows.
-- **Proof.** Read `test-results/verify/<run>/mcp-package-*/result.json` and the manifest JSON.
+- **Proof.** The `cli` journey runs the package's `screen-commons` bin the same way. Read `test-results/verify/<run>/mcp-package-*/result.json` and the manifest JSON.
 
 ## Gotchas
 

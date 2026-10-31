@@ -42,6 +42,7 @@ Every screen and flow has a status: `published`, `pending` or `rejected`. Only p
 | [Website uploader](/docs/contributing) | Screenshots you already have, including mobile app screens.                             |
 | [Browser extension](/docs/extension)   | Capturing live websites: visible area, full page, or a single element. Recording flows. |
 | [MCP server](/docs/mcp)                | Letting an AI agent crawl a site, capture pages and upload them.                        |
+| [CLI](/docs/cli)                       | Moving a whole multi-screen flow with a repeatable manifest, from scripts and agents.   |
 | [REST API](/docs/api)                  | Scripts and integrations.                                                               |
 
 Every path ends at the same API, so the same limits and review rules apply everywhere.

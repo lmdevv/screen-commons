@@ -14,7 +14,7 @@ const dist = resolve(process.argv[2] ?? join(packageDir, "dist"));
 const out = resolve(process.argv[3] ?? join(packageDir, ".publish"));
 const source = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
 
-if (!existsSync(join(dist, "index.js"))) {
+if (!existsSync(join(dist, "index.js")) || !existsSync(join(dist, "cli.js"))) {
   throw new Error("Build first: pnpm --filter @screen-commons/mcp build");
 }
 const server = readFileSync(join(packageDir, "src/server.ts"), "utf8");
@@ -52,7 +52,7 @@ writeFileSync(
         directory: "packages/mcp",
       },
       type: "module",
-      bin: { "screen-commons-mcp": "dist/index.js" },
+      bin: { "screen-commons": "dist/cli.js", "screen-commons-mcp": "dist/index.js" },
       files: ["dist"],
       engines: { node: ">=20.18.1" },
       dependencies,

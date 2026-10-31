@@ -3,7 +3,7 @@ import { LIMITS } from "./limits";
 import { sniffImage } from "./image-policy";
 
 /**
- * Download of an `upload_screen` image URL, shared by the remote and local servers so both apply
+ * Download of an image URL, shared by the remote and local servers and the CLI so all of them apply
  * one policy and refuse with one message. Only hosts that are public by name are allowed outside
  * local development.
  *
@@ -30,6 +30,10 @@ export interface DownloadImageOptions {
   fetch?: typeof fetch;
   timeoutMs?: number;
   maxBytes?: number;
+  /** What messages call the URL. */
+  label?: string;
+  /** How messages end, naming what the caller can do instead of giving a URL. */
+  alternative?: string;
 }
 
 const MAX_REDIRECTS = 3;
@@ -62,12 +66,12 @@ function refusal(url: URL, allowLocal: boolean): string | null {
   return local ? `must use a public hostname, not ${url.hostname}` : null;
 }
 
-function checkUrl(url: URL, allowLocal: boolean, what: string) {
+function checkUrl(url: URL, allowLocal: boolean, what: string, alternative: string) {
   const reason = refusal(url, allowLocal);
   if (reason) {
     throw new ImageDownloadError(
       "bad_request",
-      `${what} ${reason}. ${url.protocol === "file:" ? FOR_A_FILE : "Use another URL"}, ${USE_BASE64}.`,
+      `${what} ${reason}. ${url.protocol === "file:" && alternative === USE_BASE64 ? FOR_A_FILE : "Use another URL"}, ${alternative}.`,
     );
   }
 }
@@ -115,14 +119,20 @@ export async function downloadImage(
   url: string,
   options: DownloadImageOptions = {},
 ): Promise<Uint8Array> {
-  const { allowLocal = false, timeoutMs = 20_000, maxBytes = LIMITS.maxImageBytes } = options;
+  const {
+    allowLocal = false,
+    timeoutMs = 20_000,
+    maxBytes = LIMITS.maxImageBytes,
+    label = "image.url",
+    alternative = USE_BASE64,
+  } = options;
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const signal = AbortSignal.timeout(timeoutMs);
   let host = url;
   const timedOut = () =>
     new ImageDownloadError(
       "unprocessable",
-      `Downloading image.url from ${host} timed out after ${Math.round(timeoutMs / 1000)} seconds. Retry, ${USE_BASE64}.`,
+      `Downloading ${label} from ${host} timed out after ${Math.round(timeoutMs / 1000)} seconds. Retry, ${alternative}.`,
     );
 
   const download = async (): Promise<Uint8Array> => {
@@ -130,9 +140,9 @@ export async function downloadImage(
     try {
       current = new URL(url);
     } catch {
-      throw new ImageDownloadError("bad_request", "image.url is not a valid URL.");
+      throw new ImageDownloadError("bad_request", `${label} is not a valid URL.`);
     }
-    checkUrl(current, allowLocal, "image.url");
+    checkUrl(current, allowLocal, label, alternative);
     host = current.host;
     for (let hop = 0; ; hop += 1) {
       const response = await doFetch(current, {
@@ -149,11 +159,11 @@ export async function downloadImage(
         if (!location || hop === MAX_REDIRECTS) {
           throw new ImageDownloadError(
             "unprocessable",
-            `image.url at ${host} ${location ? `redirected more than ${MAX_REDIRECTS} times` : "redirected without a Location"}. Use the final URL, ${USE_BASE64}.`,
+            `${label} at ${host} ${location ? `redirected more than ${MAX_REDIRECTS} times` : "redirected without a Location"}. Use the final URL, ${alternative}.`,
           );
         }
         current = new URL(location, current);
-        checkUrl(current, allowLocal, `image.url redirected to ${current.host}, which`);
+        checkUrl(current, allowLocal, `${label} redirected to ${current.host}, which`, alternative);
         host = current.host;
         continue;
       }
@@ -161,7 +171,7 @@ export async function downloadImage(
         await response.body?.cancel().catch(() => undefined);
         throw new ImageDownloadError(
           "unprocessable",
-          `Could not download image.url from ${host} (HTTP ${response.status}). Check that it is public and hasn't expired, ${USE_BASE64}.`,
+          `Could not download ${label} from ${host} (HTTP ${response.status}). Check that it is public and hasn't expired, ${alternative}.`,
         );
       }
       const bytes = await readCapped(response, maxBytes, host);
@@ -169,7 +179,7 @@ export async function downloadImage(
         const type = response.headers.get("content-type")?.split(";")[0] ?? "an unknown type";
         throw new ImageDownloadError(
           "unsupported_media_type",
-          `image.url at ${host} returned ${type}, not a complete, still PNG, JPEG or WebP image.`,
+          `${label} at ${host} returned ${type}, not a complete, still PNG, JPEG or WebP image.`,
         );
       }
       return bytes;
@@ -187,7 +197,7 @@ export async function downloadImage(
     if (signal.aborted) throw timedOut();
     throw new ImageDownloadError(
       "unprocessable",
-      `Could not connect to ${host} to download image.url. Check the URL, ${USE_BASE64}.`,
+      `Could not connect to ${host} to download ${label}. Check the URL, ${alternative}.`,
     );
   }
 }

@@ -96,19 +96,29 @@ export interface LoadConfigInput {
   home?: string;
 }
 
+/** The instance to talk to: flags, then `SCREEN_COMMONS_URL` / `SCREEN_COMMONS_API_KEY`. */
+export function resolveInstance(
+  flags: { url?: string; apiKey?: string },
+  env: NodeJS.ProcessEnv = process.env,
+): Pick<McpConfig, "url" | "apiKey"> {
+  const url = (flags.url ?? env.SCREEN_COMMONS_URL ?? "http://localhost:5173")
+    .trim()
+    .replace(/\/+$/u, "");
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Invalid Screen Commons URL: ${url}`);
+  }
+  return { url, apiKey: (flags.apiKey ?? env.SCREEN_COMMONS_API_KEY)?.trim() || undefined };
+}
+
 export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig> {
   const env = input.env ?? process.env;
   const setting = (name: string) => env[`SCREEN_COMMONS_${name}`];
   const args = parseArgs(input.argv ?? process.argv.slice(2));
   const str = (key: string) => (typeof args[key] === "string" ? (args[key] as string) : undefined);
 
-  const url = (str("url") ?? setting("URL") ?? "http://localhost:5173").trim().replace(/\/+$/u, "");
-  try {
-    new URL(url);
-  } catch {
-    throw new Error(`Invalid Screen Commons URL: ${url}`);
-  }
-  const apiKey = (str("api-key") ?? setting("API_KEY"))?.trim() || undefined;
+  const { url, apiKey } = resolveInstance({ url: str("url"), apiKey: str("api-key") }, env);
 
   const portRaw = str("bridge-port") ?? setting("BRIDGE_PORT");
   const port = portRaw ? Number.parseInt(portRaw, 10) : BRIDGE_DEFAULT_PORT;

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { browserTools, catalogTools } from "@screen-commons/core";
+import { browserTools, catalogTools, publishTools } from "@screen-commons/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { loadConfig, parseArgs } from "../src/config";
@@ -136,7 +136,9 @@ describe("built stdio server", () => {
       expect(client.getServerVersion()).toMatchObject({ name: "screen-commons-mcp" });
       const { tools } = await client.listTools();
       expect(tools.length).toBe(
-        Object.keys(catalogTools).length + Object.keys(browserTools).length,
+        Object.keys(catalogTools).length +
+          Object.keys(browserTools).length +
+          Object.keys(publishTools).length,
       );
       const result = (await client.callTool({ name: "get_taxonomy", arguments: {} })) as {
         content: { text: string }[];

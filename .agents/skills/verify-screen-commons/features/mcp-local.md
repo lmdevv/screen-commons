@@ -4,7 +4,7 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 
 ## Sub-features
 
-- `local-contract` exposes the same definition for each catalog tool as the remote server, except a `path` image on `upload_screen`, plus 6 browser tools.
+- `local-contract` exposes the same definition for each catalog tool as the remote server, except a `path` image on `upload_screen`, plus 6 browser tools and `publish_manifest`.
 - `local-extras` serves the `capture_site` and `find_inspiration` prompts and the `screen-commons://taxonomy` resource.
 - `local-catalog` proxies search, read, upload, flow creation, edits and deletes to the instance, with the same results as the remote server.
 - `local-upload-sources` uploads by URL and by local file path, with one result format.
@@ -32,7 +32,7 @@ Preconditions:
 
 Run `control drive mcp-local --run <id>`, which performs these steps.
 
-- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 13 plus the 6 browser tools. Each catalog tool's whole definition, including annotations, deep-equals the remote one. `upload_screen` also does once its `path` branch and its advice on which image source to send are removed.
+- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 13 plus the 6 browser tools and `publish_manifest`. Each catalog tool's whole definition, including annotations, deep-equals the remote one. `upload_screen` also does once its `path` branch and its advice on which image source to send are removed.
 - **Extras.** `listPrompts` returns both prompts, and `capture_site` mentions `capture_pages`. `readResource` on `screen-commons://taxonomy` includes `signing-up`.
 - **Same as remote.** Each of these runs on both servers, and the text and image bytes must be identical: `search_screens` by text, with filters and with no match; `get_screen` as a thumbnail and full size; `list_apps`, `get_app`, `search_flows`, `get_flow` with images, `get_taxonomy`; and the refusals for a missing slug (`not_found: …`), a missing screen, an invalid pattern (`-32602`), bytes that aren't an image (`unsupported_media_type: …`) and a one-step flow.
 - **Upload.** `upload_screen` returns the same fields from both servers, joining one app, with `status` `published`. A mislabeled image gets the same `note` from both. D1 has `source = mcp`. `create_flow` returns the same fields and steps from both.

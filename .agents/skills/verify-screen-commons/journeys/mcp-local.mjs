@@ -29,7 +29,7 @@ export default async function mcpLocal(h) {
   const remoteTools = (await remote.listTools()).tools;
   const names = localTools.map((tool) => tool.name).sort();
   const catalog = remoteTools.map((tool) => tool.name).sort();
-  assert.deepEqual(names, [...catalog, ...BROWSER].sort());
+  assert.deepEqual(names, [...catalog, ...BROWSER, "publish_manifest"].sort());
   for (const tool of remoteTools) {
     const twin = localTools.find((candidate) => candidate.name === tool.name);
     if (tool.name !== "upload_screen") {
