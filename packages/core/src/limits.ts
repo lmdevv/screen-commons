@@ -12,6 +12,8 @@ export const LIMITS = {
   /** Raw request body bytes for upload endpoints (base64 JSON batch, multipart, MCP). */
   maxRequestBytes: 40 * 1024 * 1024,
   maxFlowSteps: 60,
+  /** Step thumbnails `get_flow` returns inline; a longer flow lists the rest as URLs only. */
+  maxFlowImages: 20,
   pageSize: 30,
   maxPageSize: 100,
 } as const;

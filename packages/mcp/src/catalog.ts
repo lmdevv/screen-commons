@@ -9,6 +9,7 @@ import {
   compactScreen,
   createdFlowResult,
   flowDetailResult,
+  flowImageSteps,
   imageTypeNote,
   readImageHeader,
   screenDetailResult,
@@ -24,6 +25,7 @@ import {
   absoluteUrl,
   failure,
   image,
+  mapLimit,
   ok,
   text,
   type Content,
@@ -38,6 +40,7 @@ export interface CatalogContext {
 }
 
 const MAX_INLINE_IMAGE_BYTES = 3.5 * 1024 * 1024;
+const FLOW_IMAGE_CONCURRENCY = 4;
 
 function requireKey(context: CatalogContext) {
   if (!context.apiKey) {
@@ -173,16 +176,16 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
   register("get_flow", async (args) => {
     requireKey(context);
     const flow = await client.getFlow(args.id);
-    const content: Content[] = [text(JSON.stringify(flowDetailResult(origin, flow)))];
-    if (args.includeImages) {
-      const images = await Promise.all(
-        flow.steps.map((step) =>
-          fetchImageContent(context, step.screen.thumbUrl).catch(() => null),
-        ),
-      );
-      for (const entry of images) if (entry) content.push(entry.content);
-    }
-    return ok(...content);
+    if (!args.includeImages) return json(flowDetailResult(origin, flow));
+    const steps = flowImageSteps(flow);
+    const images = await mapLimit(steps, FLOW_IMAGE_CONCURRENCY, (step) =>
+      fetchImageContent(context, step.screen.thumbUrl).catch(() => null),
+    );
+    const positions = steps.flatMap((step, index) => (images[index] ? [step.position] : []));
+    return ok(
+      text(JSON.stringify(flowDetailResult(origin, flow, positions))),
+      ...images.flatMap((entry) => (entry ? [entry.content] : [])),
+    );
   });
 
   register("get_taxonomy", async () => {
@@ -193,7 +196,12 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
 
   register("upload_screen", async (args) => {
     requireKey(context);
-    const bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
+    let bytes: Buffer;
+    try {
+      bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
+    } catch {
+      throw new FriendlyError(toolErrorText("bad_request", "screens[0].image is not valid base64"));
+    }
     const header = readImageHeader(bytes);
     if (!header) {
       throw new FriendlyError(

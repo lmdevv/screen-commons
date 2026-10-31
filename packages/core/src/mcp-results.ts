@@ -7,6 +7,7 @@ import type {
   Screen,
   ScreenDetail,
 } from "./index";
+import { LIMITS } from "./limits";
 import { base64ToBytes, readImageHeader } from "./utils";
 
 /**
@@ -72,7 +73,8 @@ export function screenDetailResult(origin: string, screen: ScreenDetail) {
   };
 }
 
-export function flowDetailResult(origin: string, flow: FlowDetail) {
+/** `imagePositions` names the step each returned image belongs to, in image order. */
+export function flowDetailResult(origin: string, flow: FlowDetail, imagePositions?: number[]) {
   return {
     ...compactFlow(origin, flow),
     steps: flow.steps.map((step) => ({
@@ -80,7 +82,16 @@ export function flowDetailResult(origin: string, flow: FlowDetail) {
       label: step.label,
       screen: compactScreen(origin, step.screen),
     })),
+    ...(imagePositions ? { imagePositions } : {}),
   };
+}
+
+/** The steps `get_flow` returns a thumbnail for. */
+export function flowImageSteps(flow: FlowDetail) {
+  return flow.steps
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .slice(0, LIMITS.maxFlowImages);
 }
 
 export function createdFlowResult(origin: string, flow: FlowDetail) {

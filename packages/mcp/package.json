@@ -1,6 +1,6 @@
 {
   "name": "@screen-commons/mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "screen-commons-mcp: stdio MCP server for Screen Commons (catalog tools + browser capture via the extension bridge or headless Chromium).",
   "license": "Apache-2.0",

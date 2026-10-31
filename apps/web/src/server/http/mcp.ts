@@ -10,6 +10,7 @@ import {
   compactScreen,
   createdFlowResult,
   flowDetailResult,
+  flowImageSteps,
   imageTypeNote,
   screenDetailResult,
   toolErrorText,
@@ -84,24 +85,26 @@ function createHandlers(principal: Principal, origin: string) {
     },
     get_flow: async ({ id, includeImages }) => {
       const flow = await services.getFlow(principal, id);
-      const content: CallToolResult["content"] = [
-        {
-          type: "text",
-          text: JSON.stringify(flowDetailResult(origin, flow)),
-        },
-      ];
-      if (includeImages) {
-        for (const step of flow.steps) {
-          const image = await imageContent(step.screen.thumbUrl);
-          if (image) content.push(image);
-        }
+      if (!includeImages) return json(flowDetailResult(origin, flow));
+      const images: CallToolResult["content"] = [];
+      const positions: number[] = [];
+      for (const step of flowImageSteps(flow)) {
+        const image = await imageContent(step.screen.thumbUrl);
+        if (!image) continue;
+        images.push(image);
+        positions.push(step.position);
       }
-      return { content };
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(flowDetailResult(origin, flow, positions)) },
+          ...images,
+        ],
+      };
     },
     get_taxonomy: async () => json(services.getTaxonomy()),
     upload_screen: async (args) => {
-      const note = imageTypeNote(args.image);
       const result = await services.uploadScreenFromTool(principal, args, origin);
+      const note = imageTypeNote(args.image);
       return json({ ...result, ...(note ? { note } : {}) });
     },
     create_flow: async (args) => {

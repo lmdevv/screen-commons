@@ -172,6 +172,18 @@ describe("catalog tools", () => {
       screen: { id: "scr_1" },
     });
     expect(result.content.filter((item) => item.type === "image")).toHaveLength(2);
+    const { steps, imagePositions } = JSON.parse(textOf(result));
+    expect(imagePositions).toEqual(steps.map((step: { position: number }) => step.position));
+  });
+
+  it("refuses an image that isn't base64 the way the remote server does", async () => {
+    const { client } = await connect();
+    const result = await call(client, "upload_screen", {
+      app: { name: "Demo" },
+      image: { type: "image/png", base64: "not base64!" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toBe("bad_request: screens[0].image is not valid base64");
   });
 
   it("explains missing and rejected API keys", async () => {

@@ -110,6 +110,11 @@ export default async function mcpLocal(h) {
   const { steps } = JSON.parse(flow.text);
   assert.ok(steps.length >= 2);
   assert.equal(flow.images.length, steps.length, "a thumbnail per step");
+  assert.deepEqual(
+    JSON.parse(flow.text).imagePositions,
+    steps.map((step) => step.position),
+    "each image names its step",
+  );
 
   const taxonomy = await same("get_taxonomy", "get_taxonomy");
   assert.ok(JSON.parse(taxonomy.text).patterns.length > 10);
@@ -161,6 +166,11 @@ export default async function mcpLocal(h) {
     image: { type: "image/png", base64: Buffer.from("not an image").toString("base64") },
   });
   assert.match(garbage.text, /^unsupported_media_type: /u);
+  const notBase64 = await same("an image that isn't base64", "upload_screen", {
+    app: appInput,
+    image: { type: "image/png", base64: "not base64!" },
+  });
+  assert.match(notBase64.text, /^bad_request: /u);
 
   const [row] = await h.sql(
     "the upload's row in D1",

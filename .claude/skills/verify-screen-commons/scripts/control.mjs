@@ -670,7 +670,8 @@ async function listObjects(run) {
     const query = `per_page=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
     const page = await explorerResponse(run, `/r2/buckets/${buckets[0].name}/objects?${query}`);
     keys.push(...page.result.map((object) => object.key));
-    cursor = page.result_info?.is_truncated === "true" ? page.result_info.cursor : undefined;
+    const truncated = String(page.result_info?.is_truncated) === "true";
+    cursor = truncated ? page.result_info.cursor : undefined;
   } while (cursor);
   return keys;
 }

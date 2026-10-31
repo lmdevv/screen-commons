@@ -152,6 +152,11 @@ export default async function mcpRemote(h) {
   const flow = JSON.parse(flowDetail.text);
   assert.ok(flow.steps.length >= 2);
   assert.equal(flowDetail.images.length, flow.steps.length, "a thumbnail per step");
+  assert.deepEqual(
+    flow.imagePositions,
+    flow.steps.map((step) => step.position),
+    "each image names its step",
+  );
   assert.ok(flowDetail.images.every((image) => webp(image.bytes)));
 
   const thumb = await h.call(admin, "get_screen thumbnail", "get_screen", {
@@ -219,6 +224,12 @@ export default async function mcpRemote(h) {
   });
   assert.equal(garbage.isError, true);
   assert.match(garbage.text, /^unsupported_media_type/u);
+  const notBase64 = await h.call(admin, "an image that isn't base64 is refused", "upload_screen", {
+    app: appInput,
+    image: { type: "image/png", base64: "not base64!" },
+  });
+  assert.equal(notBase64.isError, true);
+  assert.match(notBase64.text, /^bad_request: /u);
 
   const created = JSON.parse(
     (
