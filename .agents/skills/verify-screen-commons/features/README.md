@@ -4,7 +4,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 ## Baseline preconditions
 
-- Launch with `control launch --run <id>`, where `control` is `.claude/skills/verify-screen-commons/scripts/control.mjs`, run from the repository root.
+- Launch with `control launch --run <id>`, where `control` is `.agents/skills/verify-screen-commons/scripts/control.mjs`, run from the repository root.
 - Run `control doctor --run <id>` and require `"healthy": true`.
 - A fresh instance has the admin `admin@screencommons.dev`, its API key, and the seed: 9 web apps, 28 screens (home, pricing, sign-in and sign-up pages), 9 pricing screens and 9 flows. Every seeded screen is published. There is no iOS or Android content.
 - Never drive an instance that `control list` doesn't show.

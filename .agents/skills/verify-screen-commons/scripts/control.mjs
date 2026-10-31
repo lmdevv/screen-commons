@@ -12,7 +12,8 @@
  *   control.mjs r2                             list the run's local R2 keys
  *   control.mjs mcp <remote|local> tools       list a server's tools with a real MCP client
  *   control.mjs mcp <remote|local> call <tool> ['<json args>']   call one tool the same way
- *   control.mjs mcp-config                     client config for the run's two MCP servers
+ *   control.mjs mcp-config [--client <claude|cursor|codex|opencode>]   that agent's config for the
+ *                                              run's two MCP servers (default claude)
  *   control.mjs list                           every run on this machine and whether it is alive
  *   control.mjs teardown                       stop the server, delete state, keep the evidence
  *
@@ -34,7 +35,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
-import { createServer } from "node:net";
+import { connect, createServer } from "node:net";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -419,12 +420,53 @@ async function warmUp(run, browser) {
   await context.close();
 }
 
+/**
+ * What a run needs from the shell it starts in. An agent's sandbox can deny any of these, and the
+ * failures that follow would otherwise read like bugs in the app.
+ */
+async function assertShellCanRun() {
+  const denied = [];
+  const attempt = async (what, fn) => {
+    try {
+      await fn();
+    } catch (error) {
+      denied.push(`${what}: ${String(error.message ?? error).split("\n")[0]}`);
+    }
+  };
+  await attempt("run git", () => gitInfo());
+  await attempt("run pnpm in the workspace", () =>
+    execFileSync("pnpm", ["exec", "node", "--version"], { cwd: WEB, stdio: "pipe" }),
+  );
+  await attempt(
+    "connect to a local port",
+    () =>
+      new Promise((done, fail) => {
+        const server = createServer()
+          .once("error", fail)
+          .listen(0, "localhost", () => {
+            connect(server.address().port, "localhost")
+              .once("error", fail)
+              .once("connect", function () {
+                this.destroy();
+                server.close(done);
+              });
+          });
+      }),
+  );
+  if (denied.length) {
+    throw new Error(
+      `This shell can't host a run, usually because of an agent's sandbox. Run the skill outside it (see "Agent setup" in SKILL.md).\n- ${denied.join("\n- ")}`,
+    );
+  }
+}
+
 async function commandLaunch(flags) {
   const id = flags.run ?? `v${Date.now().toString(36)}`;
   assertRunId(id);
   if (existsSync(runDir(id)))
     throw new Error(`Run "${id}" already exists; tear it down or pick another id`);
   // Checked before anything exists, so a missing tool leaves nothing behind.
+  await assertShellCanRun();
   const revision = gitInfo();
   chromePath();
   const dir = runDir(id);
@@ -793,19 +835,82 @@ async function commandMcp(flags, [kind, action, tool, json]) {
   }
 }
 
+const tomlInline = (value) =>
+  `{ ${Object.entries(value)
+    .map(([key, item]) => `${JSON.stringify(key)} = ${JSON.stringify(item)}`)
+    .join(", ")} }`;
+
+/** Each agent's own config shape for the run's two servers. Codex reads TOML, the rest JSON. */
+const MCP_CONFIG_FORMATS = {
+  claude: ({ url, headers, entry, env }) =>
+    JSON.stringify(
+      {
+        mcpServers: {
+          "screen-commons-remote": { type: "http", url, headers },
+          "screen-commons-local": { command: "node", args: [entry], env },
+        },
+      },
+      null,
+      2,
+    ),
+  cursor: ({ url, headers, entry, env }) =>
+    JSON.stringify(
+      {
+        mcpServers: {
+          "screen-commons-remote": { url, headers },
+          "screen-commons-local": { command: "node", args: [entry], env },
+        },
+      },
+      null,
+      2,
+    ),
+  opencode: ({ url, headers, entry, env }) =>
+    JSON.stringify(
+      {
+        mcp: {
+          servers: {
+            "screen-commons-remote": { type: "remote", url, headers },
+            "screen-commons-local": {
+              type: "local",
+              command: ["node", entry],
+              environment: env,
+            },
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  codex: ({ url, headers, entry, env }) =>
+    [
+      "[mcp_servers.screen-commons-remote]",
+      `url = ${JSON.stringify(url)}`,
+      `http_headers = ${tomlInline(headers)}`,
+      "",
+      "[mcp_servers.screen-commons-local]",
+      'command = "node"',
+      `args = [${JSON.stringify(entry)}]`,
+      `env = ${tomlInline(env)}`,
+    ].join("\n"),
+};
+
 function commandMcpConfig(flags) {
+  const format = MCP_CONFIG_FORMATS[flags.client ?? "claude"];
+  if (!format) {
+    throw new Error(
+      `Bad --client "${flags.client}": use ${Object.keys(MCP_CONFIG_FORMATS).join(", ")}`,
+    );
+  }
   const run = requireHealthy(resolveRun(flags));
   const { PATH: _path, ...env } = localMcpEnv(run);
-  output({
-    mcpServers: {
-      "screen-commons-remote": {
-        type: "http",
-        url: `${run.base}/mcp`,
-        headers: { Authorization: `Bearer ${run.adminKey}` },
-      },
-      "screen-commons-local": { command: "node", args: [buildLocalMcp(run)], env },
-    },
-  });
+  process.stdout.write(
+    `${format({
+      url: `${run.base}/mcp`,
+      headers: { Authorization: `Bearer ${run.adminKey}` },
+      entry: buildLocalMcp(run),
+      env,
+    })}\n`,
+  );
 }
 
 /** A small same-origin site for the browser tools, so no public site is contacted. */
@@ -1293,7 +1398,7 @@ function parse(argv) {
   const flags = {};
   const positional = [];
   for (let index = 0; index < rest.length; index += 1) {
-    if (rest[index] === "--run" || rest[index] === "--timeout") {
+    if (["--run", "--timeout", "--client"].includes(rest[index])) {
       if (rest[index + 1] === undefined) throw new Error(`${rest[index]} needs a value`);
       flags[rest[index].slice(2)] = rest[++index];
     } else if (rest[index].startsWith("--")) throw new Error(`Unknown option ${rest[index]}`);

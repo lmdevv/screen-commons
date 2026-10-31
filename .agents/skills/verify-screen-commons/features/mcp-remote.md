@@ -18,7 +18,7 @@ Agents connect to `/mcp` on an instance over Streamable HTTP with an API key, th
 
 - Connect an MCP client to `http://localhost:<port>/mcp` with `Authorization: Bearer sc_…` (driven, with the SDK's Streamable HTTP client).
 - Send JSON-RPC directly, as in the docs' `curl` test (driven, for status codes).
-- Configure Claude Code or Cursor as `docs/mcp` describes (not scripted; `control mcp-config` prints a working config for manual use).
+- Configure Claude Code or Cursor as `docs/mcp` describes (not scripted; `control mcp-config --client <agent>` prints a working config for manual use, for Claude Code, Cursor, Codex or OpenCode).
 - Send an oversized body with no `Content-Length` (not scripted: the cap returned 413 when tried by hand, but the aborted stream broke the next request through the Vite dev proxy and left an error overlay on open pages).
 - Reach the server through `mcp-remote` for stdio-only clients (not scripted; it downloads from npm).
 

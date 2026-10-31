@@ -16,7 +16,7 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 ## How to get to it (user POV)
 
 - Start `npx -y screen-commons-mcp` from an MCP client (driven in [npm package](./mcp-package.md)), or in development `node packages/mcp/dist/index.js` with `SCREEN_COMMONS_URL` and `SCREEN_COMMONS_API_KEY` (driven, with the SDK's stdio client and a per-run build of the same entry).
-- Configure Claude Code or Cursor as `docs/mcp` describes (not scripted; `control mcp-config` prints a working config for manual use).
+- Configure Claude Code or Cursor as `docs/mcp` describes (not scripted; `control mcp-config --client <agent>` prints a working config for manual use, for Claude Code, Cursor, Codex or OpenCode).
 - Run with `--headful` to watch the browser (not scripted).
 - Capture a mobile viewport with `viewport: "mobile"` (not scripted).
 - Capture through the extension instead of headless (driven in [Extension bridge](./mcp-extension.md)).

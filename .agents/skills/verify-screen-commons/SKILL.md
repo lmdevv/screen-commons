@@ -9,12 +9,27 @@ Screen Commons is a UI reference library. MCP is its main client surface, throug
 
 This skill never touches the developer's `pnpm dev` server, `apps/web/.wrangler` state, `.dev.vars`, real browser, `~/.config/screen-commons` or extension bridge port, and never deploys. Every run has its own port, state, secret and Vite cache, and its local MCP server gets a scratch home directory.
 
-Run everything from the repository root. `control` below means `.claude/skills/verify-screen-commons/scripts/control.mjs`, which is executable. Node 24 and Chromium are required. Run `pnpm install` once if `node_modules` is missing. Chromium comes from `$CHROME_PATH`, then `/run/current-system/sw/bin/chromium`, then `PATH`.
+Run everything from the repository root. `control` below means `.agents/skills/verify-screen-commons/scripts/control.mjs`, which is executable. Node 24 and Chromium are required. Run `pnpm install` once if `node_modules` is missing. Chromium comes from `$CHROME_PATH`, then `/run/current-system/sw/bin/chromium`, then `PATH`.
+
+## Agent setup
+
+This skill works the same from Claude Code, Codex, OpenCode and Cursor. It lives in `.agents/skills/`, which Codex, OpenCode and Cursor read, and `.claude/skills/verify-screen-commons` is a symlink to it for Claude Code. Edit the files under `.agents/`.
+
+A run needs a shell that can start a server that outlives the command, listen on and connect to local ports, and write outside the repository. Agent sandboxes commonly deny these, so run the commands below outside the sandbox. `launch` checks first and refuses with the reason.
+
+| Agent       | How to run outside the sandbox                                                         |
+| ----------- | -------------------------------------------------------------------------------------- |
+| Claude Code | Allow the commands when prompted. If its sandbox is on, retry them with it turned off. |
+| Codex       | `codex --sandbox danger-full-access`, or approve running outside it when asked.        |
+| OpenCode    | Nothing to do. It has no sandbox by default.                                           |
+| Cursor      | `cursor-agent --sandbox disabled`, or the equivalent Run Everything setting.           |
+
+If `launch` succeeded and a later `doctor` fails `server process is ours`, the sandbox may have ended the server or hidden it from this shell. Tear the run down and launch again outside the sandbox.
 
 ## Launch
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs launch --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs launch --run <id>
 ```
 
 `--run` is optional, and a generated id is printed otherwise. Ids start with a letter or digit, then use letters, digits, `.`, `_` and `-`, up to 64 characters. A launch takes about 35 seconds and:
@@ -37,7 +52,7 @@ To stop, see [Cleanup](#cleanup).
 ## Doctor
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs doctor --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs doctor --run <id>
 ```
 
 It changes nothing except the admin key's last-used time. Run it first and whenever anything looks off. It exits 1 unless all of these hold: launch finished, the server process is the one this run spawned, this run owns the port, state is disposable, the API answers, the admin key is valid, the catalog is seeded, the remote MCP server lists `search_screens`, the local MCP server's build tool is present, the checked-out revision matches the one launched, and Chromium exists.
@@ -49,7 +64,7 @@ A revision mismatch means you changed branch or committed after launching. `vite
 ## Drive
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs drive <journey> --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs drive <journey> --run <id>
 ```
 
 Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
@@ -107,8 +122,8 @@ export default async function (h) {
 Prefer the handles in the feature files. The app has ARIA names throughout, plus `data-screen-id` on tiles. Query D1 and R2 from the shell with:
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs sql "SELECT status, count(*) AS n FROM screen GROUP BY status" --run <id>
-.claude/skills/verify-screen-commons/scripts/control.mjs r2 --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs sql "SELECT status, count(*) AS n FROM screen GROUP BY status" --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs r2 --run <id>
 ```
 
 `sql` and `h.sql` accept one read-only `SELECT` or `WITH` statement, and refuse multiple statements or any write keyword outside strings and comments, even as an alias. Quote an identifier that clashes, such as `"begin"`. This guards against mistakes rather than being a sandbox; the database is a throwaway either way.
@@ -116,11 +131,11 @@ Prefer the handles in the feature files. The app has ARIA names throughout, plus
 Call either MCP server by hand, with the same real client the journeys use:
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs mcp remote tools --run <id>
-.claude/skills/verify-screen-commons/scripts/control.mjs mcp local call search_screens '{"query":"billed yearly"}' --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs mcp remote tools --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs mcp local call search_screens '{"query":"billed yearly"}' --run <id>
 ```
 
-To point an actual agent at the run, `control mcp-config --run <id>` prints an `mcpServers` config with both servers. It contains the run's admin key, which dies with the run, and scratch `HOME` and config directories. Each drive and `mcp local` rebuilds the same per-run build the config points at, so restart that agent's server if a tool misbehaves after one. Use it for exploration: the journeys are the proof.
+To point an actual agent at the run, `control mcp-config --client <claude|cursor|codex|opencode> --run <id>` prints both servers in that agent's own config format: JSON for all but Codex, which takes TOML for `config.toml`. It defaults to `claude`. It contains the run's admin key, which dies with the run, and scratch `HOME` and config directories. Each drive and `mcp local` rebuilds the same per-run build the config points at, so restart that agent's server if a tool misbehaves after one. Use it for exploration: the journeys are the proof.
 
 The repo's own regression suite runs against this instance unchanged. It adds full keyboard coverage:
 
@@ -131,7 +146,7 @@ E2E_BASE_URL=http://localhost:<port> pnpm --filter @screen-commons/web test:e2e
 Not covered by this skill's harness:
 
 - The extension's own capture UI, tray and uploads (`apps/extension`). `pnpm --filter @screen-commons/extension test:e2e` loads the real extension but against a mock API and bridge. The `mcp-extension` journey does prove its bridge path against a real instance.
-- Real agents such as Claude Code or Cursor as the MCP client. The journeys use the official MCP SDK client, so the protocol is proven but an agent's own config handling and tool selection are not.
+- Real agents such as Claude Code, Codex, OpenCode or Cursor as the MCP client. The journeys use the official MCP SDK client, so the protocol is proven but an agent's own config handling and tool selection are not.
 - Deployed environments, and the package as published on npm. `mcp-package` proves the packed tarball, but a release is checked by hand with `npx -y screen-commons-mcp@<version>` against a run. Deployments are out of scope; the `cf:*` scripts change real Cloudflare resources.
 
 ## Evidence
@@ -152,7 +167,7 @@ A proof is only good if it meets these standards:
 ## Cleanup
 
 ```bash
-.claude/skills/verify-screen-commons/scripts/control.mjs teardown --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs teardown --run <id>
 ```
 
 This kills only the process group the run spawned, including any member that outlived the server, and leaves a reused pid alone. It copies `server.log` to the evidence directory, then deletes `/tmp/screen-commons-verify/<id>/`, `apps/web/node_modules/.vite-verify-<id>` and `packages/mcp/node_modules/.verify-<id>`. It prints `stopped` and `portFree`, and both should be `true`. `/tmp/screen-commons-verify/` and its `.ports` directory stay so concurrent launches can share them; a claim left by a killed launch is reclaimed by the next launch that wants the port. Evidence is kept; delete `test-results/verify/` by hand when you no longer need it. Never kill by process name, because the developer's own server may be running.
