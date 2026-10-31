@@ -4,6 +4,7 @@ import { ContributionActions } from "./contribution-actions";
  * stacks the screen viewer on top (`?flow=…&screen=…`), whose ←/→ then walk the flow's steps.
  * "Open as a page" leads to the standalone /flows/$id page.
  */
+import { distinctStepScreens } from "@screen-commons/core/utils";
 import {
   Button,
   Lightbox,
@@ -16,24 +17,29 @@ import { FlowViewer, type ViewerFlow } from "@screen-commons/ui/components/flow-
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 
 import { queries } from "../../lib/queries";
 import { errorMessage, notify } from "../../lib/toast";
 import { copyText, downloadScreensZip } from "./image-actions";
-import { useRegisterResultList } from "./result-list";
+import { resultListIndex, useRegisterResultList } from "./result-list";
 import { useSaveToggle } from "./saving";
 
 export default function FlowViewerOverlay({
   id,
   open,
   activeScreenId,
+  activeStep,
   onClose,
+  stacked,
 }: {
   id: string;
   open: boolean;
   activeScreenId?: string;
+  activeStep?: number;
   onClose: () => void;
+  /** The overlay on top of this one, shown once the flow it steps through has loaded. */
+  stacked?: ReactNode;
 }) {
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
@@ -56,24 +62,26 @@ export default function FlowViewerOverlay({
             screens: flow.steps.map((step) => step.screen),
             hasMore: false,
             priority: 1,
+            flowId: flow.id,
           }
         : null,
     [flow, open],
   );
   useRegisterResultList(list);
 
-  const activeIndex = flow?.steps.findIndex((step) => step.screen.id === activeScreenId);
+  const activeIndex = resultListIndex(list, activeScreenId, activeStep);
 
   const openStep = useCallback(
-    (screenId: string) =>
+    (screenId: string, step: number) =>
       void navigate({
         to: ".",
-        search: (current: Record<string, unknown>) => ({ ...current, screen: screenId }),
+        search: (current: Record<string, unknown>) => ({ ...current, screen: screenId, step }),
         resetScroll: false,
       }),
     [navigate],
   );
 
+  // A failed flow closes itself, and the stacked overlay then renders on its own.
   if (!flow) return failed ? null : <FlowSkeleton open={open} onClose={onClose} />;
 
   return (
@@ -81,8 +89,9 @@ export default function FlowViewerOverlay({
       open={open}
       onOpenChange={(next) => !next && onClose()}
       flow={flow}
-      activeIndex={activeIndex !== undefined && activeIndex >= 0 ? activeIndex : undefined}
-      onStepClick={(step) => openStep(step.screen.id)}
+      stacked={stacked}
+      activeIndex={activeIndex >= 0 ? activeIndex : undefined}
+      onStepClick={(step, index) => openStep(step.screen.id, index)}
       onSaveToggle={(target: ViewerFlow, saved) =>
         void toggleSave({ kind: "flow", id: target.id }, saved)
       }
@@ -96,11 +105,10 @@ export default function FlowViewerOverlay({
       }}
       onDownload={async () => {
         try {
-          notify.message(`Preparing ${flow.steps.length} screens…`);
-          await downloadScreensZip(
-            flow.steps.map((step) => step.screen),
-            `${flow.app.name} ${flow.name}`,
-          );
+          // One file per screen: a repeated step isn't another image.
+          const screens = distinctStepScreens(flow.steps);
+          notify.message(`Preparing ${screens.length} screens…`);
+          await downloadScreensZip(screens, `${flow.app.name} ${flow.name}`);
         } catch (error) {
           notify.error(errorMessage(error));
         }

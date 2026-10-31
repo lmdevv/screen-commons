@@ -1,18 +1,29 @@
+import { readFile, stat } from "node:fs/promises";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
+
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { makePreview, prepareScreen } from "@screen-commons/capture";
 import {
+  ImageDownloadError,
+  LIMITS,
   TAXONOMY,
   base64ToBytes,
-  catalogTools,
   compactApp,
   compactFlow,
   compactScreen,
   createdFlowResult,
+  deletedResult,
+  downloadImage,
+  exceedsSourcePixels,
   flowDetailResult,
   flowImageSteps,
   imageTypeNote,
+  isLocalOrigin,
+  localCatalogTools,
   readImageHeader,
   screenDetailResult,
+  sniffImage,
   toolErrorText,
   uploadResult,
   type CatalogToolName,
@@ -37,10 +48,14 @@ export interface CatalogContext {
   apiKey: string | undefined;
   client: ScreenCommonsClient;
   fetch: typeof fetch;
+  /** Downloads `image.url`, on every hop. Separate from `fetch`, which only talks to the instance. */
+  imageFetch: typeof fetch;
 }
 
 const MAX_INLINE_IMAGE_BYTES = 3.5 * 1024 * 1024;
 const FLOW_IMAGE_CONCURRENCY = 4;
+/** Only stops a stray huge file being read into memory; encoding shrinks what is uploaded. */
+const MAX_LOCAL_FILE_BYTES = 256 * 1024 * 1024;
 
 function requireKey(context: CatalogContext) {
   if (!context.apiKey) {
@@ -76,7 +91,52 @@ export async function fetchImageContent(
 }
 
 type Handler<T> = (args: T, extra: unknown) => Promise<ToolResult>;
-type Args<K extends CatalogToolName> = z.output<(typeof catalogTools)[K]["input"]>;
+type Args<K extends CatalogToolName> = z.output<(typeof localCatalogTools)[K]["input"]>;
+
+async function readLocalImage(path: string): Promise<Buffer> {
+  const file = resolve(path.replace(/^~(?=\/|$)/u, homedir()));
+  try {
+    const info = await stat(file);
+    if (info.size > MAX_LOCAL_FILE_BYTES) {
+      throw new FriendlyError(
+        toolErrorText(
+          "payload_too_large",
+          `${file} is ${info.size} bytes; the limit for a local file is ${MAX_LOCAL_FILE_BYTES}`,
+        ),
+      );
+    }
+    return await readFile(file);
+  } catch (error) {
+    if (error instanceof FriendlyError) throw error;
+    const reason = (error as NodeJS.ErrnoException).code ?? "unreadable";
+    throw new FriendlyError(toolErrorText("bad_request", `Could not read ${file} (${reason})`));
+  }
+}
+
+async function uploadBytes(
+  context: CatalogContext,
+  image: Args<"upload_screen">["image"],
+): Promise<Buffer> {
+  if ("path" in image) return readLocalImage(image.path);
+  if ("url" in image) {
+    try {
+      return Buffer.from(
+        await downloadImage(image.url, {
+          allowLocal: isLocalOrigin(context.baseUrl),
+          fetch: context.imageFetch,
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof ImageDownloadError)) throw error;
+      throw new FriendlyError(toolErrorText(error.code, error.message));
+    }
+  }
+  try {
+    return Buffer.from(base64ToBytes(image.base64.replace(/^data:[^,]+,/u, "")));
+  } catch {
+    throw new FriendlyError(toolErrorText("bad_request", "screens[0].image is not valid base64"));
+  }
+}
 
 export function registerCatalogTools(server: McpServer, context: CatalogContext) {
   const wrap =
@@ -89,14 +149,18 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       }
     };
   const register = <K extends CatalogToolName>(name: K, handler: Handler<Args<K>>) => {
-    const spec = catalogTools[name];
+    const spec = localCatalogTools[name];
     server.registerTool(
       spec.name,
       {
         title: spec.title,
         description: spec.description,
         inputSchema: spec.input,
-        annotations: { title: spec.title, readOnlyHint: spec.readOnly, openWorldHint: false },
+        annotations: {
+          title: spec.title,
+          readOnlyHint: spec.readOnly,
+          openWorldHint: spec.openWorld ?? false,
+        },
       },
       wrap(handler) as never,
     );
@@ -196,18 +260,21 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
 
   register("upload_screen", async (args) => {
     requireKey(context);
-    let bytes: Buffer;
-    try {
-      bytes = Buffer.from(base64ToBytes(args.image.base64.replace(/^data:[^,]+,/u, "")));
-    } catch {
-      throw new FriendlyError(toolErrorText("bad_request", "screens[0].image is not valid base64"));
-    }
-    const header = readImageHeader(bytes);
+    const bytes = await uploadBytes(context, args.image);
+    const header = sniffImage(bytes);
     if (!header) {
       throw new FriendlyError(
         toolErrorText(
           "unsupported_media_type",
           "screens[0].image must be a complete, still PNG, JPEG or WebP image",
+        ),
+      );
+    }
+    if (exceedsSourcePixels(header)) {
+      throw new FriendlyError(
+        toolErrorText(
+          "bad_request",
+          `screens[0].image is ${header.width}x${header.height}; the limit is ${LIMITS.maxSourcePixels} pixels`,
         ),
       );
     }
@@ -221,12 +288,35 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       elements: args.elements,
     });
     const result = await client.captures({ app: args.app, screens: [screen], source: "mcp" });
-    return json(uploadResult(origin, result, imageTypeNote(args.image)));
+    const note = "base64" in args.image ? imageTypeNote(args.image) : undefined;
+    return json(uploadResult(origin, result, note));
+  });
+
+  register("update_screen", async ({ id, ...patch }) => {
+    requireKey(context);
+    return json(screenDetailResult(origin, await client.updateScreen(id, patch)));
+  });
+
+  register("delete_screen", async ({ id }) => {
+    requireKey(context);
+    await client.deleteScreen(id);
+    return json(deletedResult(id));
   });
 
   register("create_flow", async (args) => {
     requireKey(context);
     const { flow } = await client.createFlow(args);
     return json(createdFlowResult(origin, flow));
+  });
+
+  register("update_flow", async ({ id, ...patch }) => {
+    requireKey(context);
+    return json(flowDetailResult(origin, await client.updateFlow(id, patch)));
+  });
+
+  register("delete_flow", async ({ id }) => {
+    requireKey(context);
+    await client.deleteFlow(id);
+    return json(deletedResult(id));
   });
 }

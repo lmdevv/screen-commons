@@ -157,6 +157,68 @@ describe("remote MCP (/mcp)", () => {
     expect(taxonomy.elements.length).toBeGreaterThan(10);
   });
 
+  it("parallel uploads to a new app make one app, and all succeed", async () => {
+    const name = `Race ${suffix}`;
+    const results = await Promise.all(
+      Array.from({ length: 4 }, (_, index) =>
+        call("upload_screen", {
+          app: { name },
+          image: { type: "image/png", base64: b64(makePng(320, 200, 7000 + index)) },
+        }),
+      ),
+    );
+    for (const result of results) expect(result.isError).toBeFalsy();
+    const parsed = results.map(
+      (result) =>
+        JSON.parse(result.content![0]!.text!) as { app: { id: string }; screen: { id: string } },
+    );
+    expect(new Set(parsed.map((item) => item.app.id)).size).toBe(1);
+    expect(new Set(parsed.map((item) => item.screen.id)).size).toBe(4);
+  });
+
+  it("parallel uploads of the same bytes make one screen, and all get its id", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        call("upload_screen", {
+          app: { name: `Same bytes ${suffix}` },
+          image: { type: "image/png", base64: b64(makePng(320, 200, 7100)) },
+        }),
+      ),
+    );
+    for (const result of results) expect(result.isError).toBeFalsy();
+    const ids = results.map(
+      (result) => (JSON.parse(result.content![0]!.text!) as { screen: { id: string } }).screen.id,
+    );
+    expect(new Set(ids).size).toBe(1);
+  });
+
+  it("explains that a file path needs the local server or the CLI", async () => {
+    const response = await rpc("tools/call", {
+      name: "upload_screen",
+      arguments: { app: { name: `Paths ${suffix}` }, image: { path: "/etc/hostname" } },
+    });
+    const text = JSON.stringify(await response.json());
+    expect(text).toContain("only works on the local screen-commons-mcp server");
+    expect(text).toContain("screen-commons CLI");
+    expect(text).toContain("{ url }");
+    expect(text).toContain("{ type, base64 }");
+  });
+
+  it("create_flow takes an app slug as well as an id", async () => {
+    const id = crypto.randomUUID();
+    const args = {
+      id,
+      appId: batch.app.slug,
+      name: "By slug",
+      steps: batch.screens.map((item) => ({ screenId: item.id })),
+    };
+    const created = await call("create_flow", args);
+    expect(created.isError).toBeFalsy();
+    const repeated = await call("create_flow", { ...args, appId: batch.app.id });
+    expect(repeated.isError).toBeFalsy();
+    expect((JSON.parse(repeated.content![0]!.text!) as { id: string }).id).toBe(id);
+  });
+
   it("upload_screen and create_flow write to the catalog", async () => {
     const upload = JSON.parse(
       (
@@ -206,6 +268,54 @@ describe("remote MCP (/mcp)", () => {
     });
     const body = (await invalid.json()) as RpcResponse;
     expect(body.error ?? body.result?.isError).toBeTruthy();
+  });
+
+  it("update and delete tools change only what the key's owner contributed", async () => {
+    const parse = (result: Awaited<ReturnType<typeof call>>) =>
+      JSON.parse(result.content![0]!.text!);
+    const appInput = { slug: batch.app.slug, name: "Mcp Demo" };
+    const uploaded = parse(
+      await call("upload_screen", {
+        app: appInput,
+        image: { type: "image/png", base64: b64(makePng(210, 120, 77)) },
+      }),
+    );
+    const again = parse(
+      await call("upload_screen", {
+        app: appInput,
+        image: { type: "image/png", base64: b64(makePng(210, 120, 77)) },
+      }),
+    );
+    expect(again.screen).toEqual(uploaded.screen);
+
+    const edited = parse(await call("update_screen", { id: uploaded.screen.id, title: "Edited" }));
+    expect(edited).toMatchObject({ id: uploaded.screen.id, title: "Edited", status: "published" });
+
+    const flowId = crypto.randomUUID();
+    const args = {
+      id: flowId,
+      appId: batch.app.id,
+      name: "Retried",
+      description: "Safe to repeat",
+      steps: [{ screenId: batch.screens[0]!.id }, { screenId: uploaded.screen.id }],
+    };
+    const created = parse(await call("create_flow", args));
+    expect(created).toMatchObject({ id: flowId, description: "Safe to repeat" });
+    expect(parse(await call("create_flow", args)).id).toBe(flowId);
+    const renamed = parse(await call("update_flow", { id: flowId, name: "Renamed" }));
+    expect(renamed.name).toBe("Renamed");
+    expect(renamed.steps).toHaveLength(2);
+
+    expect(parse(await call("delete_screen", { id: uploaded.screen.id }))).toEqual({
+      id: uploaded.screen.id,
+      deleted: true,
+    });
+    const left = await keyClient(token).getFlow(flowId);
+    expect(left.steps.map((step) => step.screen.id)).toEqual([batch.screens[0]!.id]);
+    expect(parse(await call("delete_flow", { id: flowId }))).toEqual({ id: flowId, deleted: true });
+    const gone = await call("delete_flow", { id: flowId });
+    expect(gone.isError).toBe(true);
+    expect(gone.content![0]!.text).toMatch(/^not_found: /u);
   });
 
   it("rejects GET (stateless server, no SSE stream)", async () => {

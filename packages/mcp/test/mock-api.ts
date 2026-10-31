@@ -120,12 +120,33 @@ export async function startMockApi(): Promise<MockApi> {
         };
         return json(200, detail);
       }
+      if (request.method === "PATCH" && screenMatch) {
+        const patch = JSON.parse(await readBody(request)) as { title?: string };
+        const detail: ScreenDetail = {
+          ...screen(screenMatch[1]!),
+          title: patch.title ?? null,
+          previousId: null,
+          nextId: null,
+          flows: [],
+        };
+        return json(200, detail);
+      }
+      if (request.method === "DELETE" && (screenMatch || /^\/flows\/[^/]+$/u.test(path))) {
+        if (path.endsWith("/forbidden"))
+          return json(403, { error: { code: "forbidden", message: "Only the contributor" } });
+        response.writeHead(204);
+        return response.end();
+      }
       const flowMatch = /^\/flows\/([^/]+)$/u.exec(path);
-      if (request.method === "GET" && flowMatch) {
+      if ((request.method === "GET" || request.method === "PATCH") && flowMatch) {
+        const patch =
+          request.method === "PATCH"
+            ? (JSON.parse(await readBody(request)) as { name?: string })
+            : {};
         const flow: FlowDetail = {
           id: flowMatch[1]!,
           app,
-          name: "Signing up",
+          name: patch.name ?? "Signing up",
           type: "signing-up",
           description: null,
           stepCount: 2,

@@ -57,8 +57,7 @@ export async function prepareScreen(input: ToCaptureScreenInput): Promise<Prepar
     title,
     sourceUrl: input.sourceUrl || undefined,
     patterns: (
-      input.patterns ??
-      (input.sourceUrl || title ? suggestPatterns(input.sourceUrl ?? "", title) : [])
+      input.patterns ?? (input.sourceUrl ? suggestPatterns(input.sourceUrl, title) : [])
     ).slice(0, 8),
     elements: input.elements ?? [],
     tags: input.tags ?? [],

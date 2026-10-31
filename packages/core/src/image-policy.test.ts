@@ -9,6 +9,7 @@ import {
   derivativeKey,
   displaySize,
   encodeWithinBudget,
+  exceedsSourcePixels,
   isDisplayReady,
   isThumbnailOf,
   keepSource,
@@ -225,7 +226,47 @@ describe("encodeWithinBudget", () => {
   });
 });
 
+describe("exceedsSourcePixels", () => {
+  it("allows the largest stored image in any shape, and no more pixels than that", () => {
+    expect(exceedsSourcePixels({ width: 4096, height: 20_000 })).toBe(false);
+    expect(exceedsSourcePixels({ width: 9000, height: 9000 })).toBe(false);
+    expect(exceedsSourcePixels({ width: 4096, height: 20_001 })).toBe(true);
+    expect(exceedsSourcePixels({ width: 40_000, height: 40_000 })).toBe(true);
+  });
+});
+
 describe("sniffImage", () => {
+  it("rejects an animated PNG, whose IHDR looks like a still one", () => {
+    const chunk = (type: string, data: number[] = []) => [
+      0,
+      0,
+      0,
+      data.length,
+      ...[...type].map((letter) => letter.charCodeAt(0)),
+      ...data,
+      0,
+      0,
+      0,
+      0,
+    ];
+    const png = (...chunks: number[][]) =>
+      Uint8Array.from([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        0x0d,
+        0x0a,
+        0x1a,
+        0x0a,
+        ...chunk("IHDR", [0, 0, 0, 3, 0, 0, 0, 2, 8, 0, 0, 0, 0]),
+        ...chunks.flat(),
+        ...chunk("IEND"),
+      ]);
+    expect(sniffImage(png(chunk("IDAT", [1])))).toEqual({ type: "image/png", width: 3, height: 2 });
+    expect(sniffImage(png(chunk("acTL", [0, 0, 0, 2, 0, 0, 0, 0]), chunk("IDAT", [1])))).toBeNull();
+  });
+
   it("reads lossy, lossless and extended (alpha) WebP, PNG and JPEG", () => {
     expect(sniffImage(LOSSY)).toEqual({ type: "image/webp", width: 3, height: 2 });
     expect(sniffImage(LOSSLESS)).toEqual({ type: "image/webp", width: 3, height: 2 });

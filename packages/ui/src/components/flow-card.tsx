@@ -63,7 +63,7 @@ export function FlowCard({
             >
               {previews.map((preview, index) => (
                 <ScreenImage
-                  key={preview.id}
+                  key={index}
                   src={preview.thumbUrl}
                   width={preview.width}
                   height={preview.height}
@@ -97,7 +97,7 @@ export function FlowCard({
                 )}
               </div>
               <div className="text-sm text-fg-muted">
-                {pluralize(flow.stepCount, "screen")}
+                {pluralize(flow.stepCount, "step")}
                 {flow.type && labelFor(flow.type) !== flow.name
                   ? ` · ${labelFor(flow.type)}`
                   : null}

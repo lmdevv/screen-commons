@@ -47,6 +47,7 @@ for (const pattern of PATTERNS) {
 /**
  * Suggest screen patterns for a captured page from its URL path and title.
  * `https://x.com/` → `["landing"]`, `/blog/my-post` → `["article"]`, `/pricing` → `["pricing"]`.
+ * Without a URL there is no page to read, so nothing is suggested.
  */
 export function suggestPatterns(url: string, title?: string | null): PatternSlug[] {
   const found = new Set<PatternSlug>();
@@ -57,7 +58,7 @@ export function suggestPatterns(url: string, title?: string | null): PatternSlug
       .map((segment) => segment.toLowerCase())
       .filter(Boolean);
   } catch {
-    // not a URL; rely on title
+    return [];
   }
   // skip locale prefixes like /en or /en-us
   if (segments[0] && /^[a-z]{2}(?:-[a-z]{2})?$/u.test(segments[0])) segments = segments.slice(1);
@@ -174,4 +175,15 @@ export function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
   }
   return btoa(binary);
+}
+
+/**
+ * A flow's distinct screens, in first-seen order. Steps can repeat a screen (A → B → A → C, and
+ * re-uploading identical bytes returns the same screen), so anything keyed or navigated by screen
+ * id walks this list rather than the steps.
+ */
+export function distinctStepScreens<T extends { id: string }>(
+  steps: readonly { screen: T }[],
+): T[] {
+  return [...new Map(steps.map((step) => [step.screen.id, step.screen])).values()];
 }

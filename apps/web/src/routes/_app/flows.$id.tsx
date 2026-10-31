@@ -1,5 +1,6 @@
 import { ContributionActions } from "../../components/library/contribution-actions";
 import { labelFor } from "@screen-commons/core/taxonomy";
+import { distinctStepScreens } from "@screen-commons/core/utils";
 import {
   AppLogo,
   Button,
@@ -16,6 +17,7 @@ import { ArrowLeft, Bookmark, Download, Link2 } from "lucide-react";
 import { useMemo } from "react";
 
 import { copyText, downloadScreensZip } from "../../components/library/image-actions";
+import { resultListIndex } from "../../components/library/result-list";
 import { ScreenResults } from "../../components/library/screen-results";
 import { useSaveToggle } from "../../components/library/saving";
 import { queries } from "../../lib/queries";
@@ -40,8 +42,9 @@ function FlowPage() {
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
   const activeScreen = Route.useSearch({ select: (s) => s.screen });
+  const activeStep = Route.useSearch({ select: (s) => s.step });
   const screens = useMemo(() => flow.steps.map((step) => step.screen), [flow.steps]);
-  const activeIndex = flow.steps.findIndex((step) => step.screen.id === activeScreen);
+  const activeIndex = resultListIndex({ screens, flowId: id }, activeScreen, activeStep);
   const first = screens[0];
   usePagePlatform(flow.app.platform);
 
@@ -72,7 +75,7 @@ function FlowPage() {
               </Link>
             </h1>
             <p className="text-md text-fg-muted">
-              {pluralize(flow.stepCount, "screen")}
+              {pluralize(flow.stepCount, "step")}
               {flow.type ? ` · ${labelFor(flow.type)}` : null}
               {first ? ` · ${labelFor(first.app.platform)}` : null}
             </p>
@@ -104,9 +107,10 @@ function FlowPage() {
             <Button
               variant="outline"
               onClick={() =>
-                downloadScreensZip(screens, `${flow.app.name} ${flow.name}`).catch((e: unknown) =>
-                  notify.error(errorMessage(e)),
-                )
+                downloadScreensZip(
+                  distinctStepScreens(flow.steps),
+                  `${flow.app.name} ${flow.name}`,
+                ).catch((e: unknown) => notify.error(errorMessage(e)))
               }
             >
               <Download />
@@ -130,10 +134,14 @@ function FlowPage() {
         size="lg"
         activeIndex={activeIndex >= 0 ? activeIndex : undefined}
         aria-label={`${flow.name} steps`}
-        onStepClick={(step) =>
+        onStepClick={(step, index) =>
           void navigate({
             to: ".",
-            search: (current: Record<string, unknown>) => ({ ...current, screen: step.screen.id }),
+            search: (current: Record<string, unknown>) => ({
+              ...current,
+              screen: step.screen.id,
+              step: index,
+            }),
             resetScroll: false,
           })
         }
@@ -145,6 +153,7 @@ function FlowPage() {
           <ScreenResults
             listKey={`flow-page:${flow.id}`}
             screens={screens}
+            flowId={flow.id}
             platform={first?.app.platform ?? "web"}
             priority={false}
             downloadName={`${flow.app.name} ${flow.name}`}

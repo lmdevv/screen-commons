@@ -57,6 +57,19 @@ export async function putOnce(
   };
 }
 
+/** Delete objects no screen refers to, such as a thumbnail from an upload that lost a race. */
+export async function deleteUnreferenced(keys: readonly string[]): Promise<void> {
+  const db = getDb();
+  for (const key of new Set(keys)) {
+    const [used] = await db
+      .select({ id: screen.id })
+      .from(screen)
+      .where(or(eq(screen.imageKey, key), eq(screen.thumbKey, key), eq(screen.originalKey, key)))
+      .limit(1);
+    if (!used) await getMedia().delete(key);
+  }
+}
+
 /** A derivative stored by an earlier upload or backfill run (same source, same policy version). */
 async function findDerivative(key: string): Promise<StoredImage | null> {
   const head = await getMedia().head(key);

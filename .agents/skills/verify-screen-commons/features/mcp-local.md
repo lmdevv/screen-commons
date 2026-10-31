@@ -4,9 +4,10 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 
 ## Sub-features
 
-- `local-contract` exposes the same definition for each catalog tool as the remote server, plus 6 browser tools.
+- `local-contract` exposes the same definition for each catalog tool as the remote server, except a `path` image on `upload_screen`, plus 6 browser tools.
 - `local-extras` serves the `capture_site` and `find_inspiration` prompts and the `screen-commons://taxonomy` resource.
-- `local-catalog` proxies search, read, upload and flow creation to the instance, with the same results as the remote server.
+- `local-catalog` proxies search, read, upload, flow creation, edits and deletes to the instance, with the same results as the remote server.
+- `local-upload-sources` uploads by URL and by local file path, with one result format.
 - `local-status` reports the active driver and the bridge state.
 - `local-browser` navigates, screenshots a viewport, an element or a full page, and extracts metadata.
 - `local-crawl` discovers same-origin pages.
@@ -31,10 +32,12 @@ Preconditions:
 
 Run `control drive mcp-local --run <id>`, which performs these steps.
 
-- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 9 plus the 6 browser tools. Each catalog tool's whole definition, including annotations, deep-equals the remote one.
+- **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 13 plus the 6 browser tools. Each catalog tool's whole definition, including annotations, deep-equals the remote one. `upload_screen` also does once its `path` branch and its advice on which image source to send are removed.
 - **Extras.** `listPrompts` returns both prompts, and `capture_site` mentions `capture_pages`. `readResource` on `screen-commons://taxonomy` includes `signing-up`.
 - **Same as remote.** Each of these runs on both servers, and the text and image bytes must be identical: `search_screens` by text, with filters and with no match; `get_screen` as a thumbnail and full size; `list_apps`, `get_app`, `search_flows`, `get_flow` with images, `get_taxonomy`; and the refusals for a missing slug (`not_found: …`), a missing screen, an invalid pattern (`-32602`), bytes that aren't an image (`unsupported_media_type: …`) and a one-step flow.
 - **Upload.** `upload_screen` returns the same fields from both servers, joining one app, with `status` `published`. A mislabeled image gets the same `note` from both. D1 has `source = mcp`. `create_flow` returns the same fields and steps from both.
+- **Upload sources.** A 1920×1320 WebP by URL returns the same JSON from both servers, and the same screen again by `path`. `get_screen` returns its exact bytes and size. A PNG by `path` twice is one screen. An 18 MB PNG by `path` uploads encoded at 3000×2000 and at most 15 MiB, and by URL it fails with `payload_too_large`. A 404, a page, a redirect loop, a redirect to another scheme and a `file:` URL get the same refusal from both servers. A missing path, a directory and a text file are refused, and the remote server refuses `path` with `-32602` and names the alternatives.
+- **Manage.** `create_flow` with an `id`, `update_screen` and `update_flow` return identical text from both servers, as do refusals for missing ids and a one-step flow. A member gets the same `forbidden` from both. `delete_flow` locally shows as `not_found` remotely, and `delete_screen` remotely shows as `not_found` locally.
 - **Status.** `browser_status` reports `Active driver: headless` and `Extension bridge: disabled`.
 - **Browser.** `browser_navigate` to the fixture's `/pricing` reports its title. `browser_screenshot` reports `2880×1800` and a saved file that exists. `selector: "#top"` reports a height of 144. `fullPage: true` is taller than 1800. `browser_extract` returns the title and at least 3 links.
 - **Crawl.** `site_crawl` lists `/pricing`, `/signup` and `/docs`.
@@ -48,6 +51,7 @@ Run `control drive mcp-local --run <id>`, which performs these steps.
 ## Gotchas
 
 - Catalog results match the remote server exactly, except that an image too large to send inline is shrunk and explained in a `note` field. The seed never gets that large, so this exception is not scripted.
+- The local server encodes before uploading, so a PNG sent through both servers becomes two screens: the instance sees different bytes. A display-ready WebP is sent untouched, so it stays one screen. The journey only asserts dedupe within what is the same bytes to the instance.
 - Headless captures desktop pages at 2x, so the 1440×900 viewport reports 2880×1800. The returned image is a preview, so read the size from the text.
 - The fixture is always on `127.0.0.1`, and uploads with the same domain join one app. Set a unique `app.websiteUrl`, or a capture lands in an earlier run's app under its name.
 - Each client starts its own server process, which starts Chromium on first browser use. Closing the client stops both, and `drive` does this for you.

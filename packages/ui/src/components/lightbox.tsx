@@ -17,6 +17,8 @@ import { backdropClassName, CloseButton } from "./dialog";
  *
  * ←/→ (or `prevKeys`/`nextKeys`) call onPrev/onNext while the lightbox is the topmost layer, Esc
  * closes, focus is trapped and returned.
+ * A lightbox stacked on another renders inside it, as `children` or in `FlowViewer`'s `stacked`, so
+ * the dialog library knows which is on top whichever mounted last.
  * Deep-linking (`?screen=id`) is the router's job: derive `open` from the URL and update it in
  * `onOpenChange` / `onPrev` / `onNext`.
  */
@@ -45,7 +47,7 @@ export function Lightbox({ open, onOpenChange, children, className, ref }: Light
   return (
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className={backdropClassName} />
+        <BaseDialog.Backdrop forceRender className={backdropClassName} />
         <BaseDialog.Popup
           ref={setPopup}
           tabIndex={-1}

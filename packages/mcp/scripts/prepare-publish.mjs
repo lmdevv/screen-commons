@@ -54,7 +54,7 @@ writeFileSync(
       type: "module",
       bin: { "screen-commons-mcp": "dist/index.js" },
       files: ["dist"],
-      engines: { node: ">=20.9" },
+      engines: { node: ">=20.18.1" },
       dependencies,
     },
     null,

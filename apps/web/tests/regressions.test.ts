@@ -8,8 +8,9 @@ import {
 } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
+import { limitRequestBody } from "../src/server/http/limits";
 import { makePng, makeWebp } from "./images";
-import { Session, b64, baseUrl, captureScreen, keyClient, uniqueSuffix } from "./helpers";
+import { Session, b64, baseUrl, captureScreen, d1, keyClient, uniqueSuffix } from "./helpers";
 
 const suffix = uniqueSuffix();
 
@@ -127,6 +128,118 @@ describe("1. flows never expose screens the viewer can't see", () => {
     const queue = await admin.client().reviewQueue();
     const queued = queue.flows.find((item) => item.id === flowId);
     expect(queued).toMatchObject({ status: "pending", stepCount: 1 });
+  });
+});
+
+describe("parallel captures of the same image", () => {
+  const sha = (base64: string) =>
+    createHash("sha256").update(Buffer.from(base64, "base64")).digest("hex");
+
+  it("make one screen, keep one thumbnail, and every flow points at that screen", async () => {
+    const image = captureScreen().image;
+    const other = captureScreen();
+    const thumbnails = [1, 2, 3, 4].map(() => captureScreen().thumbnail);
+    const results = await Promise.all(
+      thumbnails.map((thumbnail) =>
+        adminApi.captures({
+          app: { name: `Parallel ${suffix}` },
+          flow: { name: "Parallel flow" },
+          screens: [{ ...other, image, thumbnail }, other],
+        }),
+      ),
+    );
+    const ids = new Set(results.map((result) => result.screens[0]!.id));
+    expect(ids.size).toBe(1);
+    expect(new Set(results.map((result) => result.screens[1]!.id)).size).toBe(1);
+    expect(new Set(results.map((result) => result.app.id)).size).toBe(1);
+
+    for (const result of results) {
+      const flow = await adminApi.getFlow(result.flow!.id);
+      expect(flow.steps.map((step) => step.screen.id)).toEqual(
+        result.screens.map((item) => item.id),
+      );
+    }
+
+    // The thumbnails that lost the race are gone from storage; the winner's still loads.
+    const statuses = await Promise.all(
+      thumbnails.map(async (thumbnail) => {
+        const response = await fetch(`${baseUrl()}/media/thumb/${sha(thumbnail!.base64)}.webp`);
+        await response.body?.cancel();
+        return response.status;
+      }),
+    );
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 404)).toHaveLength(3);
+  });
+
+  it("rejecting a screen frees its image for another upload", async () => {
+    const shot = captureScreen();
+    const app = { name: `Freed ${suffix}` };
+    const first = await memberApi.captures({ app, screens: [shot] });
+    await admin.client().review("screen", first.screens[0]!.id, "reject");
+    const second = await memberApi.captures({ app, screens: [shot] });
+    expect(second.screens[0]!.id).not.toBe(first.screens[0]!.id);
+    const third = await memberApi.captures({ app, screens: [shot] });
+    expect(third.screens[0]!.id).toBe(second.screens[0]!.id);
+  });
+
+  describe("after a rejection that keeps the claim, as the previous version's review did", () => {
+    const rejectAsPreviousVersion = (id: string) =>
+      d1(`UPDATE screen SET status='rejected', review_reason='old code' WHERE id='${id}'`);
+    const rows = (appId: string) =>
+      d1(`SELECT id, status, dedupe_image_key FROM screen WHERE app_id='${appId}'`) as Promise<
+        { id: string; status: string; dedupe_image_key: string | null }[]
+      >;
+
+    it("an upload never answers with the rejected row, and replaces it", async () => {
+      const shot = captureScreen();
+      const batch = { app: { name: `Old review ${suffix}` }, screens: [shot] };
+      const first = await memberApi.captures(batch);
+      const rejected = first.screens[0]!.id;
+      await rejectAsPreviousVersion(rejected);
+      expect((await rows(first.app.id))[0]!.dedupe_image_key).not.toBeNull();
+
+      const second = await memberApi.captures(batch);
+      expect(second.screens[0]!.id).not.toBe(rejected);
+      expect(second.screens[0]!.status).toBe("pending");
+      const after = await rows(first.app.id);
+      expect(after.find((row) => row.id === rejected)).toMatchObject({
+        status: "rejected",
+        dedupe_image_key: null,
+      });
+      expect(after.find((row) => row.id === second.screens[0]!.id)!.dedupe_image_key).toBeTruthy();
+      expect((await memberApi.captures(batch)).screens[0]!.id).toBe(second.screens[0]!.id);
+    });
+
+    it("parallel uploads settle on one replacement, flows included", async () => {
+      const shot = captureScreen();
+      const other = captureScreen();
+      const batch = { app: { name: `Old review race ${suffix}` }, screens: [shot] };
+      const first = await adminApi.captures(batch);
+      const rejected = first.screens[0]!.id;
+      await rejectAsPreviousVersion(rejected);
+
+      const results = await Promise.all(
+        [1, 2, 3, 4, 5, 6].map(() =>
+          adminApi.captures({ ...batch, screens: [shot, other], flow: { name: "After reject" } }),
+        ),
+      );
+      const ids = new Set(results.map((result) => result.screens[0]!.id));
+      expect(ids.size).toBe(1);
+      expect(ids.has(rejected)).toBe(false);
+      for (const result of results) {
+        expect(result.screens.map((item) => item.status)).toEqual(["published", "published"]);
+        const flow = await adminApi.getFlow(result.flow!.id);
+        expect(flow.steps.map((step) => step.screen.id)).toEqual(
+          result.screens.map((item) => item.id),
+        );
+      }
+      const after = await rows(first.app.id);
+      expect(after.filter((row) => row.status === "published")).toHaveLength(2);
+      expect(after.filter((row) => row.status === "rejected")).toEqual([
+        expect.objectContaining({ id: rejected, dedupe_image_key: null }),
+      ]);
+    });
   });
 });
 
@@ -250,9 +363,8 @@ describe("4. upload limits are enforced before allocation, on every transport", 
     expect(response.headers.get("content-length")).not.toBe(String(sent));
     expect(response.status).toBe(413);
     expect((await response.json()).error.code).toBe("payload_too_large");
-    // `vite dev` only: Miniflare reuses its connection to workerd after this half-read upload, and
-    // the next request through it fails with ECONNRESET (a 500). Spend that on a throwaway request.
-    await fetch(`${baseUrl()}/api/v1/apps`).catch(() => undefined);
+    // The rest of the upload was read, so the connection it used is still good for the next one.
+    expect((await fetch(`${baseUrl()}/api/v1/apps`)).status).toBe(401);
   });
 
   it("rejects declared oversize bodies and non-upload bodies over 1 MiB", async () => {
@@ -277,6 +389,23 @@ describe("4. upload limits are enforced before allocation, on every transport", 
     expect(crossOrigin.status).toBe(413);
     expect(crossOrigin.headers.get("access-control-allow-origin")).toBe("*");
     await crossOrigin.body?.cancel();
+  });
+
+  it("answers within the drain deadline when a client stops sending", async () => {
+    const stalled = new ReadableStream<Uint8Array>({ pull: () => new Promise(() => undefined) });
+    const limited = limitRequestBody(
+      new Request("http://localhost/", {
+        method: "POST",
+        body: stalled,
+        duplex: "half",
+      } as RequestInit),
+      1024,
+    );
+    // A handler that gave up with a read still in flight, the case that used to wait forever.
+    void limited.request.body?.getReader().read();
+    const started = Date.now();
+    await limited.drain();
+    expect(Date.now() - started).toBeLessThan(5_000);
   });
 
   it("bounds each base64 image before decoding it", async () => {
@@ -341,6 +470,7 @@ describe("4. upload limits are enforced before allocation, on every transport", 
       body: "x".repeat(LIMITS.maxRequestBytes + 1),
     });
     expect(body.status).toBe(413);
+    expect((await fetch(`${baseUrl()}/api/v1/apps`)).status).toBe(401);
   });
 
   it("accepts MCP uploads above the SDK's default 4 MiB body cap", async () => {

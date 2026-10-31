@@ -34,21 +34,83 @@ export class BodyTooLargeError extends Error {
   }
 }
 
+/** How much of a refused body is read before giving up on leaving the connection reusable. */
+const DRAIN_BYTES = LIMITS.maxRequestBytes * 2;
+const DRAIN_MS = 3_000;
+
+/**
+ * Read and discard the rest of a body, up to the bounds above. The deadline covers `pending`, a read
+ * already in flight, so a client that stops sending can't hold the answer back.
+ */
+async function drain(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  pending: Promise<unknown> = Promise.resolve(),
+): Promise<void> {
+  const deadline = Date.now() + DRAIN_MS;
+  const beforeDeadline = <T>(work: Promise<T>, expired: T): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+      work,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(expired), deadline - Date.now());
+      }),
+    ]).finally(() => clearTimeout(timer));
+  };
+  let drained = 0;
+  try {
+    await beforeDeadline(pending, undefined);
+    while (drained <= DRAIN_BYTES && Date.now() < deadline) {
+      const { done, value } = await beforeDeadline<ReadableStreamReadResult<Uint8Array>>(
+        reader.read(),
+        { done: true, value: undefined },
+      );
+      if (done) break;
+      drained += value.byteLength;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+}
+
+/**
+ * Answering with part of a body unread makes the runtime drop the connection under the client: a
+ * client still sending can lose the answer to a reset, and a proxy that reuses the connection fails
+ * its next request. So read what's left first, within limits, rather than decoding or keeping it.
+ */
+export async function drainBody(request: Request): Promise<void> {
+  if (!request.body || Number(request.headers.get("content-length") ?? 0) > DRAIN_BYTES) return;
+  await drain(request.body.getReader());
+}
+
 /**
  * Wrap a request so its body stream errors as soon as more than `limit` bytes have been read,
- * whatever Content-Length says (or when it's absent, e.g. chunked uploads).
+ * whatever Content-Length says (or when it's absent, e.g. chunked uploads). The returned `drain`
+ * finishes reading whatever the handler left, for `drainBody`'s reason.
  */
-export function limitRequestBody(request: Request, limit: number): Request {
-  if (!request.body) return request;
+export function limitRequestBody(
+  request: Request,
+  limit: number,
+): { request: Request; drain: () => Promise<void> } {
+  if (!request.body) return { request, drain: async () => undefined };
+  const reader = request.body.getReader();
   let seen = 0;
-  const counter = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      seen += chunk.byteLength;
+  // A reader takes one read at a time, and a handler can give up with one still in flight.
+  let reading: Promise<unknown> = Promise.resolve();
+  const limited = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const read = reader.read();
+      reading = read.catch(() => undefined);
+      const { done, value } = await read;
+      if (done) return controller.close();
+      seen += value.byteLength;
       if (seen > limit) controller.error(new BodyTooLargeError(limit));
-      else controller.enqueue(chunk);
+      else controller.enqueue(value);
     },
   });
-  return new Request(request, { body: request.body.pipeThrough(counter) } as RequestInit);
+  return {
+    request: new Request(request, { body: limited, duplex: "half" } as RequestInit),
+    drain: () => drain(reader, reading),
+  };
 }
 
 /** Read a request body fully, counting streamed bytes; throws `payload_too_large` past `limit`. */

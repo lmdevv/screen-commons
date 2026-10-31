@@ -4,10 +4,13 @@ import { LIMITS } from "./limits";
 import {
   appInputSchema,
   categorySchema,
+  createFlowInputSchema,
   elementSchema,
   flowTypeSchema,
   patternSchema,
   platformSchema,
+  updateFlowInputSchema,
+  updateScreenInputSchema,
 } from "./schemas";
 
 /**
@@ -21,9 +24,34 @@ export interface ToolSpec<Shape extends z.ZodRawShape = z.ZodRawShape> {
   description: string;
   input: z.ZodObject<Shape>;
   readOnly: boolean;
+  /** The tool reaches beyond this instance, such as to download a URL it is given. */
+  openWorld?: boolean;
 }
 
 const tool = <Shape extends z.ZodRawShape>(spec: ToolSpec<Shape>) => spec;
+
+const base64Image = z.object({
+  type: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  base64: z.string().min(1),
+});
+const urlImage = z.object({
+  url: z
+    .url()
+    .describe(
+      "https URL of the image on a public host; the server downloads it. An instance running on localhost also accepts http and local hosts.",
+    ),
+});
+const pathImage = z.object({
+  path: z.string().min(1).describe("Image file on the machine running this server"),
+});
+
+/** What base64 can carry on the remote server, and what not to try when it can't carry a file. */
+const REMOTE_BASE64_NOTE = `Send { type, base64 } only as a last resort: it takes at most ${LIMITS.maxImageBytes / (1024 * 1024)} MiB of image, about ${Math.ceil(((LIMITS.maxImageBytes / (1024 * 1024)) * 4) / 3)} MiB of text, and you have to write all of it into this tool call, so it only suits small images. Don't post to /mcp by hand or read an MCP config for its API key. If a file on disk is too large and neither the local server nor the CLI is available, say so and ask the user to set one up.`;
+
+const REMOTE_PATH_REFUSAL = `image { path } only works on the local screen-commons-mcp server or the screen-commons CLI, because this remote server can't read your files. Use either of those for a file on disk, or { url } for an image already at a URL this server can reach. ${REMOTE_BASE64_NOTE}`;
+
+const uploadDescription = (sources: string) =>
+  `Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing). ${sources} Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.`;
 
 export const catalogTools = {
   search_screens: tool({
@@ -108,13 +136,16 @@ export const catalogTools = {
   upload_screen: tool({
     name: "upload_screen",
     title: "Upload screen",
-    description:
-      "Upload one screenshot (base64 PNG/JPEG/WebP) to the catalog under an app (created if missing). Member uploads await review.",
+    description: uploadDescription(
+      `For image, prefer { url } if the image is already at a URL this server can reach. This server can't read your files: for a file on disk, use the local screen-commons-mcp server or the screen-commons CLI rather than serving files over HTTP. ${REMOTE_BASE64_NOTE}`,
+    ),
     input: z.object({
       app: appInputSchema,
-      image: z.object({
-        type: z.enum(["image/png", "image/jpeg", "image/webp"]),
-        base64: z.string().min(1),
+      image: z.union([base64Image, urlImage], {
+        error: ({ input }) =>
+          input && typeof input === "object" && "path" in input
+            ? REMOTE_PATH_REFUSAL
+            : "image must be { type, base64 } or { url }",
       }),
       title: z.string().max(160).optional(),
       sourceUrl: z.url().optional(),
@@ -122,20 +153,66 @@ export const catalogTools = {
       elements: z.array(elementSchema).max(24).default([]),
     }),
     readOnly: false,
+    openWorld: true,
+  }),
+  update_screen: tool({
+    name: "update_screen",
+    title: "Update screen",
+    description:
+      "Edit the title, patterns, elements or tags of a screen you contributed. Omitted fields stay as they are.",
+    input: updateScreenInputSchema.extend({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+  delete_screen: tool({
+    name: "delete_screen",
+    title: "Delete screen",
+    description: "Delete a screen you contributed. It is also removed from any flows it is in.",
+    input: z.object({ id: z.string().min(1) }),
+    readOnly: false,
   }),
   create_flow: tool({
     name: "create_flow",
     title: "Create flow",
-    description: "Create an ordered flow from existing screen ids of one app.",
-    input: z.object({
-      appId: z.string().min(1),
-      name: z.string().min(1).max(80),
-      type: flowTypeSchema.optional(),
-      steps: z
-        .array(z.object({ screenId: z.string().min(1), label: z.string().max(80).optional() }))
-        .min(2),
+    description:
+      "Create an ordered flow from existing screen ids of one app, given its id or slug. Pick an id to retry safely: calling again with the same id returns the same flow.",
+    input: createFlowInputSchema.extend({
+      appId: createFlowInputSchema.shape.appId.describe("The app's id or slug"),
+      id: createFlowInputSchema.shape.id.describe(
+        "Your own UUID for this flow, so a repeated call doesn't create another",
+      ),
     }),
     readOnly: false,
+  }),
+  update_flow: tool({
+    name: "update_flow",
+    title: "Update flow",
+    description:
+      "Edit a flow you contributed: its name, type, description or steps. Steps replace the whole ordered list. Omitted fields stay as they are.",
+    input: updateFlowInputSchema.extend({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+  delete_flow: tool({
+    name: "delete_flow",
+    title: "Delete flow",
+    description: "Delete a flow you contributed. Its screens stay in the catalog.",
+    input: z.object({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+} as const;
+
+/** The local stdio server's catalog: the same tools, and `upload_screen` also reads a local file. */
+export const localCatalogTools = {
+  ...catalogTools,
+  upload_screen: tool({
+    ...catalogTools.upload_screen,
+    description: uploadDescription(
+      "For image, prefer { path } for a file on this machine, then { url } for an image already at a URL this server can reach. Send { type, base64 } only as a last resort, because it passes through your context.",
+    ),
+    input: catalogTools.upload_screen.input.extend({
+      image: z.union([base64Image, urlImage, pathImage], {
+        error: "image must be { type, base64 }, { url } or { path }",
+      }),
+    }),
   }),
 } as const;
 

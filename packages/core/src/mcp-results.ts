@@ -122,9 +122,19 @@ export function imageTypeNote(image: { type: string; base64: string }): string |
     : undefined;
 }
 
+export function deletedResult(id: string) {
+  return { id, deleted: true };
+}
+
+const INTERNAL_RETRY =
+  " The change may or may not have been saved. Retrying is safe for every tool, except create_flow without an id, which could create a second flow.";
+
 /** A failed call, as an agent reads it from either server. */
 export function toolErrorText(code: ErrorCode, message: string, retryAfter?: number | null) {
   const retry =
     retryAfter === undefined || retryAfter === null ? "" : ` Retry in ${retryAfter} seconds.`;
-  return `${code}: ${message}${retry}`;
+  const stop = /[.!?]$/u.test(message) ? "" : ".";
+  return code === "internal"
+    ? `${code}: ${message}${stop}${INTERNAL_RETRY}${retry}`
+    : `${code}: ${message}${retry}`;
 }

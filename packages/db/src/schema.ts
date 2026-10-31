@@ -142,6 +142,12 @@ export const screen = sqliteTable(
     /** Source kept when `imageKey` is a server-derived display image (never served). */
     originalKey: text("original_key"),
     /**
+     * The image key this row holds its contributor's one-screen-per-image claim under, unique per
+     * app and contributor. A separate column so rows that were already duplicates when it arrived
+     * can stay, with it left null. Null too once a screen is rejected, which frees the image.
+     */
+    dedupeImageKey: text("dedupe_image_key"),
+    /**
      * Display policy version `imageKey`/`thumbKey` were checked against; null when they couldn't be
      * normalized (Images binding failure, rows from before the policy) and the backfill should retry.
      */
@@ -185,6 +191,7 @@ export const screen = sqliteTable(
     index("screen_status_created_idx").on(table.status, table.createdAt),
     index("screen_app_created_idx").on(table.appId, table.createdAt),
     index("screen_app_image_idx").on(table.appId, table.imageKey),
+    uniqueIndex("screen_dedupe_idx").on(table.appId, table.contributorId, table.dedupeImageKey),
     index("screen_image_key_idx").on(table.imageKey),
     index("screen_thumb_key_idx").on(table.thumbKey),
     index("screen_display_version_idx").on(table.displayVersion),

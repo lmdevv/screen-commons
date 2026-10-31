@@ -9,6 +9,7 @@ import {
   compactFlow,
   compactScreen,
   createdFlowResult,
+  deletedResult,
   flowDetailResult,
   flowImageSteps,
   imageTypeNote,
@@ -104,12 +105,24 @@ function createHandlers(principal: Principal, origin: string) {
     get_taxonomy: async () => json(services.getTaxonomy()),
     upload_screen: async (args) => {
       const result = await services.uploadScreenFromTool(principal, args, origin);
-      const note = imageTypeNote(args.image);
+      const note = "base64" in args.image ? imageTypeNote(args.image) : undefined;
       return json({ ...result, ...(note ? { note } : {}) });
+    },
+    update_screen: async ({ id, ...patch }) =>
+      json(screenDetailResult(origin, await services.updateScreen(principal, id, patch))),
+    delete_screen: async ({ id }) => {
+      await services.deleteContribution(principal, "screen", id);
+      return json(deletedResult(id));
     },
     create_flow: async (args) => {
       const { flow } = await services.createFlow(principal, args);
       return json(createdFlowResult(origin, flow));
+    },
+    update_flow: async ({ id, ...patch }) =>
+      json(flowDetailResult(origin, await services.updateFlow(principal, id, patch))),
+    delete_flow: async ({ id }) => {
+      await services.deleteContribution(principal, "flow", id);
+      return json(deletedResult(id));
     },
   };
   return handlers;
@@ -120,7 +133,7 @@ function createServer(principal: Principal, origin: string): McpServer {
     { name: "screen-commons", version: "0.1.0" },
     {
       instructions:
-        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs.",
+        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs. To contribute, upload_screen (a URL this server can reach, or base64 as a last resort, which only suits small images; this server can't read your files, so use the local server or the screen-commons CLI for those, and don't post to /mcp by hand or read an MCP config for its API key), then create_flow; update_screen, delete_screen, update_flow and delete_flow manage what you contributed.",
     },
   );
   const handlers = createHandlers(principal, origin);
@@ -133,7 +146,11 @@ function createServer(principal: Principal, origin: string): McpServer {
         title: spec.title,
         description: spec.description,
         inputSchema: spec.input,
-        annotations: { title: spec.title, readOnlyHint: spec.readOnly, openWorldHint: false },
+        annotations: {
+          title: spec.title,
+          readOnlyHint: spec.readOnly,
+          openWorldHint: spec.openWorld ?? false,
+        },
       },
       (async (args: unknown): Promise<CallToolResult> => {
         try {

@@ -419,7 +419,7 @@ export default function SearchPalette({
                   key={flow.id}
                   value={`flow:${flow.id}`}
                   icon={<Workflow />}
-                  hint={`${flow.app.name} · ${flow.stepCount} screens`}
+                  hint={`${flow.app.name} · ${flow.stepCount} steps`}
                   onSelect={() => openOverlay("flow", flow.id)}
                 >
                   {flow.name}

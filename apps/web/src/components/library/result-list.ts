@@ -14,6 +14,19 @@ export interface ResultList {
   loadMore?: () => Promise<unknown>;
   /** Overlay lists (a flow's steps) win over the grid underneath. */
   priority?: number;
+  /** Set when this is a flow's steps: a screen can repeat, so `?step=` says which entry is open. */
+  flowId?: string;
+}
+
+/** Where the open screen is in a list. A step that doesn't name this screen is ignored. */
+export function resultListIndex(
+  list: Pick<ResultList, "screens" | "flowId"> | null,
+  screenId: string | undefined,
+  step: number | undefined,
+): number {
+  if (!list || !screenId) return -1;
+  if (list.flowId && step !== undefined && list.screens[step]?.id === screenId) return step;
+  return list.screens.findIndex((screen) => screen.id === screenId);
 }
 
 let lists: ResultList[] = [];

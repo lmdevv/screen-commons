@@ -1,4 +1,6 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -205,6 +207,40 @@ describe("catalog tools", () => {
     );
   });
 
+  it("upload_screen suggests no pattern without a source URL", async () => {
+    const { client } = await connect();
+    const png = await sharp({
+      create: { width: 800, height: 600, channels: 3, background: "#123456" },
+    })
+      .png()
+      .toBuffer();
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { type: "image/png", base64: png.toString("base64") },
+      title: "Acme pricing",
+    });
+    expect(result.isError).toBeFalsy();
+    expect(api.batches[before]!.screens[0]?.patterns).toEqual([]);
+  });
+
+  it("upload_screen refuses a source with too many pixels before decoding it", async () => {
+    const { client } = await connect();
+    const png = await sharp({
+      create: { width: 9100, height: 9100, channels: 3, background: "#000" },
+    })
+      .png({ compressionLevel: 1 })
+      .toBuffer();
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { type: "image/png", base64: png.toString("base64") },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("bad_request: screens[0].image is 9100x9100");
+    expect(api.batches.length).toBe(before);
+  });
+
   it("upload_screen posts a one-screen capture batch", async () => {
     const { client } = await connect();
     const png = await sharp({
@@ -237,6 +273,115 @@ describe("catalog tools", () => {
       type: "image/webp",
       width: 640,
     });
+  });
+
+  it("upload_screen downloads a { url } image and keeps its size", async () => {
+    const webp = await sharp({
+      create: { width: 1920, height: 1320, channels: 3, background: "#abcdef" },
+    })
+      .webp()
+      .toBuffer();
+    const host = createServer((request, response) => {
+      if (request.url === "/short")
+        return response.writeHead(302, { location: "/file.webp" }).end();
+      if (request.url === "/file.webp") return response.end(webp);
+      return response.writeHead(404).end();
+    });
+    await new Promise<void>((resolve) => host.listen(0, "127.0.0.1", resolve));
+    const origin = `http://127.0.0.1:${(host.address() as AddressInfo).port}`;
+    try {
+      const { client } = await connect();
+      const before = api.batches.length;
+      const result = await call(client, "upload_screen", {
+        app: { name: "Acme" },
+        image: { url: `${origin}/short` },
+      });
+      expect(result.isError).toBeFalsy();
+      expect(JSON.parse(textOf(result)).note).toBeUndefined();
+      const { image } = api.batches[before]!.screens[0]!;
+      expect(Buffer.from(image.base64, "base64").equals(webp)).toBe(true);
+
+      const missing = await call(client, "upload_screen", {
+        app: { name: "Acme" },
+        image: { url: `${origin}/nope` },
+      });
+      expect(textOf(missing)).toMatch(/^unprocessable: .*HTTP 404/u);
+    } finally {
+      host.closeAllConnections();
+      host.close();
+    }
+  });
+
+  it("upload_screen refuses local { url } hosts when the instance isn't local", async () => {
+    const { client } = await connect({ url: "https://screens.example.com" });
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { url: "https://127.0.0.1/file.webp" },
+    });
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toMatch(/^bad_request: image\.url must use a public hostname/u);
+  });
+
+  it("upload_screen reads a { path } image, and explains one it can't", async () => {
+    const { client } = await connect();
+    const file = join(outputDir, "local.png");
+    const png = await sharp({ create: { width: 90, height: 60, channels: 3, background: "#123" } })
+      .png()
+      .toBuffer();
+    await writeFile(file, png);
+    const before = api.batches.length;
+    const result = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { path: file },
+    });
+    expect(result.isError).toBeFalsy();
+    expect(
+      readImageHeader(Buffer.from(api.batches[before]!.screens[0]!.image.base64, "base64")),
+    ).toMatchObject({ width: 90, height: 60 });
+
+    const missing = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { path: join(outputDir, "nope.png") },
+    });
+    expect(textOf(missing)).toMatch(/^bad_request: Could not read .*nope\.png \(ENOENT\)/u);
+    await writeFile(join(outputDir, "note.txt"), "not an image");
+    const notImage = await call(client, "upload_screen", {
+      app: { name: "Acme" },
+      image: { path: join(outputDir, "note.txt") },
+    });
+    expect(textOf(notImage)).toMatch(/^unsupported_media_type: /u);
+  });
+
+  it("updates and deletes through the REST client, with the shared results", async () => {
+    const { client } = await connect();
+    const screen = await call(client, "update_screen", { id: "scr_1", title: "Renamed" });
+    expect(JSON.parse(textOf(screen))).toMatchObject({ id: "scr_1", title: "Renamed" });
+    const flow = await call(client, "update_flow", { id: "flow_1", name: "Renamed" });
+    expect(JSON.parse(textOf(flow))).toMatchObject({ id: "flow_1", name: "Renamed" });
+    expect(JSON.parse(textOf(await call(client, "delete_screen", { id: "scr_1" })))).toEqual({
+      id: "scr_1",
+      deleted: true,
+    });
+    expect(JSON.parse(textOf(await call(client, "delete_flow", { id: "flow_1" })))).toEqual({
+      id: "flow_1",
+      deleted: true,
+    });
+    const refused = await call(client, "delete_flow", { id: "forbidden" });
+    expect(textOf(refused)).toBe("forbidden: Only the contributor");
+  });
+
+  it("create_flow passes its retry id and description through", async () => {
+    const { client } = await connect();
+    const id = "4f6c1f5e-6a29-4a7e-9a55-0d3a6f6a7f10";
+    const before = api.flows.length;
+    await call(client, "create_flow", {
+      id,
+      appId: "app_1",
+      name: "Retry",
+      description: "Why",
+      steps: [{ screenId: "scr_1" }, { screenId: "scr_2" }],
+    });
+    expect(api.flows[before]).toMatchObject({ id, description: "Why" });
   });
 
   it("upload_screen types images by their bytes, noting a mislabelled image.type", async () => {

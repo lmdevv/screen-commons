@@ -1,12 +1,15 @@
 import {
   IMAGE_EXTENSIONS,
+  ImageDownloadError,
   LIMITS,
   appInputSchema,
   base64ToBytes,
   captureBatchInputSchema,
   createFlowInputSchema,
   createScreenInputSchema,
+  downloadImage,
   hostnameOf,
+  isLocalOrigin,
   isThumbnailOf,
   sniffImage,
   slugify,
@@ -29,16 +32,17 @@ import {
   type NewAppRow,
   type NewScreenRow,
 } from "@screen-commons/db";
-import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, or, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { z } from "zod";
 
-import { getDb } from "../env";
+import { env, getDb } from "../env";
 import { ServiceError, badRequest, notFound, parseInput } from "../errors";
 import { newId, sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
 import { getFlow, getScreenRow } from "./catalog";
 import {
+  deleteUnreferenced,
   putOnce,
   resolveScreenMedia,
   sourceKeys,
@@ -50,6 +54,10 @@ import { screensToApi, visibleSql } from "./shared";
 
 type AppInput = z.output<typeof appInputSchema>;
 type ImageKind = "img" | "thumb" | "logo";
+
+const MAX_SLUG_ATTEMPTS = 100;
+/** Rejections racing one upload hard enough to use these up should be reported, not looped on. */
+const MAX_CLAIM_ATTEMPTS = 3;
 
 export const KIND_LIMITS: Record<ImageKind, { bytes: number; width: number; height: number }> = {
   img: { bytes: LIMITS.maxImageBytes, width: LIMITS.maxImageWidth, height: LIMITS.maxImageHeight },
@@ -192,24 +200,18 @@ const flowStatusFor = (principal: Principal, screenStatuses: Status[]): Status =
  * App slugs are globally unique (routes are `/apps/$slug`). When the base slug is taken (on any
  * platform) the platform is appended (`linear-ios`), then a counter (`linear-ios-2`).
  */
-async function uniqueSlug(platform: string, base: string): Promise<string> {
-  const rows = await getDb()
-    .select({ slug: app.slug })
-    .from(app)
-    .where(or(eq(app.slug, base), like(app.slug, `${base}-%`)));
-  const taken = new Set(rows.map((row) => row.slug));
-  if (!taken.has(base)) return base;
+function* slugCandidates(platform: string, base: string): Generator<string> {
+  yield base;
   const withPlatform = `${base.slice(0, 79 - platform.length)}-${platform}`;
-  if (!taken.has(withPlatform)) return withPlatform;
-  for (let index = 2; ; index += 1) {
-    const candidate = `${withPlatform.slice(0, 76)}-${index}`;
-    if (!taken.has(candidate)) return candidate;
+  yield withPlatform;
+  for (let index = 2; index <= MAX_SLUG_ATTEMPTS; index += 1) {
+    yield `${withPlatform.slice(0, 76)}-${index}`;
   }
 }
 
 /**
  * The app a contribution belongs to, always on the requested platform: slug (as given, or with
- * the platform suffix `uniqueSlug` adds on collisions) → website host → name slug.
+ * the platform suffix `slugCandidates` adds on collisions) → website host → name slug.
  */
 async function findApp(input: AppInput): Promise<AppRow | undefined> {
   const db = getDb();
@@ -251,53 +253,73 @@ function canEditApp(principal: Principal, existing: AppRow | undefined): boolean
   return existing.status === "pending" && existing.contributorId === principal.user.id;
 }
 
-async function appWrite(
+function appWrite(
   principal: Principal,
   input: AppInput,
-  existing: AppRow | undefined,
+  existing: AppRow,
   logoKey: string | null,
   now: Date,
-): Promise<{ row: AppRow; write: BatchItem<"sqlite"> | null }> {
-  const db = getDb();
-  const host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
-  if (existing) {
-    if (!canEditApp(principal, existing)) return { row: existing, write: null };
-    const patch: Partial<NewAppRow> = { updatedAt: now };
-    if (!existing.tagline && input.tagline) patch.tagline = input.tagline;
-    if (!existing.description && input.description) patch.description = input.description;
-    if (!existing.category && input.category) patch.category = input.category;
-    if (!existing.websiteUrl && input.websiteUrl) {
-      patch.websiteUrl = input.websiteUrl;
-      patch.host = host;
-    }
-    if (logoKey && (!existing.logoKey || isAdmin(principal))) patch.logoKey = logoKey;
-    if (isAdmin(principal) && existing.status !== "published") patch.status = "published";
-    return {
-      row: { ...existing, ...patch } as AppRow,
-      write: db.update(app).set(patch).where(eq(app.id, existing.id)),
-    };
+): { row: AppRow; write: BatchItem<"sqlite"> | null } {
+  if (!canEditApp(principal, existing)) return { row: existing, write: null };
+  const patch: Partial<NewAppRow> = { updatedAt: now };
+  if (!existing.tagline && input.tagline) patch.tagline = input.tagline;
+  if (!existing.description && input.description) patch.description = input.description;
+  if (!existing.category && input.category) patch.category = input.category;
+  if (!existing.websiteUrl && input.websiteUrl) {
+    patch.websiteUrl = input.websiteUrl;
+    patch.host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
   }
+  if (logoKey && (!existing.logoKey || isAdmin(principal))) patch.logoKey = logoKey;
+  if (isAdmin(principal) && existing.status !== "published") patch.status = "published";
+  return {
+    row: { ...existing, ...patch } as AppRow,
+    write: getDb().update(app).set(patch).where(eq(app.id, existing.id)),
+  };
+}
 
-  const values = {
-    id: newId(),
-    slug: await uniqueSlug(input.platform, input.slug ?? (slugify(input.name) || "app")),
-    name: input.name,
-    tagline: input.tagline ?? null,
-    description: input.description ?? null,
-    websiteUrl: input.websiteUrl ?? null,
-    host,
-    platform: input.platform,
-    category: input.category ?? null,
-    logoKey,
-    accentColor: null,
-    status: statusFor(principal),
-    contributorId: principal.user.id,
-    viewCount: 0,
-    saveCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  } satisfies AppRow;
-  return { row: values, write: db.insert(app).values(values) };
+/**
+ * Insert a new app, or adopt the one a concurrent upload just created. Slugs are tried in a fixed
+ * order, and a slug someone else holds is only skipped once `findApp` says that app isn't this
+ * one, so parallel uploads can't split one app across slugs. A failure after this leaves an app
+ * with no screens, as deleting its last screen does, and a retry finds it.
+ */
+async function insertApp(
+  principal: Principal,
+  input: AppInput,
+  logoKey: string | null,
+  now: Date,
+): Promise<AppRow> {
+  const db = getDb();
+  const base = input.slug ?? (slugify(input.name) || "app");
+  for (const slug of slugCandidates(input.platform, base)) {
+    const [inserted] = await db
+      .insert(app)
+      .values({
+        id: newId(),
+        slug,
+        name: input.name,
+        tagline: input.tagline ?? null,
+        description: input.description ?? null,
+        websiteUrl: input.websiteUrl ?? null,
+        host: input.websiteUrl ? hostnameOf(input.websiteUrl) : null,
+        platform: input.platform,
+        category: input.category ?? null,
+        logoKey,
+        accentColor: null,
+        status: statusFor(principal),
+        contributorId: principal.user.id,
+        viewCount: 0,
+        saveCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing({ target: app.slug })
+      .returning();
+    if (inserted) return inserted;
+    const winner = await findApp(input);
+    if (winner) return winner;
+  }
+  throw new ServiceError("conflict", `Too many apps are named like ${base}. Set a different slug.`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -378,6 +400,8 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
           sql`${screen.status} != 'rejected'`,
         ),
       )
+      // Rows from before the unique index can be duplicates: always answer with the oldest.
+      .orderBy(asc(screen.createdAt), asc(screen.id))
       .limit(1);
     return row;
   };
@@ -416,11 +440,20 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
     screens.push({ id, status });
   }
 
-  // 4. Rows, written in one batch.
-  const resolved = await appWrite(principal, input.app, existing, logoKey, now);
+  if (input.flow && screens.length < 2)
+    throw badRequest("A flow needs at least two distinct screens");
+
+  // 4. Rows, written in one batch. A parallel upload of the same image may commit first, which the
+  //    unique index turns into a no-op here; step 5 then reports the screen that won.
+  const resolved = appWrite(
+    principal,
+    input.app,
+    existing ?? (await insertApp(principal, input.app, logoKey, now)),
+    logoKey,
+    now,
+  );
   const appRow = resolved.row;
-  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
-  for (const { item, id, media } of created) {
+  const claimWrites = ({ item, media }: (typeof created)[number], id: string) => {
     const { full, thumb, originalKey, displayVersion, displayException } = media;
     const capturedAt = parseDate(item.capturedAt);
     const values: NewScreenRow = {
@@ -434,6 +467,7 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       thumbWidth: thumb.width,
       thumbHeight: thumb.height,
       originalKey,
+      dedupeImageKey: full.key,
       displayVersion,
       displayException,
       title: item.title ?? null,
@@ -451,12 +485,30 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
       createdAt: now,
       updatedAt: now,
     };
-    writes.push(db.insert(screen).values(values));
-  }
+    // A rejected row isn't an answer, whatever wrote it: code that rejects without clearing its
+    // claim can be serving during a deploy. Releasing in the insert's own batch means parallel
+    // uploads hitting that row still settle on one replacement, the first batch's.
+    return [
+      db
+        .update(screen)
+        .set({ dedupeImageKey: null })
+        .where(
+          and(
+            eq(screen.appId, appRow.id),
+            eq(screen.contributorId, principal.user.id),
+            eq(screen.dedupeImageKey, full.key),
+            eq(screen.status, "rejected"),
+          ),
+        ),
+      db.insert(screen).values(values).onConflictDoNothing(),
+    ];
+  };
+  const writes: BatchItem<"sqlite">[] = resolved.write ? [resolved.write] : [];
+  for (const entry of created) writes.push(...claimWrites(entry, entry.id));
+  const claimed = new Map(created.map(({ id, media }) => [id, media.full.key]));
 
   let flowResult: IngestResult["flow"] = null;
   if (input.flow) {
-    if (screens.length < 2) throw badRequest("A flow needs at least two distinct screens");
     const flowId = newId();
     const flowStatus = flowStatusFor(
       principal,
@@ -481,7 +533,10 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
         db.insert(flowStep).values({
           flowId,
           position,
-          screenId: item.id,
+          // Whichever row holds the claim once the insert above has run, ours or a parallel one.
+          screenId: claimed.has(item.id)
+            ? sql`(SELECT ${screen.id} FROM ${screen} WHERE ${screen.appId} = ${appRow.id} AND ${screen.contributorId} = ${principal.user.id} AND ${screen.dedupeImageKey} = ${claimed.get(item.id)})`
+            : item.id,
           label: input.screens[position]?.stepLabel ?? null,
         }),
       );
@@ -490,7 +545,67 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
   }
 
   if (writes.length > 0) await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
-  return { app: appRow, screens, flow: flowResult };
+
+  // 5. Report the rows that hold each claim, and clean up after any upload that lost one. Same
+  //    bytes mean the same image keys, but a client can send its own thumbnail.
+  if (created.length === 0) return { app: appRow, screens, flow: flowResult };
+  const readHolders = async () => {
+    const holders = await db
+      .select({
+        id: screen.id,
+        status: screen.status,
+        dedupeImageKey: screen.dedupeImageKey,
+        imageKey: screen.imageKey,
+        thumbKey: screen.thumbKey,
+        originalKey: screen.originalKey,
+      })
+      .from(screen)
+      .where(
+        and(
+          eq(screen.appId, appRow.id),
+          eq(screen.contributorId, principal.user.id),
+          inJsonArray(screen.dedupeImageKey, [...claimed.values()]),
+        ),
+      );
+    return new Map(holders.map((row) => [row.dedupeImageKey, row]));
+  };
+  let holderOf = await readHolders();
+  // A holder rejected or deleted since the batch above, under any code, leaves nothing to report.
+  for (let attempt = 1; ; attempt += 1) {
+    const unanswered = created.filter(({ media }) => {
+      const holder = holderOf.get(media.full.key);
+      return !holder || holder.status === "rejected";
+    });
+    if (unanswered.length === 0) break;
+    if (attempt === MAX_CLAIM_ATTEMPTS) {
+      throw new ServiceError(
+        "conflict",
+        "This image kept being rejected or deleted while it uploaded. Try again.",
+      );
+    }
+    const retries: BatchItem<"sqlite">[] = unanswered.flatMap((entry) =>
+      claimWrites(entry, newId()),
+    );
+    await db.batch(retries as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+    holderOf = await readHolders();
+  }
+  const unused = created.flatMap(({ id, media }) => {
+    const holder = holderOf.get(media.full.key);
+    if (!holder || holder.id === id) return [];
+    const kept = [holder.imageKey, holder.thumbKey, holder.originalKey];
+    return [media.full.key, media.thumb.key, media.originalKey].filter(
+      (key): key is string => !!key && !kept.includes(key),
+    );
+  });
+  if (unused.length > 0) await deleteUnreferenced(unused);
+  return {
+    app: appRow,
+    screens: screens.map((item) => {
+      const holder = holderOf.get(claimed.get(item.id) ?? null);
+      return holder ? { id: holder.id, status: holder.status } : item;
+    }),
+    flow: flowResult,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -564,21 +679,37 @@ export async function createScreen(
   return { screen: apiScreen! };
 }
 
+type ToolUpload = z.output<(typeof catalogTools)["upload_screen"]["input"]>;
+
+async function toolImageSource(image: ToolUpload["image"]): Promise<ImageSource> {
+  if ("base64" in image) return { base64: image.base64, type: image.type, lenientType: true };
+  try {
+    // APP_URL only, never the request: a caller must not be able to choose the lenient policy.
+    const allowLocal = isLocalOrigin(env.APP_URL);
+    const bytes = await downloadImage(image.url, { allowLocal });
+    return { blob: new Blob([bytes as Uint8Array<ArrayBuffer>]) };
+  } catch (error) {
+    if (error instanceof ImageDownloadError) throw new ServiceError(error.code, error.message);
+    throw error;
+  }
+}
+
 /**
  * MCP `upload_screen`: no thumbnail is sent, so the server generates one. The image is typed by
  * its bytes; a mislabelled `image.type` is only logged.
  */
 export async function uploadScreenFromTool(
   principal: Principal,
-  input: z.output<(typeof catalogTools)["upload_screen"]["input"]>,
+  input: ToolUpload,
   origin: string,
 ) {
+  const image = await toolImageSource(input.image);
   const result = await ingest(principal, {
     app: input.app,
     source: "mcp",
     screens: [
       {
-        image: { base64: input.image.base64, type: input.image.type, lenientType: true },
+        image,
         title: input.title,
         sourceUrl: input.sourceUrl,
         patterns: input.patterns,
@@ -601,6 +732,18 @@ export async function createFlow(
 ): Promise<{ flow: FlowDetail }> {
   const parsed = parseInput(createFlowInputSchema, input);
   const db = getDb();
+  const [appRow] = await db
+    .select({ id: app.id })
+    .from(app)
+    .where(
+      and(
+        or(eq(app.id, parsed.appId), eq(app.slug, parsed.appId)),
+        visibleSql(app, principal, "detail"),
+      ),
+    )
+    .limit(1);
+  if (!appRow) throw notFound("App");
+
   const retried = async () => {
     if (!parsed.id) return undefined;
     const [row] = await db
@@ -609,19 +752,12 @@ export async function createFlow(
       .where(eq(flow.id, parsed.id))
       .limit(1);
     if (!row) return undefined;
-    if (row.contributorId !== principal.user.id || row.appId !== parsed.appId)
+    if (row.contributorId !== principal.user.id || row.appId !== appRow.id)
       throw badRequest("This flow id is already in use");
     return { flow: await getFlow(principal, parsed.id, { countView: false }) };
   };
   const previous = await retried();
   if (previous) return previous;
-
-  const [appRow] = await db
-    .select({ id: app.id })
-    .from(app)
-    .where(and(eq(app.id, parsed.appId), visibleSql(app, principal, "detail")))
-    .limit(1);
-  if (!appRow) throw notFound("App");
 
   const ids = parsed.steps.map((step) => step.screenId);
   const found = await db

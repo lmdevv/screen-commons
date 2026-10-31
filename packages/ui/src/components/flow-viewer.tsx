@@ -27,6 +27,8 @@ export interface FlowViewerProps {
   onDownload?: (flow: ViewerFlow) => void;
   /** Extra footer actions. */
   actions?: React.ReactNode;
+  /** A lightbox on top of this one (the screen viewer), nested so it owns focus and Esc. */
+  stacked?: React.ReactNode;
 }
 
 /**
@@ -43,6 +45,7 @@ export function FlowViewer({
   onCopy,
   onDownload,
   actions,
+  stacked,
 }: FlowViewerProps) {
   const first = flow.steps[0]?.screen;
   return (
@@ -70,7 +73,7 @@ export function FlowViewer({
       </div>
       <LightboxFooter className="justify-between">
         <div className="hidden min-w-0 flex-1 text-sm text-fg-muted md:block">
-          {pluralize(flow.stepCount, "screen")}
+          {pluralize(flow.stepCount, "step")}
           {flow.type ? ` · ${labelFor(flow.type)}` : null}
         </div>
         <div className="flex flex-1 items-center justify-center gap-2 md:flex-none">
@@ -111,6 +114,7 @@ export function FlowViewer({
           ) : null}
         </div>
       </LightboxFooter>
+      {stacked}
     </Lightbox>
   );
 }

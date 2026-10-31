@@ -946,6 +946,52 @@ async function startFixtureSite(stamp) {
   };
 }
 
+/**
+ * A local host for `upload_screen` URLs: `/file/<name>` serves a file, `/short/<name>` redirects to
+ * it, and the rest misbehave the ways a real host does. No public site is contacted.
+ */
+async function startImageHost(files) {
+  const server = createHttpServer((request, response) => {
+    const { pathname } = new URL(request.url, "http://images");
+    const [, route, name] = pathname.split("/");
+    if (route === "file" && files[name]) return response.end(files[name]);
+    if (route === "short") return response.writeHead(302, { location: `/file/${name}` }).end();
+    if (route === "loop") return response.writeHead(302, { location: "/loop" }).end();
+    if (route === "to-ftp") return response.writeHead(302, { location: "ftp://images/a" }).end();
+    if (route === "page") {
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return response.end("<!doctype html><h1>Sign in</h1>");
+    }
+    if (route === "huge") {
+      response.writeHead(200, { "content-length": String(100 * 1024 * 1024) });
+      return response.end();
+    }
+    if (route === "endless") {
+      response.writeHead(200, { "content-type": "image/webp" });
+      const chunk = Buffer.alloc(1024 * 1024);
+      const write = () => {
+        while (!response.destroyed && response.write(chunk));
+        if (!response.destroyed) response.once("drain", write);
+      };
+      return write();
+    }
+    if (route === "hang")
+      return response.writeHead(200, { "content-type": "image/webp" }).flushHeaders();
+    return response.writeHead(404).end();
+  });
+  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  return {
+    origin,
+    url: (path) => `${origin}${path}`,
+    close: () =>
+      new Promise((done) => {
+        server.closeAllConnections();
+        server.close(done);
+      }),
+  };
+}
+
 const IGNORED_CONSOLE = /favicon|Failed to load resource/u;
 /** A tool call the server failed on, as opposed to one it refused. */
 const SERVER_FAILURE =
@@ -1203,6 +1249,11 @@ async function commandDrive(flags, positional) {
       closers.push(site.close);
       return site;
     },
+    async imageHost(files = {}) {
+      const host = await startImageHost(files);
+      closers.push(host.close);
+      return host;
+    },
     freePort: () =>
       new Promise((done) => {
         const server = createServer().listen(0, "127.0.0.1", () => {
@@ -1236,6 +1287,36 @@ async function commandDrive(flags, positional) {
       const options = watchPage(await context.newPage());
       await options.goto(`chrome-extension://${new URL(worker.url()).host}/options.html`);
       return { context, worker, options };
+    },
+    /** An image with unique bytes from Chromium's canvas. `noise` makes it incompressible. */
+    async canvasImage({ width = 1920, height = 1320, type = "image/webp", noise = false } = {}) {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const url = await page.evaluate(
+        ({ width, height, type, noise, stamp }) => {
+          const canvas = document.createElement("canvas");
+          Object.assign(canvas, { width, height });
+          const draw = canvas.getContext("2d");
+          draw.fillStyle = `hsl(${Math.random() * 360} 60% 80%)`;
+          draw.fillRect(0, 0, width, height);
+          draw.fillStyle = "#111";
+          draw.font = "48px system-ui";
+          draw.fillText(`${stamp} ${Math.random()}`, 48, 96);
+          // The last row, so a crop or a scale can't go unnoticed.
+          draw.fillRect(0, height - 8, width, 8);
+          if (noise) {
+            const pixels = draw.getImageData(0, 0, width, height);
+            for (let index = 0; index < pixels.data.length; index += 1) {
+              pixels.data[index] = index % 4 === 3 ? 255 : Math.random() * 256;
+            }
+            draw.putImageData(pixels, 0, 0);
+          }
+          return canvas.toDataURL(type);
+        },
+        { width, height, type, noise, stamp },
+      );
+      await context.close();
+      return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
     },
     /** 1440×900 PNG files a user could have captured, each with distinct bytes. */
     async pngs(labels) {

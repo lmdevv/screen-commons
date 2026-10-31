@@ -92,7 +92,11 @@ export async function review(
       );
     }
   }
-  if (decision === "reject" && kind === "screen") writes.push(...dropScreenFromFlows(id));
+  if (decision === "reject" && kind === "screen") {
+    // A rejected screen stops counting as a duplicate, so the same image can be uploaded again.
+    writes.push(db.update(screen).set({ dedupeImageKey: null }).where(eq(screen.id, id)));
+    writes.push(...dropScreenFromFlows(id));
+  }
   await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 }
 

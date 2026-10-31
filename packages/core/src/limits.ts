@@ -5,6 +5,11 @@ export const LIMITS = {
   maxThumbnailBytes: 1024 * 1024,
   maxImageWidth: 4096,
   maxImageHeight: 20_000,
+  /**
+   * Largest source a client decodes before scaling it to fit: the most pixels the server stores,
+   * in any shape. A PNG of 1.6 billion pixels can be 1.5 MB, so bytes alone don't bound decoding.
+   */
+  maxSourcePixels: 4096 * 20_000,
   thumbnailWidth: 640,
   maxScreensPerBatch: 50,
   /** Decoded image bytes (images + thumbnails + logo) per upload request; split larger batches. */

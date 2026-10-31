@@ -528,8 +528,8 @@ function FlowPreview({ flow }: { flow: FlowSummary }) {
         />
       ) : (
         <div className="flex gap-4 overflow-hidden px-6">
-          {flow.previews.map((preview) => (
-            <div key={preview.id} className="w-[min(70vw,360px)] shrink-0">
+          {flow.previews.map((preview, index) => (
+            <div key={index} className="w-[min(70vw,360px)] shrink-0">
               <ScreenImage
                 src={preview.thumbUrl}
                 width={preview.width}

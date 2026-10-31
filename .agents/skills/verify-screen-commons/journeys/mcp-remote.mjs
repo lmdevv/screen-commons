@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 
 const CATALOG = [
   "create_flow",
+  "delete_flow",
+  "delete_screen",
   "get_app",
   "get_flow",
   "get_screen",
@@ -9,6 +11,17 @@ const CATALOG = [
   "list_apps",
   "search_flows",
   "search_screens",
+  "update_flow",
+  "update_screen",
+  "upload_screen",
+];
+
+const WRITES = [
+  "create_flow",
+  "delete_flow",
+  "delete_screen",
+  "update_flow",
+  "update_screen",
   "upload_screen",
 ];
 
@@ -68,8 +81,12 @@ export default async function mcpRemote(h) {
   const { tools } = await admin.listTools();
   assert.deepEqual(tools.map((tool) => tool.name).sort(), CATALOG);
   for (const tool of tools) {
-    const writes = ["upload_screen", "create_flow"].includes(tool.name);
-    assert.equal(tool.annotations.readOnlyHint, !writes, `${tool.name} readOnlyHint`);
+    assert.equal(
+      tool.annotations.readOnlyHint,
+      !WRITES.includes(tool.name),
+      `${tool.name} readOnlyHint`,
+    );
+    assert.equal(tool.annotations.openWorldHint, tool.name === "upload_screen");
   }
   h.record("handshake and tool list", {
     server,
@@ -259,6 +276,164 @@ export default async function mcpRemote(h) {
   await web.getByText(`Remote flow ${h.stamp}`).first().waitFor();
   await h.step("the MCP flow opens in the web app", web);
 
+  // A 1920×1320 WebP by URL: the image is served exactly as sent, whatever the thumbnail crops.
+  const original = await h.canvasImage();
+  const images = await h.imageHost({ "shot.webp": original });
+  const urlInput = {
+    app: appInput,
+    title: "From a URL",
+    image: { url: images.url("/short/shot.webp") },
+  };
+  const byUrl = JSON.parse(
+    (await h.call(admin, "upload_screen by URL", "upload_screen", urlInput)).text,
+  );
+  assert.equal(byUrl.screen.status, "published");
+  assert.equal(byUrl.screen.url, `${h.base}/screens/${byUrl.screen.id}`);
+  assert.equal(byUrl.note, undefined);
+  const repeated = JSON.parse(
+    (await h.call(admin, "the same bytes by URL again", "upload_screen", urlInput)).text,
+  );
+  assert.deepEqual(repeated.screen, byUrl.screen, "identical bytes return the same screen");
+  const asBase64 = JSON.parse(
+    (
+      await h.call(admin, "the same bytes as base64", "upload_screen", {
+        app: appInput,
+        image: { type: "image/webp", base64: original.toString("base64") },
+      })
+    ).text,
+  );
+  assert.equal(asBase64.screen.id, byUrl.screen.id, "however the bytes arrive");
+  const fullImage = await h.call(admin, "the URL upload at full size", "get_screen", {
+    id: byUrl.screen.id,
+    full: true,
+  });
+  const stored = JSON.parse(fullImage.text);
+  assert.deepEqual([stored.width, stored.height], [1920, 1320]);
+  assert.ok(fullImage.images[0].bytes.equals(original), "get_screen full returns the same bytes");
+  const servedFull = Buffer.from(await (await fetch(stored.imageUrl)).arrayBuffer());
+  assert.ok(servedFull.equals(original), "the full image URL serves the same bytes");
+  const [fidelity] = await h.sql(
+    "the URL upload's size in D1",
+    "SELECT width, height, thumb_width, thumb_height, source_url, image_key FROM screen WHERE id = ?1",
+    [byUrl.screen.id],
+  );
+  assert.deepEqual([fidelity.width, fidelity.height], [1920, 1320]);
+  assert.equal(fidelity.source_url, null, "an asset URL isn't the page the screen came from");
+  await h.goto(web, `/screens/${byUrl.screen.id}`);
+  await h.step("the 1920×1320 URL upload in the web app", web);
+
+  const urlRefused = async (label, path, pattern) => {
+    const result = await h.call(admin, label, "upload_screen", {
+      app: appInput,
+      image: { url: images.url(path) },
+    });
+    assert.equal(result.isError, true, label);
+    assert.match(result.text, pattern);
+  };
+  await urlRefused("a missing image URL", "/missing", /^unprocessable: .*HTTP 404/u);
+  await urlRefused("a URL that returns a page", "/page", /^unsupported_media_type: .*text\/html/u);
+  await urlRefused("a declared size over the limit", "/huge", /^payload_too_large: /u);
+  await urlRefused("a body over the limit", "/endless", /^payload_too_large: /u);
+  await urlRefused("a redirect loop", "/loop", /^unprocessable: .*more than 3 times/u);
+  await urlRefused(
+    "a redirect to another scheme",
+    "/to-ftp",
+    /^bad_request: .*must use http or https/u,
+  );
+  await urlRefused("a body that never ends", "/hang", /^unprocessable: .*timed out/u);
+  const ftp = await h.call(admin, "a URL with another scheme", "upload_screen", {
+    app: appInput,
+    image: { url: "ftp://example.com/a.webp" },
+  });
+  assert.match(ftp.text, /^bad_request: image\.url must use http or https, not ftp/u);
+  const noPath = await h.call(admin, "image.path is local only", "upload_screen", {
+    app: appInput,
+    image: { path: "/etc/hostname" },
+  });
+  assert.match(noPath.text, /-32602.*only works on the local screen-commons-mcp server/su);
+  for (const alternative of ["screen-commons CLI", "{ url }", "{ type, base64 }"]) {
+    assert.ok(noPath.text.includes(alternative), `the refusal names ${alternative}`);
+  }
+
+  // Retrying with one id, and a flow that returns to a screen.
+  const flowId = crypto.randomUUID();
+  const retryArgs = {
+    id: flowId,
+    appId: row.app_id,
+    name: `Retried flow ${h.stamp}`,
+    description: "Safe to repeat",
+    steps: [{ screenId: first.screen.id }, { screenId: second.screen.id }],
+  };
+  const retry1 = JSON.parse(
+    (await h.call(admin, "create_flow with an id", "create_flow", retryArgs)).text,
+  );
+  const retry2 = JSON.parse(
+    (await h.call(admin, "create_flow repeated", "create_flow", retryArgs)).text,
+  );
+  assert.equal(retry1.id, flowId);
+  assert.equal(retry1.description, "Safe to repeat");
+  assert.deepEqual(retry2, retry1, "a repeated call returns the same flow");
+  const [{ n: retryRows }] = await h.sql(
+    "one flow row after a retry",
+    "SELECT count(*) AS n FROM flow WHERE id = ?1",
+    [flowId],
+  );
+  assert.equal(retryRows, 1);
+  const badId = await h.call(admin, "a flow id that isn't a UUID", "create_flow", {
+    ...retryArgs,
+    id: "nope",
+  });
+  assert.match(badId.text, /-32602/u);
+
+  const repeatSteps = [first.screen.id, second.screen.id, first.screen.id, byUrl.screen.id];
+  const repeating = JSON.parse(
+    (
+      await h.call(admin, "create_flow repeating a screen", "create_flow", {
+        appId: row.app_id,
+        name: `Repeating flow ${h.stamp}`,
+        steps: repeatSteps.map((screenId) => ({ screenId })),
+      })
+    ).text,
+  );
+  assert.deepEqual(repeating.steps, repeatSteps);
+  const repeatingDetail = JSON.parse(
+    (await h.call(admin, "get_flow repeating a screen", "get_flow", { id: repeating.id })).text,
+  );
+  assert.deepEqual(
+    repeatingDetail.steps.map((step) => [step.position, step.screen.id]),
+    repeatSteps.map((id, position) => [position, id]),
+  );
+  const inFlows = JSON.parse(
+    (
+      await h.call(admin, "get_screen lists a repeating flow once", "get_screen", {
+        id: first.screen.id,
+      })
+    ).text,
+  ).flows.filter((item) => item.id === repeating.id);
+  assert.deepEqual(
+    inFlows.map((item) => item.position),
+    [0],
+  );
+  await h.goto(web, `/flows/${repeating.id}?screen=${first.screen.id}`);
+  await h.step("a flow repeating a screen, in the web app", web);
+  const walked = [];
+  for (let press = 0; press < 3 && !web.url().includes(byUrl.screen.id); press += 1) {
+    await web.keyboard.press("ArrowRight");
+    await web.waitForTimeout(400);
+    walked.push(new URL(web.url()).searchParams.get("screen"));
+  }
+  h.record("arrow keys through a flow repeating a screen", { repeatSteps, walked });
+  assert.deepEqual(walked, repeatSteps.slice(1), "the arrows walk every step, repeat included");
+  await h.step("the arrows reach the step after the repeat", web);
+  await h.goto(web, `/flows/${repeating.id}`);
+  await web.getByText("4 steps", { exact: false }).first().waitFor();
+  assert.equal(await web.locator("main [data-screen-id]").count(), 4, "All steps shows all 4");
+  await web.getByRole("button", { name: "Open step 3", exact: true }).click();
+  const stepDialog = web.getByRole("dialog").filter({ has: web.getByRole("complementary") });
+  await stepDialog.getByText("3 of 4", { exact: true }).waitFor();
+  await stepDialog.getByText("Step 3", { exact: true }).waitFor();
+  await h.step("the third step of four says so, though it repeats the first", web);
+
   const memberPage = await h.newPage();
   const member = await h.signUpMember(memberPage);
   const token = await memberKey(memberPage, h, `Member MCP ${h.stamp}`);
@@ -302,6 +477,195 @@ export default async function mcpRemote(h) {
   assert.equal(approved.isError, false);
   assert.match(approved.text, /"status":"published"/u);
   assert.equal(await inSearch(otherClient, "another member's search now finds it"), true);
+
+  // Managing contributions: the owner can, others get 403 on what they can see, 404 on what they can't.
+  const [editable, hiddenImage, memberTwo] = await h.pngs([
+    "Member edit",
+    "Member hidden",
+    "Member two",
+  ]);
+  const editableScreen = JSON.parse(
+    (await upload(memberClient, "member uploads to edit", editable)).text,
+  );
+  const hiddenScreen = JSON.parse(
+    (await upload(memberClient, "member uploads to keep", hiddenImage)).text,
+  );
+  const secondScreen = JSON.parse(
+    (await upload(memberClient, "member's second screen", memberTwo)).text,
+  );
+  assert.equal(editableScreen.screen.status, "pending");
+  const memberHost = await h.canvasImage();
+  const hosted = await h.imageHost({ "member.webp": memberHost });
+  const memberByUrl = JSON.parse(
+    (
+      await h.call(memberClient, "member upload_screen by URL", "upload_screen", {
+        app: appInput,
+        image: { url: hosted.url("/short/member.webp") },
+      })
+    ).text,
+  );
+  assert.equal(memberByUrl.screen.status, "pending", "moderation state is visible on the result");
+
+  const edited = JSON.parse(
+    (
+      await h.call(memberClient, "update_screen as its owner", "update_screen", {
+        id: editableScreen.screen.id,
+        title: `Edited ${h.stamp}`,
+        patterns: ["checkout"],
+        tags: ["edited"],
+      })
+    ).text,
+  );
+  assert.equal(edited.title, `Edited ${h.stamp}`);
+  assert.deepEqual(edited.patterns, ["checkout"]);
+  assert.equal(edited.status, "pending", "an edit doesn't change the moderation state");
+  const cleared = JSON.parse(
+    (
+      await h.call(memberClient, "update_screen clears a title", "update_screen", {
+        id: editableScreen.screen.id,
+        title: null,
+      })
+    ).text,
+  );
+  assert.equal(cleared.title, null);
+  assert.deepEqual(cleared.patterns, ["checkout"], "omitted fields stay");
+  const badPattern = await h.call(
+    memberClient,
+    "update_screen with a bad pattern",
+    "update_screen",
+    {
+      id: editableScreen.screen.id,
+      patterns: ["not-a-pattern"],
+    },
+  );
+  assert.match(badPattern.text, /-32602/u);
+
+  const memberFlow = JSON.parse(
+    (
+      await h.call(memberClient, "member create_flow", "create_flow", {
+        appId: row.app_id,
+        name: `Member flow ${h.stamp}`,
+        steps: [{ screenId: editableScreen.screen.id }, { screenId: hiddenScreen.screen.id }],
+      })
+    ).text,
+  );
+  assert.equal(memberFlow.status, "pending");
+  const usedId = await h.call(otherClient, "another member can't reuse a flow id", "create_flow", {
+    ...retryArgs,
+  });
+  assert.match(usedId.text, /^bad_request: This flow id is already in use/u);
+  const renamed = JSON.parse(
+    (
+      await h.call(memberClient, "update_flow renames and reorders", "update_flow", {
+        id: memberFlow.id,
+        name: `Renamed flow ${h.stamp}`,
+        description: "Edited by MCP",
+        steps: [
+          { screenId: secondScreen.screen.id, label: "Now first" },
+          { screenId: hiddenScreen.screen.id },
+          { screenId: editableScreen.screen.id },
+        ],
+      })
+    ).text,
+  );
+  assert.equal(renamed.name, `Renamed flow ${h.stamp}`);
+  assert.equal(renamed.description, "Edited by MCP");
+  assert.deepEqual(
+    renamed.steps.map((step) => step.screen.id),
+    [secondScreen.screen.id, hiddenScreen.screen.id, editableScreen.screen.id],
+  );
+  assert.equal(renamed.stepCount, 3);
+  const shortened = await h.call(memberClient, "update_flow with one step", "update_flow", {
+    id: memberFlow.id,
+    steps: [{ screenId: secondScreen.screen.id }],
+  });
+  assert.match(shortened.text, /-32602.*at steps/su);
+  const foreignStep = await h.call(
+    memberClient,
+    "update_flow with a missing screen",
+    "update_flow",
+    {
+      id: memberFlow.id,
+      steps: [{ screenId: "nope" }, { screenId: secondScreen.screen.id }],
+    },
+  );
+  assert.match(foreignStep.text, /^bad_request: Every step must be/u);
+
+  const refusals = [
+    ["update_screen", { id: hiddenScreen.screen.id, title: "Taken" }, "screen"],
+    ["delete_screen", { id: hiddenScreen.screen.id }, "screen"],
+    ["update_flow", { id: memberFlow.id, name: "Taken" }, "flow"],
+    ["delete_flow", { id: memberFlow.id }, "flow"],
+  ];
+  for (const [tool, args, kind] of refusals) {
+    const refusal = await h.call(otherClient, `another member can't ${tool} hidden`, tool, args);
+    assert.equal(refusal.isError, true);
+    assert.equal(refusal.text, `not_found: ${kind === "screen" ? "Screen" : "Flow"} not found`);
+    const byAdmin = await h.call(admin, `an admin can't ${tool} another's`, tool, args);
+    assert.equal(byAdmin.isError, true);
+    assert.match(byAdmin.text, /^forbidden: Only the contributor/u);
+  }
+  for (const [tool, id] of [
+    ["update_screen", first.screen.id],
+    ["delete_screen", first.screen.id],
+    ["update_flow", created.id],
+    ["delete_flow", created.id],
+  ]) {
+    const args = { id, ...(tool.startsWith("update") ? { title: "Taken", name: "Taken" } : {}) };
+    const refusal = await h.call(otherClient, `another member can't ${tool} published`, tool, args);
+    assert.equal(refusal.isError, true);
+    assert.match(refusal.text, /^forbidden: Only the contributor/u);
+  }
+  h.record(
+    "nobody else changed them",
+    await h.sql("titles after refused edits", "SELECT title FROM screen WHERE id IN (?1, ?2)", [
+      hiddenScreen.screen.id,
+      first.screen.id,
+    ]),
+  );
+
+  const deletedScreen = JSON.parse(
+    (
+      await h.call(memberClient, "delete_screen as its owner", "delete_screen", {
+        id: hiddenScreen.screen.id,
+      })
+    ).text,
+  );
+  assert.deepEqual(deletedScreen, { id: hiddenScreen.screen.id, deleted: true });
+  const afterDelete = JSON.parse(
+    (
+      await h.call(memberClient, "the flow loses the deleted step", "get_flow", {
+        id: memberFlow.id,
+      })
+    ).text,
+  );
+  assert.deepEqual(
+    afterDelete.steps.map((step) => [step.position, step.screen.id]),
+    [
+      [0, secondScreen.screen.id],
+      [1, editableScreen.screen.id],
+    ],
+  );
+  assert.equal(afterDelete.stepCount, 2);
+  const gone = await h.call(memberClient, "a deleted screen is gone", "get_screen", {
+    id: hiddenScreen.screen.id,
+  });
+  assert.match(gone.text, /^not_found/u);
+  const twice = await h.call(memberClient, "deleting twice is not_found", "delete_screen", {
+    id: hiddenScreen.screen.id,
+  });
+  assert.match(twice.text, /^not_found/u);
+  const deletedFlow = JSON.parse(
+    (await h.call(memberClient, "delete_flow as its owner", "delete_flow", { id: memberFlow.id }))
+      .text,
+  );
+  assert.deepEqual(deletedFlow, { id: memberFlow.id, deleted: true });
+  const flowGone = await h.sql(
+    "the flow's rows are gone, its screens stay",
+    "SELECT (SELECT count(*) FROM flow WHERE id = ?1) AS flows, (SELECT count(*) FROM flow_step WHERE flow_id = ?1) AS steps, (SELECT count(*) FROM screen WHERE id = ?2) AS screens",
+    [memberFlow.id, editableScreen.screen.id],
+  );
+  assert.deepEqual(flowGone[0], { flows: 0, steps: 0, screens: 1 });
 
   const keys = await (await memberPage.request.get(`${h.base}/api/v1/keys`)).json();
   const key = (keys.items ?? keys).find((item) => item.name === `Member MCP ${h.stamp}`);
