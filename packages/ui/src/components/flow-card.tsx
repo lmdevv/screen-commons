@@ -63,7 +63,7 @@ export function FlowCard({
             >
               {previews.map((preview, index) => (
                 <ScreenImage
-                  key={preview.id}
+                  key={index}
                   src={preview.thumbUrl}
                   width={preview.width}
                   height={preview.height}

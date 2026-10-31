@@ -17,7 +17,7 @@ import { FlowViewer, type ViewerFlow } from "@screen-commons/ui/components/flow-
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 
 import { queries } from "../../lib/queries";
 import { errorMessage, notify } from "../../lib/toast";
@@ -31,12 +31,15 @@ export default function FlowViewerOverlay({
   activeScreenId,
   activeStep,
   onClose,
+  stacked,
 }: {
   id: string;
   open: boolean;
   activeScreenId?: string;
   activeStep?: number;
   onClose: () => void;
+  /** The overlay on top of this one, shown once the flow it steps through has loaded. */
+  stacked?: ReactNode;
 }) {
   const navigate = useNavigate();
   const toggleSave = useSaveToggle();
@@ -78,6 +81,7 @@ export default function FlowViewerOverlay({
     [navigate],
   );
 
+  // A failed flow closes itself, and the stacked overlay then renders on its own.
   if (!flow) return failed ? null : <FlowSkeleton open={open} onClose={onClose} />;
 
   return (
@@ -85,6 +89,7 @@ export default function FlowViewerOverlay({
       open={open}
       onOpenChange={(next) => !next && onClose()}
       flow={flow}
+      stacked={stacked}
       activeIndex={activeIndex >= 0 ? activeIndex : undefined}
       onStepClick={(step, index) => openStep(step.screen.id, index)}
       onSaveToggle={(target: ViewerFlow, saved) =>

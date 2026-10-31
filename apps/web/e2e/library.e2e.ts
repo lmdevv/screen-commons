@@ -167,6 +167,76 @@ describe("library", () => {
     await page.waitForURL((url) => !url.searchParams.has("flow"));
   });
 
+  test("a deep link to a flow's step puts the screen viewer on top, and Esc unwinds in order", async () => {
+    const listed = await (
+      await page.request.get(`${BASE}/api/v1/screens?platform=web&limit=100`)
+    ).json();
+    const byApp = new Map<string, { id: string; app: { id: string } }[]>();
+    for (const item of listed.items)
+      byApp.set(item.app.id, [...(byApp.get(item.app.id) ?? []), item]);
+    const screens = [...byApp.values()].find((group) => group.length >= 3)!;
+    const [a, b, c] = screens.map((item) => item.id) as [string, string, string];
+    const shapes: { name: string; steps: string[]; step: number }[] = [
+      { name: "ABAC", steps: [a, b, a, c], step: 2 },
+      { name: "AAB", steps: [a, a, b], step: 0 },
+      { name: "60 steps", steps: Array.from({ length: 60 }, (_, i) => (i % 2 ? b : a)), step: 58 },
+    ];
+    const created: string[] = [];
+    try {
+      for (const shape of shapes) {
+        const response = await page.request.post(`${BASE}/api/v1/flows`, {
+          headers: { origin: BASE },
+          data: {
+            appId: screens[0]!.app.id,
+            name: `E2E ${shape.name} ${COLLECTION}`,
+            steps: shape.steps.map((screenId) => ({ screenId })),
+          },
+        });
+        assert.ok(response.ok(), `create flow: ${response.status()}`);
+        const { flow } = await response.json();
+        created.push(flow.id);
+        const screen = shape.steps[shape.step]!;
+        await page.goto(
+          `${BASE}/browse/web?tab=flows&flow=${flow.id}&screen=${screen}&step=${shape.step}`,
+          { waitUntil: "networkidle" },
+        );
+        const top = viewer();
+        await top.waitFor();
+        await top.getByText(`${shape.step + 1} of ${shape.steps.length}`).waitFor();
+        // Not by role: under the viewer, the flow is correctly hidden from that query.
+        const flowDialog = page.locator('[role="dialog"]:has([aria-label$=" steps"])');
+        const hiddenAncestors = (locator: typeof top) =>
+          locator.evaluate((node) => {
+            let hidden = 0;
+            for (let at: Element | null = node; at; at = at.parentElement) {
+              if (at.getAttribute("aria-hidden") === "true") hidden += 1;
+            }
+            return hidden;
+          });
+        assert.equal(await hiddenAncestors(top), 0, `${shape.name}: viewer not hidden`);
+        assert.ok(await hiddenAncestors(flowDialog), `${shape.name}: flow under it is hidden`);
+        assert.ok(
+          await top.evaluate((node) => node.contains(document.activeElement)),
+          `${shape.name}: the viewer owns focus`,
+        );
+
+        await page.keyboard.press("Escape");
+        await page.waitForURL(
+          (url) =>
+            !url.searchParams.has("screen") &&
+            !url.searchParams.has("step") &&
+            url.searchParams.get("flow") === flow.id,
+        );
+        await flowDialog.waitFor();
+        assert.equal(await hiddenAncestors(flowDialog), 0, `${shape.name}: flow is exposed again`);
+        await page.keyboard.press("Escape");
+        await page.waitForURL((url) => !url.searchParams.has("flow"));
+      }
+    } finally {
+      for (const id of created) await page.request.delete(`${BASE}/api/v1/flows/${id}`);
+    }
+  });
+
   test("cleans up the collection", async () => {
     await page.goto(`${BASE}/saved`, { waitUntil: "networkidle" });
     await page.getByRole("link", { name: new RegExp(COLLECTION, "u") }).click();

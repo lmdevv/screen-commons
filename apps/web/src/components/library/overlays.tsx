@@ -21,8 +21,8 @@ function historyIndex(router: ReturnType<typeof useRouter>): number {
 
 /**
  * URL-driven overlays for every signed-in page: `?flow=` (flow viewer) and `?screen=` (screen
- * viewer, stacked on top when both are set), plus the collection picker. Their code loads only
- * when opened. Closing an overlay that was opened in-app goes Back (so the browser's Back button
+ * viewer), plus the collection picker. Their code loads only when opened. With both set, the screen
+ * viewer renders inside the flow viewer, so it owns focus and Esc however their code and data load. Closing an overlay that was opened in-app goes Back (so the browser's Back button
  * and Esc agree); a deep-linked overlay is closed by replacing the URL instead.
  */
 export function LibraryOverlays() {
@@ -73,6 +73,17 @@ export function LibraryOverlays() {
     [navigate, router],
   );
 
+  const screenOverlay = lastScreen ? (
+    <Suspense fallback={null}>
+      <ScreenViewerOverlay
+        id={screen ?? lastScreen}
+        step={step}
+        open={!!screen}
+        onClose={() => close("screen")}
+      />
+    </Suspense>
+  ) : null;
+
   return (
     <>
       {lastFlow ? (
@@ -83,19 +94,11 @@ export function LibraryOverlays() {
             activeScreenId={screen}
             activeStep={step}
             onClose={() => close("flow")}
+            stacked={flow ? screenOverlay : null}
           />
         </Suspense>
       ) : null}
-      {lastScreen ? (
-        <Suspense fallback={null}>
-          <ScreenViewerOverlay
-            id={screen ?? lastScreen}
-            step={step}
-            open={!!screen}
-            onClose={() => close("screen")}
-          />
-        </Suspense>
-      ) : null}
+      {flow ? null : screenOverlay}
       {pickerMounted ? (
         <Suspense fallback={null}>
           <CollectionPicker />
