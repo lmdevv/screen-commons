@@ -35,11 +35,21 @@ const base64Image = z.object({
   base64: z.string().min(1),
 });
 const urlImage = z.object({
-  url: z.url().describe("Public https URL of the image; the server downloads it"),
+  url: z
+    .url()
+    .describe(
+      "https URL of the image on a public host; the server downloads it. An instance running on localhost also accepts http and local hosts.",
+    ),
 });
 const pathImage = z.object({
   path: z.string().min(1).describe("Image file on the machine running this server"),
 });
+
+const REMOTE_PATH_REFUSAL =
+  "image { path } only works on the local screen-commons-mcp server or the screen-commons CLI, because this remote server can't read your files. Use either of those for a file on disk, or { url } for an image already at a URL this server can reach. Send { type, base64 } only as a last resort, because it passes through your context.";
+
+const uploadDescription = (sources: string) =>
+  `Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing). ${sources} Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.`;
 
 export const catalogTools = {
   search_screens: tool({
@@ -124,12 +134,16 @@ export const catalogTools = {
   upload_screen: tool({
     name: "upload_screen",
     title: "Upload screen",
-    description:
-      "Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing), as base64 or, for anything large, a public URL the server downloads. Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.",
+    description: uploadDescription(
+      "For image, prefer { url } if the image is already at a URL this server can reach. This server can't read your files: for a file on disk, use the local screen-commons-mcp server or the screen-commons CLI rather than serving files over HTTP. Send { type, base64 } only as a last resort, because it passes through your context.",
+    ),
     input: z.object({
       app: appInputSchema,
       image: z.union([base64Image, urlImage], {
-        error: "image must be { type, base64 } or { url }",
+        error: ({ input }) =>
+          input && typeof input === "object" && "path" in input
+            ? REMOTE_PATH_REFUSAL
+            : "image must be { type, base64 } or { url }",
       }),
       title: z.string().max(160).optional(),
       sourceUrl: z.url().optional(),
@@ -158,8 +172,9 @@ export const catalogTools = {
     name: "create_flow",
     title: "Create flow",
     description:
-      "Create an ordered flow from existing screen ids of one app. Pick an id to retry safely: calling again with the same id returns the same flow.",
+      "Create an ordered flow from existing screen ids of one app, given its id or slug. Pick an id to retry safely: calling again with the same id returns the same flow.",
     input: createFlowInputSchema.extend({
+      appId: createFlowInputSchema.shape.appId.describe("The app's id or slug"),
       id: createFlowInputSchema.shape.id.describe(
         "Your own UUID for this flow, so a repeated call doesn't create another",
       ),
@@ -188,7 +203,9 @@ export const localCatalogTools = {
   ...catalogTools,
   upload_screen: tool({
     ...catalogTools.upload_screen,
-    description: `${catalogTools.upload_screen.description} On this local server, image can also be the path of a file on this machine.`,
+    description: uploadDescription(
+      "For image, prefer { path } for a file on this machine, then { url } for an image already at a URL this server can reach. Send { type, base64 } only as a last resort, because it passes through your context.",
+    ),
     input: catalogTools.upload_screen.input.extend({
       image: z.union([base64Image, urlImage, pathImage], {
         error: "image must be { type, base64 }, { url } or { path }",

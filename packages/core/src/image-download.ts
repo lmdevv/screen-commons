@@ -5,8 +5,13 @@ import { sniffImage } from "./image-policy";
 /**
  * Download of an `upload_screen` image URL, shared by the remote and local servers so both apply
  * one policy and refuse with one message. Only hosts that are public by name are allowed outside
- * local development. Nothing here resolves DNS: a public name pointing at a private address is
- * stopped by the Workers network on the remote server, and not at all on the local one.
+ * local development.
+ *
+ * Nothing in this file resolves DNS, because the Workers runtime has no DNS API. Node callers pass
+ * `fetch` from `packages/mcp/src/public-fetch.ts`, which checks and pins the resolved addresses on
+ * every hop. A Worker uses its own fetch, so on the remote server a public name that resolves to a
+ * private address is not refused by this code, and this code does not know what the platform does
+ * with that connection.
  */
 export class ImageDownloadError extends Error {
   readonly code: ErrorCode;
@@ -21,6 +26,7 @@ export class ImageDownloadError extends Error {
 export interface DownloadImageOptions {
   /** Local development: also allow http, localhost and IP addresses. */
   allowLocal?: boolean;
+  /** Node: pass the address-checking fetch. See the note above. */
   fetch?: typeof fetch;
   timeoutMs?: number;
   maxBytes?: number;
@@ -29,6 +35,7 @@ export interface DownloadImageOptions {
 const MAX_REDIRECTS = 3;
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 const USE_BASE64 = "or send the image as base64";
+const FOR_A_FILE = "For a file on disk, use { path } on the local server or the screen-commons CLI";
 
 /** Whether an instance's own origin is this machine, which is what `allowLocal` is for. */
 export function isLocalOrigin(origin: string | undefined): boolean {
@@ -43,7 +50,7 @@ export function isLocalOrigin(origin: string | undefined): boolean {
 /** Why a URL can't be fetched, or null. URL parsing has already normalized forms like `0x7f.1`. */
 function refusal(url: URL, allowLocal: boolean): string | null {
   if (url.protocol !== "https:" && !(allowLocal && url.protocol === "http:"))
-    return `must use https, not ${url.protocol.slice(0, -1)}`;
+    return `must use ${allowLocal ? "http or https" : "https"}, not ${url.protocol.slice(0, -1)}`;
   if (url.username || url.password) return "must not contain a username or password";
   if (allowLocal) return null;
   const host = url.hostname.toLowerCase().replace(/\.$/u, "");
@@ -60,7 +67,7 @@ function checkUrl(url: URL, allowLocal: boolean, what: string) {
   if (reason) {
     throw new ImageDownloadError(
       "bad_request",
-      `${what} ${reason}. Use another URL, ${USE_BASE64}.`,
+      `${what} ${reason}. ${url.protocol === "file:" ? FOR_A_FILE : "Use another URL"}, ${USE_BASE64}.`,
     );
   }
 }

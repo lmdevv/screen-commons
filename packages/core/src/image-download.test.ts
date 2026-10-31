@@ -82,6 +82,15 @@ describe("downloadImage", () => {
     );
   });
 
+  it("says what a file URL's alternatives are, and what a local instance allows", async () => {
+    const strict = await refused("file:///tmp/a.webp");
+    expect(strict.message).toContain("must use https, not file");
+    expect(strict.message).toContain("{ path } on the local server or the screen-commons CLI");
+    const local = await refused("file:///tmp/a.webp", { allowLocal: true });
+    expect(local.message).toContain("must use http or https, not file");
+    expect(local.message).toContain("{ path } on the local server or the screen-commons CLI");
+  });
+
   it("checks every redirect target, naming only its host", async () => {
     const error = await refused("https://cdn.example.com/a", {}, () =>
       redirect("http://169.254.169.254/latest?token=secret"),

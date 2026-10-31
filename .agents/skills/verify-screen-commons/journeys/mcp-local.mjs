@@ -36,10 +36,12 @@ export default async function mcpLocal(h) {
       assert.deepEqual(twin, tool, `${tool.name} has one contract`);
       continue;
     }
-    // The one local extension: a `path` image, as one more branch and a sentence of description.
+    // The one local extension: a `path` image, as one more branch and its advice on what to send.
     const branches = twin.inputSchema.properties.image.anyOf;
     assert.deepEqual(branches.at(-1).required, ["path"]);
-    assert.ok(twin.description.startsWith(tool.description));
+    assert.match(twin.description, /prefer \{ path \}/u);
+    const outcome = (description) => description.slice(description.indexOf("Identical bytes"));
+    assert.equal(outcome(twin.description), outcome(tool.description));
     const stripped = {
       ...twin,
       description: tool.description,

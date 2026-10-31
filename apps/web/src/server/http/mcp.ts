@@ -133,7 +133,7 @@ function createServer(principal: Principal, origin: string): McpServer {
     { name: "screen-commons", version: "0.1.0" },
     {
       instructions:
-        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs. To contribute, upload_screen (base64 or a public URL), then create_flow; update_screen, delete_screen, update_flow and delete_flow manage what you contributed.",
+        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs. To contribute, upload_screen (a URL this server can reach, or base64 as a last resort; this server can't read your files, so use the local server or the screen-commons CLI for those), then create_flow; update_screen, delete_screen, update_flow and delete_flow manage what you contributed.",
     },
   );
   const handlers = createHandlers(principal, origin);

@@ -335,18 +335,25 @@ export default async function mcpRemote(h) {
   await urlRefused("a declared size over the limit", "/huge", /^payload_too_large: /u);
   await urlRefused("a body over the limit", "/endless", /^payload_too_large: /u);
   await urlRefused("a redirect loop", "/loop", /^unprocessable: .*more than 3 times/u);
-  await urlRefused("a redirect to another scheme", "/to-ftp", /^bad_request: .*must use https/u);
+  await urlRefused(
+    "a redirect to another scheme",
+    "/to-ftp",
+    /^bad_request: .*must use http or https/u,
+  );
   await urlRefused("a body that never ends", "/hang", /^unprocessable: .*timed out/u);
   const ftp = await h.call(admin, "a URL with another scheme", "upload_screen", {
     app: appInput,
     image: { url: "ftp://example.com/a.webp" },
   });
-  assert.match(ftp.text, /^bad_request: image\.url must use https, not ftp/u);
+  assert.match(ftp.text, /^bad_request: image\.url must use http or https, not ftp/u);
   const noPath = await h.call(admin, "image.path is local only", "upload_screen", {
     app: appInput,
     image: { path: "/etc/hostname" },
   });
-  assert.match(noPath.text, /-32602.*image must be \{ type, base64 \} or \{ url \}/su);
+  assert.match(noPath.text, /-32602.*only works on the local screen-commons-mcp server/su);
+  for (const alternative of ["screen-commons CLI", "{ url }", "{ type, base64 }"]) {
+    assert.ok(noPath.text.includes(alternative), `the refusal names ${alternative}`);
+  }
 
   // Retrying with one id, and a flow that returns to a screen.
   const flowId = crypto.randomUUID();
@@ -416,8 +423,16 @@ export default async function mcpRemote(h) {
     walked.push(new URL(web.url()).searchParams.get("screen"));
   }
   h.record("arrow keys through a flow repeating a screen", { repeatSteps, walked });
-  assert.equal(walked.at(-1), byUrl.screen.id, "the arrows reach every step");
+  assert.deepEqual(walked, repeatSteps.slice(1), "the arrows walk every step, repeat included");
   await h.step("the arrows reach the step after the repeat", web);
+  await h.goto(web, `/flows/${repeating.id}`);
+  await web.getByText("4 steps", { exact: false }).first().waitFor();
+  assert.equal(await web.locator("main [data-screen-id]").count(), 4, "All steps shows all 4");
+  await web.getByRole("button", { name: "Open step 3", exact: true }).click();
+  const stepDialog = web.getByRole("dialog").filter({ has: web.getByRole("complementary") });
+  await stepDialog.getByText("3 of 4", { exact: true }).waitFor();
+  await stepDialog.getByText("Step 3", { exact: true }).waitFor();
+  await h.step("the third step of four says so, though it repeats the first", web);
 
   const memberPage = await h.newPage();
   const member = await h.signUpMember(memberPage);
@@ -585,7 +600,7 @@ export default async function mcpRemote(h) {
   for (const [tool, args, kind] of refusals) {
     const refusal = await h.call(otherClient, `another member can't ${tool} hidden`, tool, args);
     assert.equal(refusal.isError, true);
-    assert.equal(refusal.text, `not_found: ${kind} not found`);
+    assert.equal(refusal.text, `not_found: ${kind === "screen" ? "Screen" : "Flow"} not found`);
     const byAdmin = await h.call(admin, `an admin can't ${tool} another's`, tool, args);
     assert.equal(byAdmin.isError, true);
     assert.match(byAdmin.text, /^forbidden: Only the contributor/u);

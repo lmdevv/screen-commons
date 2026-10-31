@@ -19,7 +19,7 @@ async function requireOwner(principal: Principal, kind: "screen" | "flow", id: s
     .from(table)
     .where(and(eq(table.id, id), visibleSql(table, principal, "detail")))
     .limit(1);
-  if (!row) throw notFound(kind);
+  if (!row) throw notFound(kind === "screen" ? "Screen" : "Flow");
   if (row.contributorId !== principal.user.id)
     throw forbidden("Only the contributor can change this contribution");
   return row;
