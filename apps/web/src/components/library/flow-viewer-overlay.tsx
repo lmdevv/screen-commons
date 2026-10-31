@@ -22,18 +22,20 @@ import { useCallback, useEffect, useMemo } from "react";
 import { queries } from "../../lib/queries";
 import { errorMessage, notify } from "../../lib/toast";
 import { copyText, downloadScreensZip } from "./image-actions";
-import { useRegisterResultList } from "./result-list";
+import { resultListIndex, useRegisterResultList } from "./result-list";
 import { useSaveToggle } from "./saving";
 
 export default function FlowViewerOverlay({
   id,
   open,
   activeScreenId,
+  activeStep,
   onClose,
 }: {
   id: string;
   open: boolean;
   activeScreenId?: string;
+  activeStep?: number;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -54,22 +56,23 @@ export default function FlowViewerOverlay({
       flow && open
         ? {
             key: `flow:${flow.id}`,
-            screens: distinctStepScreens(flow.steps),
+            screens: flow.steps.map((step) => step.screen),
             hasMore: false,
             priority: 1,
+            flowId: flow.id,
           }
         : null,
     [flow, open],
   );
   useRegisterResultList(list);
 
-  const activeIndex = flow?.steps.findIndex((step) => step.screen.id === activeScreenId);
+  const activeIndex = resultListIndex(list, activeScreenId, activeStep);
 
   const openStep = useCallback(
-    (screenId: string) =>
+    (screenId: string, step: number) =>
       void navigate({
         to: ".",
-        search: (current: Record<string, unknown>) => ({ ...current, screen: screenId }),
+        search: (current: Record<string, unknown>) => ({ ...current, screen: screenId, step }),
         resetScroll: false,
       }),
     [navigate],
@@ -82,8 +85,8 @@ export default function FlowViewerOverlay({
       open={open}
       onOpenChange={(next) => !next && onClose()}
       flow={flow}
-      activeIndex={activeIndex !== undefined && activeIndex >= 0 ? activeIndex : undefined}
-      onStepClick={(step) => openStep(step.screen.id)}
+      activeIndex={activeIndex >= 0 ? activeIndex : undefined}
+      onStepClick={(step, index) => openStep(step.screen.id, index)}
       onSaveToggle={(target: ViewerFlow, saved) =>
         void toggleSave({ kind: "flow", id: target.id }, saved)
       }
@@ -97,6 +100,7 @@ export default function FlowViewerOverlay({
       }}
       onDownload={async () => {
         try {
+          // One file per screen: a repeated step isn't another image.
           const screens = distinctStepScreens(flow.steps);
           notify.message(`Preparing ${screens.length} screens…`);
           await downloadScreensZip(screens, `${flow.app.name} ${flow.name}`);

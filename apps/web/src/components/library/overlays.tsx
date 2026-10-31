@@ -26,7 +26,7 @@ function historyIndex(router: ReturnType<typeof useRouter>): number {
  * and Esc agree); a deep-linked overlay is closed by replacing the URL instead.
  */
 export function LibraryOverlays() {
-  const { screen, flow } = useSearch({ from: "/_app" });
+  const { screen, flow, step } = useSearch({ from: "/_app" });
   const navigate = useNavigate();
   const router = useRouter();
   const pickerTargets = useCollectionPickerTargets();
@@ -61,7 +61,11 @@ export function LibraryOverlays() {
       }
       void navigate({
         to: ".",
-        search: (current: Record<string, unknown>) => ({ ...current, [key]: undefined }),
+        search: (current: Record<string, unknown>) => ({
+          ...current,
+          [key]: undefined,
+          step: undefined,
+        }),
         replace: true,
         resetScroll: false,
       });
@@ -77,6 +81,7 @@ export function LibraryOverlays() {
             id={flow ?? lastFlow}
             open={!!flow}
             activeScreenId={screen}
+            activeStep={step}
             onClose={() => close("flow")}
           />
         </Suspense>
@@ -85,6 +90,7 @@ export function LibraryOverlays() {
         <Suspense fallback={null}>
           <ScreenViewerOverlay
             id={screen ?? lastScreen}
+            step={step}
             open={!!screen}
             onClose={() => close("screen")}
           />

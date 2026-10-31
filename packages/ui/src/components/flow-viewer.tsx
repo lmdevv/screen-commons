@@ -70,7 +70,7 @@ export function FlowViewer({
       </div>
       <LightboxFooter className="justify-between">
         <div className="hidden min-w-0 flex-1 text-sm text-fg-muted md:block">
-          {pluralize(flow.stepCount, "screen")}
+          {pluralize(flow.stepCount, "step")}
           {flow.type ? ` · ${labelFor(flow.type)}` : null}
         </div>
         <div className="flex flex-1 items-center justify-center gap-2 md:flex-none">

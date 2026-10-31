@@ -25,7 +25,7 @@ import { queries } from "../../lib/queries";
 import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { copyImageToClipboard, copyText, downloadScreen } from "./image-actions";
-import { findListedScreen, useResultListFor } from "./result-list";
+import { findListedScreen, resultListIndex, useResultListFor } from "./result-list";
 import { useSaveToggle } from "./saving";
 
 type ViewerData = Screen & Partial<Pick<ScreenDetail, "flows" | "previousId" | "nextId">>;
@@ -34,10 +34,12 @@ const ZOOM_KEY = "screen-commons-viewer-zoom";
 
 export default function ScreenViewerOverlay({
   id,
+  step,
   open,
   onClose,
 }: {
   id: string;
+  step?: number;
   open: boolean;
   onClose: () => void;
 }) {
@@ -78,17 +80,22 @@ export default function ScreenViewerOverlay({
 
   // --- navigation within the current result list -------------------------------------------
   const ids = list?.screens.map((item) => item.id) ?? [];
-  const index = ids.indexOf(id);
+  const index = resultListIndex(list, id, step);
   const inList = index >= 0;
+  const stepOf = (target: number) => (list?.flowId ? target : undefined);
   const previousId = inList ? (ids[index - 1] ?? null) : (screen?.previousId ?? null);
   const nextId = inList ? (ids[index + 1] ?? null) : (screen?.nextId ?? null);
   const canLoadMore = inList && !nextId && !!list?.hasMore && !!list.loadMore;
 
   const go = useCallback(
-    (target: string) =>
+    (target: string, targetStep?: number) =>
       void navigate({
         to: ".",
-        search: (current: Record<string, unknown>) => ({ ...current, screen: target }),
+        search: (current: Record<string, unknown>) => ({
+          ...current,
+          screen: target,
+          step: targetStep,
+        }),
         replace: true,
         resetScroll: false,
       }),
@@ -162,16 +169,25 @@ export default function ScreenViewerOverlay({
     return failed ? null : <ViewerSkeleton open={open} onClose={onClose} />;
   }
 
+  // Opened as a step of a flow, its "In flows" row names that step, not the flow's first use of it.
+  const openedAsStep: ViewerData = {
+    ...screen,
+    flows: screen.flows?.map((flow) =>
+      inList && flow.id === list?.flowId ? { ...flow, position: index } : flow,
+    ),
+  };
   const platform = screen.app.platform;
   return (
     <ScreenViewer
       ref={viewerRef}
       open={open}
       onOpenChange={(next) => !next && onClose()}
-      screen={screen}
+      screen={openedAsStep}
       position={inList && !list?.hasMore ? { index, total: ids.length } : undefined}
-      onPrev={previousId ? () => go(previousId) : null}
-      onNext={nextId ? () => go(nextId) : canLoadMore ? loadMoreAndAdvance : null}
+      onPrev={previousId ? () => go(previousId, stepOf(index - 1)) : null}
+      onNext={
+        nextId ? () => go(nextId, stepOf(index + 1)) : canLoadMore ? loadMoreAndAdvance : null
+      }
       prevKeys={SHORTCUTS.viewerPrevious.keys}
       nextKeys={SHORTCUTS.viewerNext.keys}
       onSaveToggle={save}
@@ -225,6 +241,7 @@ export default function ScreenViewerOverlay({
             ...current,
             flow: flow.id,
             screen: undefined,
+            step: undefined,
           })}
           resetScroll={false}
         />

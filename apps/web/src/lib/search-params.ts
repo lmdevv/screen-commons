@@ -53,13 +53,19 @@ const element = oneOf<ElementSlug>(ELEMENT_SLUGS);
 const flowType = oneOf<FlowTypeSlug>(FLOW_TYPE_SLUGS);
 const platform = oneOf<Platform>(PLATFORM_SLUGS);
 
-/** Overlays that can open on top of any library page: `?screen=…`, `?flow=…`. */
+/**
+ * Overlays that can open on top of any library page: `?screen=…`, `?flow=…`. `step` says which
+ * step of a flow an open screen is, because a flow can return to a screen.
+ */
 export interface OverlaySearch {
   screen?: string;
   flow?: string;
+  step?: number;
 }
+const step = (value: unknown) =>
+  Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
 export const validateOverlaySearch = (raw: Raw): OverlaySearch =>
-  compact({ screen: id(raw.screen), flow: id(raw.flow) });
+  compact({ screen: id(raw.screen), flow: id(raw.flow), step: step(raw.step) });
 
 export const BROWSE_TABS = ["apps", "screens", "elements", "flows"] as const;
 export type BrowseTab = (typeof BROWSE_TABS)[number];

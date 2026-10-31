@@ -26,6 +26,8 @@ export interface ScreenResultsProps {
   /** Identifies the list for the viewer's ←/→ (e.g. the query key). */
   listKey: string;
   screens: readonly Screen[];
+  /** Set when `screens` are a flow's steps: a screen can repeat, and each tile opens its step. */
+  flowId?: string;
   platform: Platform;
   /** App chip on hover (cross-app grids). */
   showApp?: boolean;
@@ -52,6 +54,7 @@ export interface ScreenResultsProps {
 export function ScreenResults({
   listKey,
   screens,
+  flowId,
   platform,
   showApp = false,
   hasMore = false,
@@ -65,8 +68,8 @@ export function ScreenResults({
 }: ScreenResultsProps) {
   const toggleSave = useSaveToggle();
   const list = useMemo(
-    () => ({ key: listKey, screens, hasMore, loadMore }),
-    [listKey, screens, hasMore, loadMore],
+    () => ({ key: listKey, screens, hasMore, loadMore, flowId }),
+    [listKey, screens, hasMore, loadMore, flowId],
   );
   useRegisterResultList(list);
 
@@ -77,13 +80,13 @@ export function ScreenResults({
     <>
       <ScreenGrid platform={platform}>
         {screens.map((screen, index) => (
-          <ScreenGridItem key={screen.id}>
+          <ScreenGridItem key={flowId ? `${index}-${screen.id}` : screen.id}>
             <ScreenTile
               data-screen-id={screen.id}
               screen={screen}
               showApp={showApp}
               priority={priority && index < firstRow}
-              linkRender={screenLink(screen.id)}
+              linkRender={screenLink(screen.id, flowId ? index : undefined)}
               onSaveToggle={(_, saved) =>
                 onSaveToggle
                   ? onSaveToggle(screen, saved)
@@ -189,7 +192,11 @@ function ScreenSelectionBar({
   downloadName: string;
 }) {
   const [zipping, setZipping] = useState(false);
-  const chosen = () => screens.filter((screen) => selected.has(screen.id));
+  // Selection is by screen, so a screen a flow repeats is one file and one link.
+  const chosen = () =>
+    [...new Map(screens.map((screen) => [screen.id, screen])).values()].filter((screen) =>
+      selected.has(screen.id),
+    );
 
   async function download() {
     const items = chosen();
