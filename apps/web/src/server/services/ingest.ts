@@ -1,12 +1,15 @@
 import {
   IMAGE_EXTENSIONS,
+  ImageDownloadError,
   LIMITS,
   appInputSchema,
   base64ToBytes,
   captureBatchInputSchema,
   createFlowInputSchema,
   createScreenInputSchema,
+  downloadImage,
   hostnameOf,
+  isLocalOrigin,
   isThumbnailOf,
   sniffImage,
   slugify,
@@ -33,7 +36,7 @@ import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { z } from "zod";
 
-import { getDb } from "../env";
+import { env, getDb } from "../env";
 import { ServiceError, badRequest, notFound, parseInput } from "../errors";
 import { newId, sha256Hex } from "../ids";
 import { isAdmin, type Principal } from "../principal";
@@ -564,21 +567,37 @@ export async function createScreen(
   return { screen: apiScreen! };
 }
 
+type ToolUpload = z.output<(typeof catalogTools)["upload_screen"]["input"]>;
+
+async function toolImageSource(image: ToolUpload["image"]): Promise<ImageSource> {
+  if ("base64" in image) return { base64: image.base64, type: image.type, lenientType: true };
+  try {
+    // APP_URL only, never the request: a caller must not be able to choose the lenient policy.
+    const allowLocal = isLocalOrigin(env.APP_URL);
+    const bytes = await downloadImage(image.url, { allowLocal });
+    return { blob: new Blob([bytes as Uint8Array<ArrayBuffer>]) };
+  } catch (error) {
+    if (error instanceof ImageDownloadError) throw new ServiceError(error.code, error.message);
+    throw error;
+  }
+}
+
 /**
  * MCP `upload_screen`: no thumbnail is sent, so the server generates one. The image is typed by
  * its bytes; a mislabelled `image.type` is only logged.
  */
 export async function uploadScreenFromTool(
   principal: Principal,
-  input: z.output<(typeof catalogTools)["upload_screen"]["input"]>,
+  input: ToolUpload,
   origin: string,
 ) {
+  const image = await toolImageSource(input.image);
   const result = await ingest(principal, {
     app: input.app,
     source: "mcp",
     screens: [
       {
-        image: { base64: input.image.base64, type: input.image.type, lenientType: true },
+        image,
         title: input.title,
         sourceUrl: input.sourceUrl,
         patterns: input.patterns,

@@ -208,6 +208,54 @@ describe("remote MCP (/mcp)", () => {
     expect(body.error ?? body.result?.isError).toBeTruthy();
   });
 
+  it("update and delete tools change only what the key's owner contributed", async () => {
+    const parse = (result: Awaited<ReturnType<typeof call>>) =>
+      JSON.parse(result.content![0]!.text!);
+    const appInput = { slug: batch.app.slug, name: "Mcp Demo" };
+    const uploaded = parse(
+      await call("upload_screen", {
+        app: appInput,
+        image: { type: "image/png", base64: b64(makePng(210, 120, 77)) },
+      }),
+    );
+    const again = parse(
+      await call("upload_screen", {
+        app: appInput,
+        image: { type: "image/png", base64: b64(makePng(210, 120, 77)) },
+      }),
+    );
+    expect(again.screen).toEqual(uploaded.screen);
+
+    const edited = parse(await call("update_screen", { id: uploaded.screen.id, title: "Edited" }));
+    expect(edited).toMatchObject({ id: uploaded.screen.id, title: "Edited", status: "published" });
+
+    const flowId = crypto.randomUUID();
+    const args = {
+      id: flowId,
+      appId: batch.app.id,
+      name: "Retried",
+      description: "Safe to repeat",
+      steps: [{ screenId: batch.screens[0]!.id }, { screenId: uploaded.screen.id }],
+    };
+    const created = parse(await call("create_flow", args));
+    expect(created).toMatchObject({ id: flowId, description: "Safe to repeat" });
+    expect(parse(await call("create_flow", args)).id).toBe(flowId);
+    const renamed = parse(await call("update_flow", { id: flowId, name: "Renamed" }));
+    expect(renamed.name).toBe("Renamed");
+    expect(renamed.steps).toHaveLength(2);
+
+    expect(parse(await call("delete_screen", { id: uploaded.screen.id }))).toEqual({
+      id: uploaded.screen.id,
+      deleted: true,
+    });
+    const left = await keyClient(token).getFlow(flowId);
+    expect(left.steps.map((step) => step.screen.id)).toEqual([batch.screens[0]!.id]);
+    expect(parse(await call("delete_flow", { id: flowId }))).toEqual({ id: flowId, deleted: true });
+    const gone = await call("delete_flow", { id: flowId });
+    expect(gone.isError).toBe(true);
+    expect(gone.content![0]!.text).toMatch(/^not_found: /u);
+  });
+
   it("rejects GET (stateless server, no SSE stream)", async () => {
     const response = await fetch(`${baseUrl()}/mcp`, {
       headers: { authorization: `Bearer ${token}` },

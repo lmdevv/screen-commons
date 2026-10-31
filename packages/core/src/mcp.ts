@@ -4,10 +4,13 @@ import { LIMITS } from "./limits";
 import {
   appInputSchema,
   categorySchema,
+  createFlowInputSchema,
   elementSchema,
   flowTypeSchema,
   patternSchema,
   platformSchema,
+  updateFlowInputSchema,
+  updateScreenInputSchema,
 } from "./schemas";
 
 /**
@@ -21,9 +24,22 @@ export interface ToolSpec<Shape extends z.ZodRawShape = z.ZodRawShape> {
   description: string;
   input: z.ZodObject<Shape>;
   readOnly: boolean;
+  /** The tool reaches beyond this instance, such as to download a URL it is given. */
+  openWorld?: boolean;
 }
 
 const tool = <Shape extends z.ZodRawShape>(spec: ToolSpec<Shape>) => spec;
+
+const base64Image = z.object({
+  type: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  base64: z.string().min(1),
+});
+const urlImage = z.object({
+  url: z.url().describe("Public https URL of the image; the server downloads it"),
+});
+const pathImage = z.object({
+  path: z.string().min(1).describe("Image file on the machine running this server"),
+});
 
 export const catalogTools = {
   search_screens: tool({
@@ -109,12 +125,11 @@ export const catalogTools = {
     name: "upload_screen",
     title: "Upload screen",
     description:
-      "Upload one screenshot (base64 PNG/JPEG/WebP) to the catalog under an app (created if missing). Member uploads await review.",
+      "Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing), as base64 or, for anything large, a public URL the server downloads. Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.",
     input: z.object({
       app: appInputSchema,
-      image: z.object({
-        type: z.enum(["image/png", "image/jpeg", "image/webp"]),
-        base64: z.string().min(1),
+      image: z.union([base64Image, urlImage], {
+        error: "image must be { type, base64 } or { url }",
       }),
       title: z.string().max(160).optional(),
       sourceUrl: z.url().optional(),
@@ -122,20 +137,63 @@ export const catalogTools = {
       elements: z.array(elementSchema).max(24).default([]),
     }),
     readOnly: false,
+    openWorld: true,
+  }),
+  update_screen: tool({
+    name: "update_screen",
+    title: "Update screen",
+    description:
+      "Edit the title, patterns, elements or tags of a screen you contributed. Omitted fields stay as they are.",
+    input: updateScreenInputSchema.extend({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+  delete_screen: tool({
+    name: "delete_screen",
+    title: "Delete screen",
+    description: "Delete a screen you contributed. It is also removed from any flows it is in.",
+    input: z.object({ id: z.string().min(1) }),
+    readOnly: false,
   }),
   create_flow: tool({
     name: "create_flow",
     title: "Create flow",
-    description: "Create an ordered flow from existing screen ids of one app.",
-    input: z.object({
-      appId: z.string().min(1),
-      name: z.string().min(1).max(80),
-      type: flowTypeSchema.optional(),
-      steps: z
-        .array(z.object({ screenId: z.string().min(1), label: z.string().max(80).optional() }))
-        .min(2),
+    description:
+      "Create an ordered flow from existing screen ids of one app. Pick an id to retry safely: calling again with the same id returns the same flow.",
+    input: createFlowInputSchema.extend({
+      id: createFlowInputSchema.shape.id.describe(
+        "Your own UUID for this flow, so a repeated call doesn't create another",
+      ),
     }),
     readOnly: false,
+  }),
+  update_flow: tool({
+    name: "update_flow",
+    title: "Update flow",
+    description:
+      "Edit a flow you contributed: its name, type, description or steps. Steps replace the whole ordered list. Omitted fields stay as they are.",
+    input: updateFlowInputSchema.extend({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+  delete_flow: tool({
+    name: "delete_flow",
+    title: "Delete flow",
+    description: "Delete a flow you contributed. Its screens stay in the catalog.",
+    input: z.object({ id: z.string().min(1) }),
+    readOnly: false,
+  }),
+} as const;
+
+/** The local stdio server's catalog: the same tools, and `upload_screen` also reads a local file. */
+export const localCatalogTools = {
+  ...catalogTools,
+  upload_screen: tool({
+    ...catalogTools.upload_screen,
+    description: `${catalogTools.upload_screen.description} On this local server, image can also be the path of a file on this machine.`,
+    input: catalogTools.upload_screen.input.extend({
+      image: z.union([base64Image, urlImage, pathImage], {
+        error: "image must be { type, base64 }, { url } or { path }",
+      }),
+    }),
   }),
 } as const;
 

@@ -122,6 +122,10 @@ export function imageTypeNote(image: { type: string; base64: string }): string |
     : undefined;
 }
 
+export function deletedResult(id: string) {
+  return { id, deleted: true };
+}
+
 /** A failed call, as an agent reads it from either server. */
 export function toolErrorText(code: ErrorCode, message: string, retryAfter?: number | null) {
   const retry =
