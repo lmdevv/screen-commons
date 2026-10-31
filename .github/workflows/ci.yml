@@ -33,6 +33,42 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  agent-journey:
+    # Drives a disposable instance the way an agent would. Deploy jobs don't depend on this yet.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Launch a disposable instance
+        run: .agents/skills/verify-screen-commons/scripts/control.mjs launch --run ci
+      - run: .agents/skills/verify-screen-commons/scripts/control.mjs doctor --run ci
+      - name: Drive the cli journey
+        run: .agents/skills/verify-screen-commons/scripts/control.mjs drive cli --run ci --timeout 900
+      - name: Drive the mcp-remote journey
+        if: ${{ !cancelled() }}
+        run: .agents/skills/verify-screen-commons/scripts/control.mjs drive mcp-remote --run ci
+      - name: Tear down
+        if: ${{ always() }}
+        run: .agents/skills/verify-screen-commons/scripts/control.mjs teardown --run ci
+      - name: Upload evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-journey-evidence
+          path: test-results/verify/
+          if-no-files-found: warn
+          retention-days: 14
+
   preview:
     # Fork and Dependabot PRs get no secrets, so they skip previews.
     needs: validate
