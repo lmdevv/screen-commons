@@ -40,7 +40,7 @@ A key acts as the user who created it, with the same role. See [API keys](/docs/
 
 Cross-origin requests may use bearer keys from any origin (`Access-Control-Allow-Origin: *`). Cookies are ignored on cross-origin requests, so a third-party site can't act as a signed-in user.
 
-Every endpoint requires authentication except [`GET /taxonomy`](#taxonomy). API responses are never cached (`Cache-Control: private, no-store`).
+Every endpoint requires authentication except [`GET /taxonomy`](#taxonomy) and the two [CLI login](#cli-login) endpoints that start and poll a login. API responses are never cached (`Cache-Control: private, no-store`).
 
 ## Errors
 
@@ -61,7 +61,7 @@ Errors use HTTP status codes and a JSON body:
 | `unauthorized`           | 401    | Missing, unknown or revoked key, and no session.                                                                                                                          |
 | `forbidden`              | 403    | Authenticated, but not allowed. For example, a member calling a review endpoint.                                                                                          |
 | `not_found`              | 404    | The item doesn't exist or you can't see it.                                                                                                                               |
-| `conflict`               | 409    | Reserved. Not returned by the current release.                                                                                                                            |
+| `conflict`               | 409    | The request clashes with the item's current state, e.g. approving a CLI login that expired or was already decided.                                                        |
 | `payload_too_large`      | 413    | Request body or an image is over its limit.                                                                                                                               |
 | `unsupported_media_type` | 415    | An image isn't a complete, still PNG, JPEG or WebP, or isn't the type it's declared as.                                                                                   |
 | `unprocessable`          | 422    | Valid, but the server can't process it as sent, e.g. it can't make a thumbnail of the image. The message says what to send instead; retrying the same request won't help. |
@@ -679,7 +679,7 @@ Saving is idempotent. Without `collectionId`, saves go to the default collection
 
 ## API keys
 
-Session only: these endpoints reject API keys with `403`, so a leaked key can't mint more keys. See [API keys](/docs/api-keys).
+A signed-in session or a key from [CLI login](#cli-login) can manage keys. Every other key gets `403`, so a leaked script or extension key can't mint more keys. Keys created here can't manage keys either. See [API keys](/docs/api-keys).
 
 | Request                    | Body                      | Response                                   |
 | -------------------------- | ------------------------- | ------------------------------------------ |
@@ -701,6 +701,38 @@ Session only: these endpoints reject API keys with `403`, so a leaked key can't 
 ```
 
 `token` is returned only once, at creation.
+
+## CLI login
+
+`screen-commons login` gets a key with one browser approval. The CLI makes an `sc_` token itself and sends only its SHA-256 hash and first 8 characters, so the token never crosses the network. A signed-in user approves the login in the browser, and the server stores that hash as a new key.
+
+| Request                           | Auth         | Body                                                  | Response                                           |
+| --------------------------------- | ------------ | ----------------------------------------------------- | -------------------------------------------------- |
+| `POST /api/v1/cli-login`          | None         | `{ "hash", "prefix", "device" }`                      | `201` `{ "code", "url", "expiresAt", "interval" }` |
+| `POST /api/v1/cli-login/poll`     | None         | `{ "code", "hash" }`                                  | `{ "status" }`, plus `"keyId"` once approved       |
+| `POST /api/v1/cli-login/decision` | Session only | `{ "code", "decision" }`, `decision` `approve`/`deny` | `{ "code", "device", "status", "expiresAt" }`      |
+
+```bash
+curl -X POST http://localhost:5173/api/v1/cli-login \
+  -H "Content-Type: application/json" \
+  -d '{"hash":"<sha256 hex of the token>","prefix":"sc_qy9o2","device":"ada-laptop"}'
+```
+
+```json
+{
+  "code": "BXKD-MTRW",
+  "url": "http://localhost:5173/cli-login?code=BXKD-MTRW",
+  "expiresAt": "2026-11-10T12:10:00.000Z",
+  "interval": 2
+}
+```
+
+- `hash` is the lowercase hex SHA-256 of the full token, and `prefix` is its first 8 characters. `device` names the machine on the approval page, 40 characters at most.
+- The code is two groups of four consonants. It expires after 10 minutes.
+- `url` opens the approval page, which shows the code and the device. The person approving checks that the code matches the one in their terminal.
+- Poll every `interval` seconds. `status` is `pending`, `approved`, `denied` or `expired`. A poll with the wrong `hash` reads as `expired`. A decided login stays pollable for 10 minutes after the decision.
+- Approving creates a key named `CLI login on <device>`. The CLI then uses the token it kept.
+- `decision` rejects API keys with `403`. It returns `409 conflict` when the code has expired or someone already decided it. Repeating your own decision returns the same result.
 
 ## Review
 
@@ -877,7 +909,8 @@ Omit `apiKey` to use the session cookie from same-origin browser code.
 | `listCollections()` / `getCollection(id)`                                        | `GET /collections`, `GET /collections/{id}` |
 | `createCollection(name)` / `renameCollection(id, name)` / `deleteCollection(id)` | `POST`, `PATCH`, `DELETE /collections`      |
 | `save(kind, id, collectionId?)` / `unsave(kind, id, collectionId?)`              | `POST /saves`, `DELETE /saves`              |
-| `listKeys()` / `createKey(name)` / `revokeKey(id)`                               | `/keys` (session only)                      |
+| `listKeys()` / `createKey(name)` / `revokeKey(id)`                               | `/keys` (session or login key)              |
+| `startCliLogin(input)` / `pollCliLogin(input)`                                   | `POST /cli-login`, `POST /cli-login/poll`   |
 | `reviewQueue({ kind, cursor?, limit? })` / `reviewStatus(kind, id)`              | `GET /review`, `GET /review/{kind}/{id}`    |
 | `review(kind, id, decision, reason?)`                                            | `POST /review/{kind}/{id}`                  |
 

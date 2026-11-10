@@ -14,6 +14,8 @@ API keys let scripts, the browser extension and MCP servers act as you. Every ke
 3. Click **Create key**.
 4. Copy the key. It's shown **once**; Screen Commons only stores a hash of it.
 
+The `screen-commons` CLI gets its own key with `screen-commons login --url <instance>`. It prints a link and a code. Open the link where you're signed in, check that the code matches, and click **Approve**. The key is named **CLI login on** your machine's name. See [CLI login](/docs/api#cli-login).
+
 The browser extension creates its own key, named **Browser extension**, when you click **Connect**. See [Browser extension](/docs/extension#connect-your-account).
 
 Use the key as a bearer token:
@@ -32,7 +34,7 @@ A key has exactly your account's permissions. There are no per-key scopes.
 | **Member** | Browse and search, upload screens and flows (they wait for review), manage your collections. |
 | **Admin**  | Everything a member can, plus publish directly and approve or reject contributions.          |
 
-Keys can't manage keys. Creating, listing and revoking keys requires a signed-in session on the website, so a leaked key can't create new ones or revoke yours.
+Most keys can't manage keys. Creating, listing and revoking keys needs a signed-in session on the website or a key from `screen-commons login`, so a leaked script or extension key can't create new ones or revoke yours. Keys that a login key creates can't manage keys either. A login key can, so guard it like a signed-in browser.
 
 ## Revoke a key
 
