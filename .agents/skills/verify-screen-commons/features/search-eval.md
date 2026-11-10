@@ -1,6 +1,6 @@
 # Search eval
 
-An agent asks catalog questions such as "How does Spotify let users create a playlist?" and needs the right app's flow first, or a clear answer that an app isn't in the catalog. The eval asks 34 judged questions against a copy of the production Spotify catalog's shape and records how flow and screen search answer them. It records a baseline and gates nothing.
+An agent asks catalog questions such as "How does Spotify let users create a playlist?" and needs the right app's flow first, or a clear answer that an app isn't in the catalog. The eval asks 34 judged questions against a copy of the production Spotify catalog's shape, records how flow and screen search answer them, and fails when the scores fall below `eval/thresholds.json`.
 
 ## Sub-features
 
@@ -32,12 +32,13 @@ Run `control drive search-eval --run <id>`, which performs these steps.
 - **Questions.** Each case in `eval/search-cases.json` is asked of flow search and screen search with an API key.
 - **Score.** `eval/score.mjs` judges each answer. A case names expected flows, with or without an app, or a missing app. A missing app counts as found only when the response's `match.appNotFound` names it.
 - **Report.** The journey writes `eval.json` with every case, its top 3 answers, outcome, rows and milliseconds, then `eval.txt` with a table per split. It prints the table to stderr.
+- **Gate.** The journey fails, naming each shortfall, when a split scores below `eval/thresholds.json`.
 - **Proof.** Read `test-results/verify/<run>/search-eval-*/eval.json` and `eval.txt`.
 
 ## Gotchas
 
-- The eval exits 0 whatever the scores. A failed request still fails it.
+- The eval fails when a split scores below `eval/thresholds.json`: too few hits at 1 plus correctly reported missing apps, or any wrong-app answer. It writes `eval.json` and the table first. A failed request also fails it.
 - Without the seed, the eval fails at once and names the seed command.
 - Rows are `null` per call, and `rows` is `unavailable` in the report, on an instance launched with `SC_D1_COUNTER=0`.
-- Results order by recency today, so the decoys, published last, win the fallback. Compare runs only between instances seeded the same way.
+- Rows per call depend on what else the instance holds, so compare rows only between instances seeded the same way, with nothing else run on them.
 - The fixture's decoy Linear, Vercel and Stripe flows join the apps the launch seeded.

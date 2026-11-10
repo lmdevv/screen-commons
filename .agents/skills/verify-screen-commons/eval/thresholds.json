@@ -1,0 +1,10 @@
+{
+  "flows": {
+    "tuning": { "minAnswered": 12, "maxWrongApp": 0 },
+    "holdout": { "minAnswered": 10, "maxWrongApp": 0 }
+  },
+  "screens": {
+    "tuning": { "maxWrongApp": 0 },
+    "holdout": { "maxWrongApp": 0 }
+  }
+}
