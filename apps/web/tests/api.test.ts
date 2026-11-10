@@ -171,6 +171,28 @@ describe("captures + media", () => {
     expect(appDetail.screenCount).toBe(4);
   });
 
+  it("leaves the app untouched when the same batch is uploaded again", async () => {
+    const upload = {
+      app: { name: `Noop ${suffix}`, websiteUrl: `https://noop-${suffix}.example.com` },
+      screens: [captureScreen({ title: "One" }), captureScreen({ title: "Two" })],
+    };
+    const first = await adminApi.captures(upload);
+    const before = await adminApi.getApp(first.app.slug);
+    const again = await adminApi.captures(upload);
+    expect(again.screens).toEqual(first.screens);
+    expect((await adminApi.getApp(first.app.slug)).updatedAt).toBe(before.updatedAt);
+
+    await adminApi.captures({ ...upload, app: { ...upload.app, tagline: "Now with a tagline" } });
+    const tagged = await adminApi.getApp(first.app.slug);
+    expect(tagged.tagline).toBe("Now with a tagline");
+    expect(tagged.updatedAt > before.updatedAt).toBe(true);
+
+    await adminApi.captures({ ...upload, screens: [captureScreen({ title: "Three" })] });
+    const grown = await adminApi.getApp(first.app.slug);
+    expect(grown.screenCount).toBe(3);
+    expect(grown.updatedAt > tagged.updatedAt).toBe(true);
+  });
+
   it("rejects invalid images and payloads", async () => {
     await expectApiError(
       adminApi.captures({
