@@ -45,6 +45,7 @@ MCP is the main client surface, so its entries come first.
 - [Local MCP](./mcp-local.md) covers the built stdio server: the shared contract, proxied catalog tools, prompts, resources, headless browser tools and key handling. Journey: `mcp-local`.
 - [npm package](./mcp-package.md) covers the production package as a user installs it, outside the workspace. Journey: `mcp-package`.
 - [CLI and manifests](./cli.md) covers the `screen-commons` CLI as a subprocess, and publishing a capture manifest repeatedly, through faults, in both roles. Journey: `cli`.
+- [Real agent](./agent.md) covers Claude Code and Codex answering a catalog question through both servers in one session, plus the D1 row counter. Journey: `agent`.
 - [Extension bridge](./mcp-extension.md) covers pairing the real extension and running browser tools through it. Journey: `mcp-extension`.
 - [Browse and view](./browse.md) covers public pages, Discover, filters, the screen and flow viewers, and app pages. Journey: `browse`.
 - [Search](./search.md) covers the palette, the results page, text inside screenshots, REST and MCP. Journey: `search`.

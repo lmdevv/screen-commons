@@ -14,6 +14,9 @@
  *   control.mjs mcp <remote|local> call <tool> ['<json args>']   call one tool the same way
  *   control.mjs mcp-config [--client <claude|cursor|codex|opencode>]   that agent's config for the
  *                                              run's two MCP servers (default claude)
+ *   control.mjs agent --prompt <text> [--client <claude|codex>] [--timeout <seconds>]   one session
+ *                                              of that real agent with only those two servers;
+ *                                              its transcript goes to test-results/verify/
  *   control.mjs list                           every run on this machine and whether it is alive
  *   control.mjs teardown                       stop the server, delete state, keep the evidence
  *
@@ -30,6 +33,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -37,8 +41,8 @@ import {
 import { createServer as createHttpServer } from "node:http";
 import { connect, createServer } from "node:net";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 
@@ -488,8 +492,13 @@ async function commandLaunch(flags) {
     const { writeTestWranglerConfig } = await import(
       pathToFileURL(join(WEB, "tests/wrangler-config.ts")).href
     );
+    const d1Counter = process.env.SC_D1_COUNTER !== "0";
     const config = writeTestWranglerConfig(configDir, {
-      devVars: { APP_URL: base, BETTER_AUTH_SECRET: randomBytes(32).toString("base64url") },
+      devVars: {
+        APP_URL: base,
+        BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"),
+        ...(d1Counter ? { SC_D1_COUNTER: "1" } : {}),
+      },
     });
     const env = {
       ...process.env,
@@ -501,7 +510,7 @@ async function commandLaunch(flags) {
       SCREEN_COMMONS_WRANGLER_CONFIG: config,
       SCREEN_COMMONS_VITE_CACHE_DIR: viteCacheDir(id),
     };
-    Object.assign(run, { base, port, state, config });
+    Object.assign(run, { base, port, state, config, d1Counter });
     writeRun(run);
 
     log(`[${id}] applying migrations to an empty D1`);
@@ -592,7 +601,11 @@ async function commandDoctor(flags) {
         headers,
         signal: AbortSignal.timeout(15_000),
       });
-      return { status: response.status, body: await response.json().catch(() => null) };
+      return {
+        status: response.status,
+        rows: response.headers.get("x-sc-d1-rows"),
+        body: await response.json().catch(() => null),
+      };
     } catch (error) {
       return { status: 0, body: String(error) };
     }
@@ -600,6 +613,11 @@ async function commandDoctor(flags) {
   const auth = { authorization: `Bearer ${run.adminKey}` };
   const taxonomy = await get("/api/v1/taxonomy");
   check("API answers", taxonomy.status === 200, `/api/v1/taxonomy ${taxonomy.status}`);
+  check(
+    "D1 row counter as launched",
+    (taxonomy.rows != null) === Boolean(run.d1Counter),
+    `launched ${run.d1Counter ? "with" : "without"} SC_D1_COUNTER, x-sc-d1-rows ${taxonomy.rows ?? "absent"}`,
+  );
   const me = await get("/api/v1/me", auth);
   check(
     "admin key valid",
@@ -894,23 +912,334 @@ const MCP_CONFIG_FORMATS = {
     ].join("\n"),
 };
 
-function commandMcpConfig(flags) {
-  const format = MCP_CONFIG_FORMATS[flags.client ?? "claude"];
+function mcpConfig(run, client) {
+  const format = MCP_CONFIG_FORMATS[client];
   if (!format) {
+    throw new Error(`Bad --client "${client}": use ${Object.keys(MCP_CONFIG_FORMATS).join(", ")}`);
+  }
+  const { PATH: _path, ...env } = localMcpEnv(run);
+  return format({
+    url: `${run.base}/mcp`,
+    headers: { Authorization: `Bearer ${run.adminKey}` },
+    entry: buildLocalMcp(run),
+    env,
+  });
+}
+
+function commandMcpConfig(flags) {
+  const run = requireHealthy(resolveRun(flags));
+  process.stdout.write(`${mcpConfig(run, flags.client ?? "claude")}\n`);
+}
+
+const DEFAULT_AGENT_SECONDS = 300;
+const SCREEN_COMMONS_SERVERS = ["screen-commons-remote", "screen-commons-local"];
+
+function claudeToolName(name) {
+  const match = /^mcp__(.+?)__(.+)$/u.exec(name);
+  return match ? { server: match[1], tool: match[2] } : { server: null, tool: name };
+}
+
+function claudeLogin() {
+  for (const name of ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]) {
+    if (process.env[name]) return { [name]: process.env[name] };
+  }
+  const file = join(
+    process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"),
+    ".credentials.json",
+  );
+  const oauth = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")).claudeAiOauth : null;
+  // Only the access token: a copied refresh token could be rotated away from the real login.
+  if (oauth?.accessToken && oauth.expiresAt > Date.now() + 60_000) {
+    return { CLAUDE_CODE_OAUTH_TOKEN: oauth.accessToken };
+  }
+  throw new Error(
+    "Claude Code has no usable login: set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`), or run `claude` once to refresh its login",
+  );
+}
+
+/**
+ * Codex reads its login from CODEX_HOME, so the scratch home gets a copy. If Codex refreshes it
+ * there, the refreshed copy goes back, because the refresh can retire the token the real one holds.
+ */
+function codexLogin(codexHome) {
+  for (const name of ["CODEX_API_KEY", "OPENAI_API_KEY"]) {
+    if (process.env[name]) return { env: { [name]: process.env[name] }, finish: () => false };
+  }
+  const real = join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "auth.json");
+  if (!existsSync(real)) {
+    throw new Error("Codex has no login: run `codex login`, or set CODEX_API_KEY");
+  }
+  const copy = join(codexHome, "auth.json");
+  const original = readFileSync(real);
+  writeFileSync(copy, original, { mode: 0o600 });
+  return {
+    env: {},
+    finish() {
+      const after = existsSync(copy) ? readFileSync(copy) : original;
+      rmSync(copy, { force: true });
+      if (after.equals(original) || !readFileSync(real).equals(original)) return false;
+      writeFileSync(`${real}.screen-commons-verify`, after, { mode: 0o600 });
+      renameSync(`${real}.screen-commons-verify`, real);
+      return true;
+    },
+  };
+}
+
+const AGENTS = {
+  claude: {
+    install: "npm install -g @anthropic-ai/claude-code",
+    setup({ home, prompt, config }) {
+      const configPath = join(home, "mcp.json");
+      writeFileSync(configPath, config);
+      return {
+        args: [
+          "-p",
+          prompt,
+          "--output-format",
+          "stream-json",
+          "--verbose",
+          "--strict-mcp-config",
+          "--mcp-config",
+          configPath,
+          "--tools",
+          "",
+          "--allowedTools",
+          SCREEN_COMMONS_SERVERS.map((server) => `mcp__${server}`).join(","),
+          "--permission-prompts",
+          "none",
+        ],
+        env: claudeLogin(),
+        finish: () => false,
+      };
+    },
+    read(events) {
+      const calls = new Map();
+      for (const event of events) {
+        for (const part of event.message?.content ?? []) {
+          if (part.type === "tool_use") {
+            calls.set(part.id, {
+              ...claudeToolName(part.name),
+              arguments: part.input,
+              isError: null,
+            });
+          } else if (part.type === "tool_result" && calls.has(part.tool_use_id)) {
+            calls.get(part.tool_use_id).isError = Boolean(part.is_error);
+          }
+        }
+      }
+      const result = events.findLast((event) => event.type === "result");
+      return { toolCalls: [...calls.values()], answer: result?.result ?? null };
+    },
+  },
+  codex: {
+    install: "npm install -g @openai/codex",
+    setup({ home, work, prompt, config }) {
+      const codexHome = join(home, ".codex");
+      mkdirSync(codexHome, { recursive: true });
+      const off = [
+        "apps",
+        "browser_use",
+        "computer_use",
+        "image_generation",
+        "in_app_browser",
+        "multi_agent",
+        "plugins",
+        "shell_tool",
+        "unified_exec",
+      ];
+      writeFileSync(
+        join(codexHome, "config.toml"),
+        [
+          'approval_policy = "never"',
+          'web_search = "disabled"',
+          "",
+          config,
+          "",
+          "[features]",
+          ...off.map((feature) => `${feature} = false`),
+        ].join("\n"),
+      );
+      const login = codexLogin(codexHome);
+      return {
+        args: [
+          "exec",
+          "--json",
+          "--skip-git-repo-check",
+          "--ignore-rules",
+          "--sandbox",
+          "read-only",
+          "-C",
+          work,
+          prompt,
+        ],
+        env: { CODEX_HOME: codexHome, ...login.env },
+        finish: login.finish,
+      };
+    },
+    read(events) {
+      const items = events
+        .filter((event) => event.type === "item.completed")
+        .map(({ item }) => item);
+      return {
+        toolCalls: items
+          .filter((item) => ["mcp_tool_call", "command_execution"].includes(item.type))
+          .map((item) =>
+            item.type === "mcp_tool_call"
+              ? {
+                  server: item.server,
+                  tool: item.tool,
+                  arguments: item.arguments,
+                  isError: item.status === "failed" || Boolean(item.error),
+                }
+              : {
+                  server: null,
+                  tool: "shell",
+                  arguments: { command: item.command },
+                  isError: item.status === "failed",
+                },
+          ),
+        answer: items.findLast((item) => item.type === "agent_message")?.text ?? null,
+      };
+    },
+  },
+};
+
+function agentBin(client) {
+  const agent = AGENTS[client];
+  if (!agent) throw new Error(`Bad --client "${client}": use ${Object.keys(AGENTS).join(", ")}`);
+  const bin = (process.env.PATH ?? "")
+    .split(":")
+    .filter(Boolean)
+    .map((dir) => join(dir, client))
+    .find((path) => existsSync(path));
+  if (!bin) {
     throw new Error(
-      `Bad --client "${flags.client}": use ${Object.keys(MCP_CONFIG_FORMATS).join(", ")}`,
+      `${client} is not on PATH. Install it with \`${agent.install}\`, log in, and retry.`,
     );
   }
-  const run = requireHealthy(resolveRun(flags));
-  const { PATH: _path, ...env } = localMcpEnv(run);
-  process.stdout.write(
-    `${format({
-      url: `${run.base}/mcp`,
-      headers: { Authorization: `Bearer ${run.adminKey}` },
-      entry: buildLocalMcp(run),
-      env,
-    })}\n`,
+  return bin;
+}
+
+function startAgent(run, { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS }) {
+  const bin = agentBin(client);
+  const agent = AGENTS[client];
+  if (!prompt) throw new Error("control.mjs agent needs --prompt <text>");
+  const home = join(runDir(run.id), "agents", basename(dir));
+  const work = join(home, "work");
+  mkdirSync(work, { recursive: true });
+  mkdirSync(dir, { recursive: true });
+  const { args, env, finish } = agent.setup({ home, work, prompt, config: mcpConfig(run, client) });
+
+  const transcript = join(dir, "transcript.jsonl");
+  const stderr = join(dir, "stderr.log");
+  writeFileSync(transcript, "");
+  const events = [];
+  let pending = "";
+  const startedAt = Date.now();
+  const child = spawn(bin, args, {
+    cwd: work,
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      PATH: process.env.PATH ?? "",
+      HOME: home,
+      XDG_CONFIG_HOME: join(home, ".config"),
+      XDG_DATA_HOME: join(home, ".local/share"),
+      XDG_STATE_HOME: join(home, ".local/state"),
+      XDG_CACHE_HOME: join(home, ".cache"),
+      ...Object.fromEntries(
+        ["LANG", "SSL_CERT_FILE", "NIX_SSL_CERT_FILE"]
+          .filter((name) => process.env[name])
+          .map((name) => [name, process.env[name]]),
+      ),
+      ...env,
+    },
+  });
+  child.stdout.on("data", (chunk) => {
+    appendFileSync(transcript, chunk);
+    const lines = (pending + chunk).split("\n");
+    pending = lines.pop();
+    for (const line of lines) {
+      try {
+        events.push(JSON.parse(line));
+      } catch {}
+    }
+  });
+  child.stderr.on("data", (chunk) => appendFileSync(stderr, chunk));
+
+  let stopped = null;
+  const stop = (reason) => {
+    if (child.exitCode !== null || child.signalCode !== null || stopped) return;
+    stopped = reason;
+    for (const [signal, delay] of [
+      ["SIGTERM", 0],
+      ["SIGKILL", 5000],
+    ]) {
+      setTimeout(() => {
+        try {
+          process.kill(-child.pid, signal);
+        } catch {}
+      }, delay).unref();
+    }
+  };
+  const limit = setTimeout(
+    () => stop(`still running after ${seconds} s (--timeout)`),
+    seconds * 1000,
   );
+
+  const done = new Promise((settle) => {
+    child.once("close", (exitCode, signal) => {
+      clearTimeout(limit);
+      const result = {
+        client,
+        prompt,
+        bin,
+        args: args.map((arg) => (arg === prompt ? "<prompt>" : arg)),
+        home,
+        startedAt: new Date(startedAt).toISOString(),
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+        exitCode,
+        signal,
+        stopped,
+        loginRefreshed: finish(),
+        ...agent.read(events),
+        events: events.length,
+        transcript,
+        stderr: existsSync(stderr) ? stderr : null,
+      };
+      writeFileSync(join(dir, "result.json"), JSON.stringify(result, null, 2));
+      settle(result);
+    });
+  });
+  return { done, stop };
+}
+
+async function commandAgent(flags) {
+  const client = flags.client ?? "claude";
+  agentBin(client);
+  const run = requireHealthy(resolveRun(flags));
+  const seconds = Number(flags.timeout ?? DEFAULT_AGENT_SECONDS);
+  if (!/^\d+$/u.test(flags.timeout ?? "1") || !(seconds > 0 && seconds <= 3600))
+    throw new Error(`Bad --timeout "${flags.timeout}": use seconds, up to 3600`);
+  const dir = join(EVIDENCE, run.id, `agent-${client}-${Date.now().toString(36)}`);
+  const session = startAgent(run, { client, prompt: flags.prompt, dir, seconds });
+  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => session.stop(signal));
+  log(`[${run.id}] ${client} is running; transcript at ${join(dir, "transcript.jsonl")}`);
+  const result = await session.done;
+  output({
+    client,
+    exitCode: result.exitCode,
+    signal: result.signal,
+    stopped: result.stopped,
+    toolCalls: result.toolCalls.map(
+      ({ server, tool, isError }) =>
+        `${server ? `${server} ` : ""}${tool}${isError ? " (error)" : ""}`,
+    ),
+    answer: result.answer,
+    transcript: result.transcript,
+    result: join(dir, "result.json"),
+  });
+  if (result.exitCode !== 0 || result.stopped) process.exitCode = 1;
 }
 
 /** A small same-origin site for the browser tools, so no public site is contacted. */
@@ -1085,6 +1414,7 @@ async function commandDrive(flags, positional) {
     base: run.base,
     admin: run.admin,
     adminKey: run.adminKey,
+    d1Counter: Boolean(run.d1Counter),
     stamp,
 
     async newPage({ viewport = { width: 1440, height: 900 } } = {}) {
@@ -1154,7 +1484,11 @@ async function commandDrive(flags, positional) {
         },
       });
       noteResponse(response.status, init.method ?? "GET", response.url);
-      return { status: response.status, body: await response.json().catch(() => null) };
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        body: await response.json().catch(() => null),
+      };
     },
     async mcp(method, params, token = run.adminKey) {
       assertRunning();
@@ -1168,7 +1502,11 @@ async function commandDrive(flags, positional) {
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
       });
       noteResponse(response.status, "POST", response.url);
-      return { status: response.status, body: await response.json().catch(() => null) };
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        body: await response.json().catch(() => null),
+      };
     },
     /** The real MCP client over Streamable HTTP. `token: null` sends no key. */
     async remoteMcp(token) {
@@ -1235,6 +1573,16 @@ async function commandDrive(flags, positional) {
     builtCli() {
       localEntry ??= buildLocalMcp(run);
       return join(mcpBuildDir(run.id), "cli.js");
+    },
+    async agent({ client = "claude", prompt, seconds = 240 }) {
+      assertRunning();
+      const label = next(`agent ${client}`);
+      const session = startAgent(run, { client, prompt, dir: join(out, label), seconds });
+      closers.push(async () => session.stop("the journey ended"));
+      const result = await session.done;
+      steps.push({ step: `agent ${client}`, proof: `${label}/result.json` });
+      log(`  ok agent ${client}: ${result.toolCalls.map(({ tool }) => tool).join(", ") || "none"}`);
+      return result;
     },
     /** Calls a tool and saves the result as proof, with each returned image next to it. */
     async call(client, label, name, args = {}) {
@@ -1487,7 +1835,7 @@ function parse(argv) {
   const flags = {};
   const positional = [];
   for (let index = 0; index < rest.length; index += 1) {
-    if (["--run", "--timeout", "--client"].includes(rest[index])) {
+    if (["--run", "--timeout", "--client", "--prompt"].includes(rest[index])) {
       if (rest[index + 1] === undefined) throw new Error(`${rest[index]} needs a value`);
       flags[rest[index].slice(2)] = rest[++index];
     } else if (rest[index].startsWith("--")) throw new Error(`Unknown option ${rest[index]}`);
@@ -1513,6 +1861,7 @@ const commands = {
   r2: async () => output(await listObjects(requireHealthy(resolveRun(flags)))),
   mcp: () => commandMcp(flags, positional),
   "mcp-config": async () => commandMcpConfig(flags),
+  agent: () => commandAgent(flags),
   list: async () =>
     output(
       runIds().map((id) => {
@@ -1536,7 +1885,7 @@ if (commands[command]) {
   });
 } else {
   log(
-    "Usage: control.mjs <launch|doctor|drive|sql|r2|mcp|mcp-config|list|teardown> [--run <id>]; see ../SKILL.md",
+    "Usage: control.mjs <launch|doctor|drive|sql|r2|mcp|mcp-config|agent|list|teardown> [--run <id>]; see ../SKILL.md",
   );
   process.exitCode = 1;
 }

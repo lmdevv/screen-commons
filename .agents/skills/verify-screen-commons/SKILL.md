@@ -41,6 +41,8 @@ If `launch` succeeded and a later `doctor` fails `server process is ours`, the s
 5. Confirms the catalog over REST: 9 web apps, 28 screens, 9 pricing screens and 9 flows.
 6. Loads each page group once, signed in, because Vite reloads a page the first time it finds a new dependency.
 
+Every response of the instance carries `x-sc-d1-rows`, the D1 rows read plus rows written while producing it, summed from D1's own `meta`. Launch with `SC_D1_COUNTER=0` for an instance without it, such as a baseline for latency. Production never sets the variable.
+
 Step 5 compares the counts with what it uploaded, so a partial seed fails the launch. It is ready when it prints the run as JSON and then `ready at http://localhost:<port>` on stderr, and exits 0. A failed launch tears itself down, prints the reason and exits 1.
 
 Admin sign-in: `admin@screencommons.dev` / `screencommons-admin-2026`. These match the defaults in `apps/web/e2e`.
@@ -55,7 +57,7 @@ To stop, see [Cleanup](#cleanup).
 .agents/skills/verify-screen-commons/scripts/control.mjs doctor --run <id>
 ```
 
-It changes nothing except the admin key's last-used time. Run it first and whenever anything looks off. It exits 1 unless all of these hold: launch finished, the server process is the one this run spawned, this run owns the port, state is disposable, the API answers, the admin key is valid, the catalog is seeded, the remote MCP server lists `search_screens`, the local MCP server's build tool is present, the checked-out revision matches the one launched, and Chromium exists.
+It changes nothing except the admin key's last-used time. Run it first and whenever anything looks off. It exits 1 unless all of these hold: launch finished, the server process is the one this run spawned, this run owns the port, state is disposable, the API answers, `x-sc-d1-rows` is present exactly when the run was launched with the counter, the admin key is valid, the catalog is seeded, the remote MCP server lists `search_screens`, the local MCP server's build tool is present, the checked-out revision matches the one launched, and Chromium exists.
 
 A revision mismatch means you changed branch or committed after launching. `vite dev` serves the working tree, so file edits hot-reload on a running instance. Launch again after changing migrations, `wrangler.jsonc` or the Vite config.
 
@@ -67,7 +69,7 @@ A revision mismatch means you changed branch or committed after launching. `vite
 .agents/skills/verify-screen-commons/scripts/control.mjs drive <journey> --run <id>
 ```
 
-Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `cli`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
+Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `cli`, `agent`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
 
 - a failed step, or a rejected promise nothing handled;
 - a page error or console error on a watched page, meaning an `h.newPage` page or the extension's Options page;
@@ -106,8 +108,9 @@ export default async function (h) {
 | `h.step(label, page)`                                    | Save a screenshot, an ARIA snapshot and the URL as proof.                                                                                                                           |
 | `h.record(label, data)`                                  | Save a JSON proof and return `data`.                                                                                                                                                |
 | `h.sql(label, sql, params?)`                             | Read D1 with a `SELECT` or `WITH`, save the rows as proof and return them as objects.                                                                                               |
-| `h.api(path, { token, ...fetchInit })`                   | REST call to `/api/v1/<path>` with the admin key. Pass `token: null` to send none.                                                                                                  |
-| `h.mcp(method, params, token?)`                          | Raw JSON-RPC call to `/mcp` with the admin key. Returns `{ status, body }`.                                                                                                         |
+| `h.api(path, { token, ...fetchInit })`                   | REST call to `/api/v1/<path>` with the admin key. Pass `token: null` to send none. Returns `{ status, headers, body }`.                                                             |
+| `h.mcp(method, params, token?)`                          | Raw JSON-RPC call to `/mcp` with the admin key. Returns `{ status, headers, body }`.                                                                                                |
+| `h.agent({ client, prompt, seconds })`                   | One session of a real agent, `claude` by default, as `control agent` runs it. Returns `result.json`: `{ exitCode, signal, stopped, toolCalls, answer, transcript, … }`.             |
 | `h.remoteMcp(token?)`                                    | The SDK's MCP client connected to `/mcp` over Streamable HTTP. Defaults to the admin key.                                                                                           |
 | `h.localMcp({ label, token, bridgePort, pairingToken })` | The SDK's MCP client connected over stdio to a fresh build of the local server. `token: null` runs it with no key.                                                                  |
 | `h.packagedMcp({ label, token })`                        | The SDK\'s client over stdio to the production package, packed and installed outside the workspace. Contacts the npm registry. Returns `{ client, manifest, files, app, tarball }`. |
@@ -121,6 +124,7 @@ export default async function (h) {
 | `h.r2()`                                                 | Every key in the instance's R2 bucket.                                                                                                                                              |
 | `h.pngs(labels)`                                         | 1440×900 PNG files with unique bytes, for `setInputFiles`.                                                                                                                          |
 | `h.base`, `h.admin`, `h.adminKey`, `h.stamp`             | Instance origin, admin credentials, admin API key, and a suffix unique to this drive.                                                                                               |
+| `h.d1Counter`                                            | Whether the run was launched with the D1 row counter.                                                                                                                               |
 
 Prefer the handles in the feature files. The app has ARIA names throughout, plus `data-screen-id` on tiles. Query D1 and R2 from the shell with:
 
@@ -140,6 +144,16 @@ Call either MCP server by hand, with the same real client the journeys use:
 
 To point an actual agent at the run, `control mcp-config --client <claude|cursor|codex|opencode> --run <id>` prints both servers in that agent's own config format: JSON for all but Codex, which takes TOML for `config.toml`. It defaults to `claude`. It contains the run's admin key, which dies with the run, and scratch `HOME` and config directories. Each drive and `mcp local` rebuilds the same per-run build the config points at, so restart that agent's server if a tool misbehaves after one. Use it for exploration: the journeys are the proof.
 
+To have a real agent answer a question against the run, in one session:
+
+```bash
+.agents/skills/verify-screen-commons/scripts/control.mjs agent --client claude --prompt "How does Fixture Tunes let users create a playlist?" --run <id>
+```
+
+`--client` is `claude` (the default) or `codex`, and the binary must be on `PATH` and logged in; without it, `agent` exits 1 with the install command. The agent gets a scratch `HOME` holding only `mcp-config`'s two servers, with Claude Code's built-in tools off and Codex's shell off in a read-only sandbox, so the only tools it can call are Screen Commons's. Your own agent config, servers, history and login stay out of it. It stops after `--timeout` seconds, 300 by default, or on SIGTERM. It prints where the transcript streams, then the tool calls and the answer. `test-results/verify/<run>/agent-<client>-<stamp>/` holds `transcript.jsonl`, `stderr.log` and `result.json`, which is written however the agent exits and records its exit code, signal, every tool call and the final answer. The `agent` journey seeds the Fixture Tunes flow that prompt asks about. Each session spends the agent's tokens, so run one at a time and keep the prompt to one question.
+
+To check `x-sc-d1-rows` against D1 itself, replay a request's statements through the Local Explorer's `/cdn-cgi/local/explorer/api/d1/database/<id>/raw`, which answers with D1's `meta.rows_read` and `meta.rows_written`. `wrangler d1 execute --local --json` reports only `duration`, so it can't serve as the check.
+
 The repo's own regression suite runs against this instance unchanged. It adds full keyboard coverage:
 
 ```bash
@@ -149,7 +163,7 @@ E2E_BASE_URL=http://localhost:<port> pnpm --filter @screen-commons/web test:e2e
 Not covered by this skill's harness:
 
 - The extension's own capture UI, tray and uploads (`apps/extension`). `pnpm --filter @screen-commons/extension test:e2e` loads the real extension but against a mock API and bridge. The `mcp-extension` journey does prove its bridge path against a real instance.
-- Real agents such as Claude Code, Codex, OpenCode or Cursor as the MCP client. The journeys use the official MCP SDK client, so the protocol is proven but an agent's own config handling and tool selection are not.
+- OpenCode and Cursor as the MCP client. `agent` drives Claude Code and Codex; the other journeys use the official MCP SDK client.
 - Deployed environments, and the package as published on npm. `mcp-package` proves the packed tarball, but a release is checked by hand with `npx -y screen-commons-mcp@<version>` against a run. Deployments are out of scope; the `cf:*` scripts change real Cloudflare resources.
 
 ## Evidence
