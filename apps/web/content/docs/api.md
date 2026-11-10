@@ -709,14 +709,30 @@ Admin only. Members get `403`.
 ### List the review queue
 
 ```http
-GET /api/v1/review
+GET /api/v1/review?kind=screen
 ```
 
-Returns up to 100 pending screens and 100 pending flows, oldest first:
+Returns one kind of pending item, oldest first, as a page:
 
 ```json
-{ "screens": [], "flows": [] }
+{ "kind": "screen", "items": [], "nextCursor": null }
 ```
+
+| Param    | Notes                                |
+| -------- | ------------------------------------ |
+| `kind`   | Required. `screen` or `flow`.        |
+| `limit`  | Items per page, 1 to 50. Default 25. |
+| `cursor` | `nextCursor` from the previous page. |
+
+Screen items have the screen shape. Flow items have the flow summary shape.
+
+### Read an item's status
+
+```http
+GET /api/v1/review/{kind}/{id}
+```
+
+Returns `{ "kind": "screen", "id": "…", "status": "pending" }`. Unlike fetching the screen or flow, it counts no view.
 
 ### Approve or reject
 
@@ -738,7 +754,7 @@ curl -X POST http://localhost:5173/api/v1/review/screen/01m4a8ae3z0000yfr7j15phk
 | `decision` | string | Yes      | `approve` or `reject`. |
 | `reason`   | string | No       | Up to 500 characters.  |
 
-Returns `204`. See [Review](/docs/contributing#review) for what each decision changes.
+Returns `204`. Approving a published item or rejecting a rejected one writes nothing, so a retry is safe. See [Review](/docs/contributing#review) for what each decision changes.
 
 ### Backfill display media
 
@@ -862,6 +878,7 @@ Omit `apiKey` to use the session cookie from same-origin browser code.
 | `createCollection(name)` / `renameCollection(id, name)` / `deleteCollection(id)` | `POST`, `PATCH`, `DELETE /collections`      |
 | `save(kind, id, collectionId?)` / `unsave(kind, id, collectionId?)`              | `POST /saves`, `DELETE /saves`              |
 | `listKeys()` / `createKey(name)` / `revokeKey(id)`                               | `/keys` (session only)                      |
-| `reviewQueue()` / `review(kind, id, decision, reason?)`                          | `GET /review`, `POST /review/{kind}/{id}`   |
+| `reviewQueue({ kind, cursor?, limit? })` / `reviewStatus(kind, id)`              | `GET /review`, `GET /review/{kind}/{id}`    |
+| `review(kind, id, decision, reason?)`                                            | `POST /review/{kind}/{id}`                  |
 
 Request and response types (`Screen`, `FlowDetail`, `CaptureBatchInput`, …) are exported from the same package. Failed requests throw `ScreenCommonsApiError` with `status`, `code`, `message` and `details`.
