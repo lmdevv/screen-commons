@@ -291,6 +291,13 @@ async function previousBundle(dir: string): Promise<ReferenceBundle | "foreign" 
 async function writeBundle(context: Context, flow: FlowDetail | null, items: BundleItem[]) {
   const { origin, values } = context;
   const dir = resolve(str(values, "out")!);
+  const unsafe = items.find(({ screen }) => !/^[\w-]{1,64}$/u.test(screen.id));
+  if (unsafe) {
+    throw new CodedError(
+      "bad_response",
+      `Screen id ${JSON.stringify(unsafe.screen.id)} can't name a file`,
+    );
+  }
   const subject = bundleSubject({ flow, steps: items.map(({ screen }) => screen) });
   const found = await previousBundle(dir);
   if (found && !values.force) {

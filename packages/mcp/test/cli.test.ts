@@ -730,6 +730,11 @@ describe("bundles", () => {
     expect((await run([...other, "--force"], withKey())).code).toBe(0);
     expect(await readdir(join(out, "images"))).toEqual(["00-scr_9.png"]);
 
+    const unsafe = join(dir, "bundle-unsafe");
+    const dotted = await run(["screens", "bundle", "x.y", "--out", unsafe], withKey());
+    expect(dotted.stderr).toMatch(/^bad_response: Screen id "x\.y" can't name a file/u);
+    await expect(access(unsafe)).rejects.toThrow();
+
     const missing = join(dir, "bundle-missing");
     const notFound = await run(["flows", "bundle", "missing", "--out", missing], withKey());
     expect(notFound.code).toBe(4);

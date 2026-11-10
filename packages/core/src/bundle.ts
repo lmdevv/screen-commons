@@ -22,7 +22,7 @@ export const bundleStepSchema = z.object({
   title: z.string().nullable(),
   catalogUrl: z.url(),
   imageUrl: z.url(),
-  localPath: z.string().regex(/^images\/[\w-]+\.(?:png|jpg|webp)$/u),
+  localPath: z.string().regex(/^images\/\d+-[\w-]+\.(?:png|jpg|webp)$/u),
   sha256: z.string().regex(/^[0-9a-f]{64}$/u),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -72,7 +72,8 @@ export const bundleSubject = (bundle: { flow: { id: string } | null; steps: { id
     ? `flow ${bundle.flow.id}`
     : `screens ${bundle.steps.map((step) => step.id).join(" ")}`;
 
-const inline = (text: string) => text.replace(/\s+/gu, " ").replace(/([\\`*_[\]<>#|])/gu, "\\$1");
+const oneLine = (text: string) => text.replace(/\s+/gu, " ");
+const inline = (text: string) => oneLine(text).replace(/([\\`*_[\]<>#|])/gu, "\\$1");
 
 const WARNING_TEXT: Record<BundleWarning, string> = {
   pending_content: "Pending review. Only its contributor and admins can see it, and it may change.",
@@ -103,8 +104,8 @@ export function referenceMarkdown(bundle: ReferenceBundle): string {
       `- Screen: [${step.id}](${step.catalogUrl})${step.title ? `, ${inline(step.title)}` : ""}`,
       `- App: ${inline(step.app.name)} (${step.app.slug}, ${step.app.platform})`,
       `- Image: ${step.imageUrl}, ${step.width}x${step.height}, sha256 ${step.sha256}`,
-      `- Source URL: ${step.sourceUrl ?? "none recorded"}`,
-      `- Captured: ${step.capturedAt}`,
+      `- Source URL: ${step.sourceUrl ? oneLine(step.sourceUrl) : "none recorded"}`,
+      `- Captured: ${oneLine(step.capturedAt)}`,
       "",
     ];
   });
