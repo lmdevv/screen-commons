@@ -278,8 +278,10 @@ async function previousBundle(dir: string): Promise<ReferenceBundle | "foreign" 
   try {
     text = await readFile(join(dir, "bundle.json"), "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
+    const { code } = error as NodeJS.ErrnoException;
+    if (code === "ENOTDIR") throw usage(`--out ${dir} is not a folder`);
+    if (code !== "ENOENT") throw error;
+    return (await exists(join(dir, "REFERENCES.md"))) ? "foreign" : null;
   }
   try {
     return referenceBundleSchema.parse(JSON.parse(text));
@@ -305,7 +307,7 @@ async function writeBundle(context: Context, flow: FlowDetail | null, items: Bun
     if (theirs !== subject) {
       throw new CodedError(
         "file_exists",
-        `${dir} holds ${theirs === "foreign" ? "a bundle.json this CLI can't read" : `the bundle of ${theirs}`}; pass --force to replace it`,
+        `${dir} holds ${theirs === "foreign" ? "files this CLI didn't write" : `the bundle of ${theirs}`}; pass --force to replace it`,
       );
     }
   }
@@ -313,6 +315,7 @@ async function writeBundle(context: Context, flow: FlowDetail | null, items: Bun
   const recorded = new Map(previous?.steps.map((step) => [step.imageUrl, step] as const));
   const listedByPrevious = new Set(previous?.steps.map((step) => step.localPath));
   const bundleJson = join(dir, "bundle.json");
+  const references = join(dir, "REFERENCES.md");
   await mkdir(join(dir, "images"), { recursive: true });
   let downloaded = 0;
   const steps: BundleStep[] = [];
@@ -326,7 +329,10 @@ async function writeBundle(context: Context, flow: FlowDetail | null, items: Bun
     const header = readImageHeader(bytes)!;
     const localPath = bundleImagePath(position, screen.id, header.type);
     if (!reused || prior?.localPath !== localPath) {
-      if (listedByPrevious.has(localPath)) await rm(bundleJson, { force: true });
+      if (listedByPrevious.has(localPath)) {
+        await rm(references, { force: true });
+        await rm(bundleJson, { force: true });
+      }
       await writeFileAtomic(join(dir, localPath), bytes);
     }
     steps.push({
@@ -363,9 +369,8 @@ async function writeBundle(context: Context, flow: FlowDetail | null, items: Bun
     },
     steps,
   };
-  const references = join(dir, "REFERENCES.md");
-  await writeFileAtomic(references, referenceMarkdown(bundle));
   await writeFileAtomic(bundleJson, `${JSON.stringify(bundle, null, 2)}\n`);
+  await writeFileAtomic(references, referenceMarkdown(bundle));
   const current = new Set(steps.map((step) => step.localPath));
   for (const step of previous?.steps ?? []) {
     if (!current.has(step.localPath)) await rm(join(dir, step.localPath), { force: true });
@@ -384,7 +389,10 @@ async function writeBundle(context: Context, flow: FlowDetail | null, items: Bun
 
 const bundleFlags = {
   out: { help: "Folder to write (required). A rerun into it reuses unchanged images" },
-  force: { help: "Replace a bundle of something else already in --out", boolean: true },
+  force: {
+    help: "Replace a bundle of something else, or a REFERENCES.md, already in --out",
+    boolean: true,
+  },
 };
 
 const requireOut = (values: Values) => {

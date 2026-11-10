@@ -730,6 +730,18 @@ describe("bundles", () => {
     expect((await run([...other, "--force"], withKey())).code).toBe(0);
     expect(await readdir(join(out, "images"))).toEqual(["00-scr_9.png"]);
 
+    const notes = join(dir, "bundle-notes");
+    await mkdir(notes);
+    await writeFile(join(notes, "REFERENCES.md"), "my notes\n");
+    const overwrite = await run(["flows", "bundle", "flow_1", "--out", notes], withKey());
+    expect(overwrite.stderr).toMatch(/^file_exists: .*files this CLI didn't write; pass --force/u);
+    expect(await readFile(join(notes, "REFERENCES.md"), "utf8")).toBe("my notes\n");
+
+    const file = join(notes, "REFERENCES.md");
+    const notFolder = await run(["flows", "bundle", "flow_1", "--out", file], withKey());
+    expect(notFolder.code).toBe(2);
+    expect(notFolder.stderr).toMatch(/^usage: --out .* is not a folder/u);
+
     const unsafe = join(dir, "bundle-unsafe");
     const dotted = await run(["screens", "bundle", "x.y", "--out", unsafe], withKey());
     expect(dotted.stderr).toMatch(/^bad_response: Screen id "x\.y" can't name a file/u);
