@@ -259,9 +259,10 @@ function appWrite(
   existing: AppRow,
   logoKey: string | null,
   now: Date,
+  addsContent: boolean,
 ): { row: AppRow; write: BatchItem<"sqlite"> | null } {
   if (!canEditApp(principal, existing)) return { row: existing, write: null };
-  const patch: Partial<NewAppRow> = { updatedAt: now };
+  const patch: Partial<NewAppRow> = {};
   if (!existing.tagline && input.tagline) patch.tagline = input.tagline;
   if (!existing.description && input.description) patch.description = input.description;
   if (!existing.category && input.category) patch.category = input.category;
@@ -269,8 +270,12 @@ function appWrite(
     patch.websiteUrl = input.websiteUrl;
     patch.host = input.websiteUrl ? hostnameOf(input.websiteUrl) : null;
   }
-  if (logoKey && (!existing.logoKey || isAdmin(principal))) patch.logoKey = logoKey;
+  if (logoKey && logoKey !== existing.logoKey && (!existing.logoKey || isAdmin(principal))) {
+    patch.logoKey = logoKey;
+  }
   if (isAdmin(principal) && existing.status !== "published") patch.status = "published";
+  if (Object.keys(patch).length === 0 && !addsContent) return { row: existing, write: null };
+  patch.updatedAt = now;
   return {
     row: { ...existing, ...patch } as AppRow,
     write: getDb().update(app).set(patch).where(eq(app.id, existing.id)),
@@ -445,12 +450,14 @@ async function ingest(principal: Principal, input: IngestInput): Promise<IngestR
 
   // 4. Rows, written in one batch. A parallel upload of the same image may commit first, which the
   //    unique index turns into a no-op here; step 5 then reports the screen that won.
+  const addsContent = created.length > 0 || !!input.flow;
   const resolved = appWrite(
     principal,
     input.app,
     existing ?? (await insertApp(principal, input.app, logoKey, now)),
     logoKey,
     now,
+    addsContent,
   );
   const appRow = resolved.row;
   const claimWrites = ({ item, media }: (typeof created)[number], id: string) => {
