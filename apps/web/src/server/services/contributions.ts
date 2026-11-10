@@ -1,6 +1,20 @@
-import { updateScreenInputSchema, updateFlowInputSchema } from "@screen-commons/core";
-import { screen, flow, flowStep, collectionItem, inJsonArray } from "@screen-commons/db";
-import { and, eq, sql } from "drizzle-orm";
+import {
+  listContributionsQuerySchema,
+  updateScreenInputSchema,
+  updateFlowInputSchema,
+  type Contribution,
+  type Page,
+} from "@screen-commons/core";
+import {
+  screen,
+  flow,
+  flowStep,
+  collectionItem,
+  inJsonArray,
+  type FlowRow,
+  type ScreenRow,
+} from "@screen-commons/db";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 
@@ -9,7 +23,14 @@ import { badRequest, forbidden, notFound, parseInput } from "../errors";
 import type { Principal } from "../principal";
 import { getScreen, getFlow } from "./catalog";
 import { dropScreenFromFlows } from "./review";
-import { visibleSql } from "./shared";
+import {
+  decodeCursor,
+  encodeCursor,
+  flowSummaries,
+  screensToApi,
+  toPage,
+  visibleSql,
+} from "./shared";
 
 async function requireOwner(principal: Principal, kind: "screen" | "flow", id: string) {
   kind = parseInput(z.enum(["screen", "flow"]), kind);
@@ -105,4 +126,73 @@ export async function deleteContribution(
   );
   await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   // Media is content-addressed and may be shared by another contribution.
+}
+
+type OwnRow = { kind: "screen"; row: ScreenRow } | { kind: "flow"; row: FlowRow };
+
+const newestFirst = (a: OwnRow, b: OwnRow) =>
+  b.row.createdAt.getTime() - a.row.createdAt.getTime() ||
+  (a.row.id < b.row.id ? 1 : a.row.id > b.row.id ? -1 : 0);
+
+export async function listContributions(
+  principal: Principal,
+  input: unknown = {},
+): Promise<Page<Contribution>> {
+  const query = parseInput(listContributionsQuerySchema, input);
+  const after = query.cursor ? decodeCursor(query.cursor, "mine") : undefined;
+  const mine = (table: typeof screen | typeof flow) =>
+    and(
+      eq(table.contributorId, principal.user.id),
+      query.status ? eq(table.status, query.status) : undefined,
+      // A row value, unlike an OR of the two comparisons, lets SQLite seek the index to the cursor.
+      after ? sql`(${table.createdAt}, ${table.id}) < (${after.key}, ${after.id})` : undefined,
+    );
+  const db = getDb();
+  const [screenRows, flowRows] = await Promise.all([
+    query.kind === "flow"
+      ? []
+      : db
+          .select()
+          .from(screen)
+          .where(mine(screen))
+          .orderBy(desc(screen.createdAt), desc(screen.id))
+          .limit(query.limit + 1),
+    query.kind === "screen"
+      ? []
+      : db
+          .select()
+          .from(flow)
+          .where(mine(flow))
+          .orderBy(desc(flow.createdAt), desc(flow.id))
+          .limit(query.limit + 1),
+  ]);
+  const merged: OwnRow[] = [
+    ...screenRows.map((row) => ({ kind: "screen" as const, row })),
+    ...flowRows.map((row) => ({ kind: "flow" as const, row })),
+  ].sort(newestFirst);
+  const { rows, nextCursor } = toPage(merged, query.limit, ({ row }) =>
+    encodeCursor("mine", row.createdAt.getTime(), row.id),
+  );
+  const [screens, flows] = await Promise.all([
+    screensToApi(
+      principal,
+      rows.flatMap((item) => (item.kind === "screen" ? [item.row] : [])),
+    ),
+    flowSummaries(
+      principal,
+      rows.flatMap((item) => (item.kind === "flow" ? [item.row] : [])),
+    ),
+  ]);
+  const screensById = new Map(screens.map((item) => [item.id, item]));
+  const flowsById = new Map(flows.map((item) => [item.id, item]));
+  const items = rows.flatMap((item): Contribution[] => {
+    const reviewReason = item.row.reviewReason;
+    if (item.kind === "screen") {
+      const found = screensById.get(item.row.id);
+      return found ? [{ ...found, kind: "screen", reviewReason }] : [];
+    }
+    const found = flowsById.get(item.row.id);
+    return found ? [{ ...found, kind: "flow", reviewReason }] : [];
+  });
+  return { items, nextCursor };
 }

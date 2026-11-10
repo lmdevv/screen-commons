@@ -5,6 +5,7 @@ import {
   type BackfillDisplayInput,
   type ErrorCode,
   type ListAppsQuery,
+  type ListContributionsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
   type PollCliLoginInput,
@@ -123,6 +124,9 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
       request<ApiResponses["listFlows"]>("GET", `/flows${toQuery(query)}`),
     getFlow: (id: string) =>
       request<ApiResponses["getFlow"]>("GET", `/flows/${encodeURIComponent(id)}`),
+
+    listContributions: (query: ListContributionsQuery = {}) =>
+      request<ApiResponses["listContributions"]>("GET", `/me/contributions${toQuery(query)}`),
 
     search: (query: SearchQuery) =>
       request<ApiResponses["search"]>("GET", `/search${toQuery(query)}`),

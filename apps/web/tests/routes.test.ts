@@ -10,6 +10,7 @@ import { Session, baseUrl } from "./helpers";
  */
 const ENDPOINTS = [
   ["GET", "/me"],
+  ["GET", "/me/contributions"],
   ["GET", "/taxonomy"],
   ["GET", "/apps"],
   ["GET", "/apps/:slug"],
@@ -72,7 +73,7 @@ async function expectNoSuchEndpoint(response: Response) {
 
 describe("REST route table", () => {
   it("has a file route for every endpoint, and no others", () => {
-    expect(ENDPOINTS).toHaveLength(35);
+    expect(ENDPOINTS).toHaveLength(36);
     const tree = readFileSync(new URL("../src/routeTree.gen.ts", import.meta.url), "utf8");
     const byFullPath = tree.slice(tree.indexOf("interface FileRoutesByFullPath"));
     const routed = new Set(

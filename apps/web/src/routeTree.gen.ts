@@ -51,6 +51,7 @@ import { Route as ApiV1CliLoginPollRouteImport } from './routes/api/v1/cli-login
 import { Route as ApiV1CollectionsIdRouteImport } from './routes/api/v1/collections.$id'
 import { Route as ApiV1FlowsIdRouteImport } from './routes/api/v1/flows.$id'
 import { Route as ApiV1KeysIdRouteImport } from './routes/api/v1/keys.$id'
+import { Route as ApiV1MeContributionsRouteImport } from './routes/api/v1/me.contributions'
 import { Route as ApiV1ScreensIdRouteImport } from './routes/api/v1/screens.$id'
 import { Route as ApiV1AdminMediaBackfillRouteImport } from './routes/api/v1/admin.media.backfill'
 import { Route as ApiV1CollectionsIdItemsRouteImport } from './routes/api/v1/collections.$id.items'
@@ -265,6 +266,11 @@ const ApiV1KeysIdRoute = ApiV1KeysIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiV1KeysRoute,
 } as any)
+const ApiV1MeContributionsRoute = ApiV1MeContributionsRouteImport.update({
+  id: '/contributions',
+  path: '/contributions',
+  getParentRoute: () => ApiV1MeRoute,
+} as any)
 const ApiV1ScreensIdRoute = ApiV1ScreensIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -315,7 +321,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
-  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/me': typeof ApiV1MeRouteWithChildren
   '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
   '/api/v1/saves': typeof ApiV1SavesRoute
   '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/me/contributions': typeof ApiV1MeContributionsRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
   '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
@@ -361,7 +368,7 @@ export interface FileRoutesByTo {
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
-  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/me': typeof ApiV1MeRouteWithChildren
   '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
   '/api/v1/saves': typeof ApiV1SavesRoute
   '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
@@ -374,6 +381,7 @@ export interface FileRoutesByTo {
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/me/contributions': typeof ApiV1MeContributionsRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
   '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
@@ -410,7 +418,7 @@ export interface FileRoutesById {
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
-  '/api/v1/me': typeof ApiV1MeRoute
+  '/api/v1/me': typeof ApiV1MeRouteWithChildren
   '/api/v1/review': typeof ApiV1ReviewRouteWithChildren
   '/api/v1/saves': typeof ApiV1SavesRoute
   '/api/v1/screens': typeof ApiV1ScreensRouteWithChildren
@@ -423,6 +431,7 @@ export interface FileRoutesById {
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
+  '/api/v1/me/contributions': typeof ApiV1MeContributionsRoute
   '/api/v1/screens/$id': typeof ApiV1ScreensIdRoute
   '/api/v1/admin/media/backfill': typeof ApiV1AdminMediaBackfillRoute
   '/api/v1/collections/$id/items': typeof ApiV1CollectionsIdItemsRoute
@@ -472,6 +481,7 @@ export interface FileRouteTypes {
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
+    | '/api/v1/me/contributions'
     | '/api/v1/screens/$id'
     | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
@@ -518,6 +528,7 @@ export interface FileRouteTypes {
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
+    | '/api/v1/me/contributions'
     | '/api/v1/screens/$id'
     | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
@@ -566,6 +577,7 @@ export interface FileRouteTypes {
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
+    | '/api/v1/me/contributions'
     | '/api/v1/screens/$id'
     | '/api/v1/admin/media/backfill'
     | '/api/v1/collections/$id/items'
@@ -882,6 +894,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1KeysIdRouteImport
       parentRoute: typeof ApiV1KeysRoute
     }
+    '/api/v1/me/contributions': {
+      id: '/api/v1/me/contributions'
+      path: '/contributions'
+      fullPath: '/api/v1/me/contributions'
+      preLoaderRoute: typeof ApiV1MeContributionsRouteImport
+      parentRoute: typeof ApiV1MeRoute
+    }
     '/api/v1/screens/$id': {
       id: '/api/v1/screens/$id'
       path: '/$id'
@@ -1025,6 +1044,17 @@ const ApiV1KeysRouteWithChildren = ApiV1KeysRoute._addFileChildren(
   ApiV1KeysRouteChildren,
 )
 
+interface ApiV1MeRouteChildren {
+  ApiV1MeContributionsRoute: typeof ApiV1MeContributionsRoute
+}
+
+const ApiV1MeRouteChildren: ApiV1MeRouteChildren = {
+  ApiV1MeContributionsRoute: ApiV1MeContributionsRoute,
+}
+
+const ApiV1MeRouteWithChildren =
+  ApiV1MeRoute._addFileChildren(ApiV1MeRouteChildren)
+
 interface ApiV1ReviewRouteChildren {
   ApiV1ReviewKindIdRoute: typeof ApiV1ReviewKindIdRoute
 }
@@ -1057,7 +1087,7 @@ interface ApiV1RouteRouteChildren {
   ApiV1CollectionsRoute: typeof ApiV1CollectionsRouteWithChildren
   ApiV1FlowsRoute: typeof ApiV1FlowsRouteWithChildren
   ApiV1KeysRoute: typeof ApiV1KeysRouteWithChildren
-  ApiV1MeRoute: typeof ApiV1MeRoute
+  ApiV1MeRoute: typeof ApiV1MeRouteWithChildren
   ApiV1ReviewRoute: typeof ApiV1ReviewRouteWithChildren
   ApiV1SavesRoute: typeof ApiV1SavesRoute
   ApiV1ScreensRoute: typeof ApiV1ScreensRouteWithChildren
@@ -1074,7 +1104,7 @@ const ApiV1RouteRouteChildren: ApiV1RouteRouteChildren = {
   ApiV1CollectionsRoute: ApiV1CollectionsRouteWithChildren,
   ApiV1FlowsRoute: ApiV1FlowsRouteWithChildren,
   ApiV1KeysRoute: ApiV1KeysRouteWithChildren,
-  ApiV1MeRoute: ApiV1MeRoute,
+  ApiV1MeRoute: ApiV1MeRouteWithChildren,
   ApiV1ReviewRoute: ApiV1ReviewRouteWithChildren,
   ApiV1SavesRoute: ApiV1SavesRoute,
   ApiV1ScreensRoute: ApiV1ScreensRouteWithChildren,

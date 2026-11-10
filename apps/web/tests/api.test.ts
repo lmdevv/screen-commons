@@ -822,3 +822,126 @@ describe("D1 row counter", () => {
     expect(off.headers.has("x-sc-d1-rows")).toBe(false);
   });
 });
+
+describe("my contributions", () => {
+  let owner: ScreenCommonsClient;
+  let stranger: ScreenCommonsClient;
+  let uploaded: CaptureBatchResult;
+  let strangers: CaptureBatchResult;
+
+  const memberKey = async (name: string) => {
+    const session = await Session.signUp(
+      name,
+      `${name.toLowerCase()}-${suffix}@screen-commons.test`,
+    );
+    return keyClient((await session.client().createKey("contributions")).token);
+  };
+  const everything = async (client: ScreenCommonsClient, limit: number) => {
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await client.listContributions({ limit, cursor });
+      expect(page.items.length).toBeLessThanOrEqual(limit);
+      ids.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return ids;
+  };
+
+  beforeAll(async () => {
+    [owner, stranger] = await Promise.all([memberKey("Cora"), memberKey("Sam")]);
+    uploaded = await owner.captures({
+      app: { name: `Contrib App ${suffix}`, websiteUrl: `https://contrib-${suffix}.example.org` },
+      flow: { name: "Signing up", type: "signing-up" },
+      screens: [
+        captureScreen({ title: "Approved" }),
+        captureScreen({ title: "Rejected" }),
+        captureScreen({ title: "Waiting" }),
+      ],
+    });
+    strangers = await stranger.captures({
+      app: { name: `Stranger App ${suffix}`, websiteUrl: `https://stranger-${suffix}.example.org` },
+      screens: [captureScreen({ title: "Not yours" })],
+    });
+    const review = admin.client();
+    await review.review("screen", uploaded.screens[0]!.id, "approve");
+    await review.review("screen", uploaded.screens[1]!.id, "reject", "Blurry capture");
+  });
+
+  it("lists only the caller's screens and flows, newest first", async () => {
+    const later = await owner.captures({
+      app: { slug: uploaded.app.slug, name: uploaded.app.name },
+      screens: [captureScreen({ title: "Later" })],
+    });
+    const { items, nextCursor } = await owner.listContributions();
+    expect(nextCursor).toBeNull();
+    expect(items[0]!.id).toBe(later.screens[0]!.id);
+    expect(items.map((item) => item.id).sort()).toEqual(
+      [...uploaded.screens, ...later.screens, uploaded.flow!].map((item) => item.id).sort(),
+    );
+    expect(items.find((item) => item.id === uploaded.flow!.id)).toMatchObject({
+      kind: "flow",
+      name: "Signing up",
+      status: "pending",
+    });
+    const created = items.map((item) => item.createdAt);
+    expect(created).toEqual([...created].sort().reverse());
+
+    const theirs = await stranger.listContributions();
+    expect(theirs.items.map((item) => item.id)).toEqual([strangers.screens[0]!.id]);
+  });
+
+  it("filters by status, with the reviewer's note on rejected items", async () => {
+    const ids = async (status: "pending" | "published" | "rejected") =>
+      (await owner.listContributions({ status })).items.map((item) => item.id);
+    expect(await ids("published")).toEqual([uploaded.screens[0]!.id]);
+    const pending = await ids("pending");
+    expect(pending).toEqual(expect.arrayContaining([uploaded.screens[2]!.id, uploaded.flow!.id]));
+    expect(pending).not.toContain(uploaded.screens[0]!.id);
+    expect(pending).not.toContain(uploaded.screens[1]!.id);
+
+    const rejected = await owner.listContributions({ status: "rejected" });
+    expect(rejected.items).toEqual([
+      expect.objectContaining({
+        id: uploaded.screens[1]!.id,
+        kind: "screen",
+        status: "rejected",
+        reviewReason: "Blurry capture",
+      }),
+    ]);
+    expect((await owner.listContributions({ status: "published" })).items[0]!.reviewReason).toBe(
+      null,
+    );
+  });
+
+  it("filters by kind", async () => {
+    const flows = await owner.listContributions({ kind: "flow" });
+    expect(flows.items.map((item) => [item.kind, item.id])).toEqual([["flow", uploaded.flow!.id]]);
+    const screens = await owner.listContributions({ kind: "screen" });
+    expect(screens.items.every((item) => item.kind === "screen")).toBe(true);
+    expect(screens.items.map((item) => item.id)).toEqual(
+      expect.arrayContaining(uploaded.screens.map((item) => item.id)),
+    );
+  });
+
+  it("pages with a cursor, with no repeats or gaps", async () => {
+    const all = await everything(owner, 100);
+    expect(all.length).toBeGreaterThan(2);
+    expect(await everything(owner, 2)).toEqual(all);
+    expect(await everything(owner, 1)).toEqual(all);
+    await expectApiError(owner.listContributions({ cursor: "nope" }), 400, "bad_request");
+    await expectApiError(owner.listContributions({ limit: 101 }), 400, "bad_request");
+  });
+
+  it("requires sign-in", async () => {
+    const response = await fetch(`${baseUrl()}/api/v1/me/contributions`);
+    expect(response.status).toBe(401);
+    expect((await response.json()).error.code).toBe("unauthorized");
+  });
+
+  it("drops an item once it's deleted", async () => {
+    const id = uploaded.screens[2]!.id;
+    await owner.deleteScreen(id);
+    expect((await owner.listContributions()).items.map((item) => item.id)).not.toContain(id);
+  });
+});
