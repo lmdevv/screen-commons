@@ -27,7 +27,6 @@ async function expectApiError(promise: Promise<unknown>, status: number, code?: 
   if (code) expect((error as ScreenCommonsApiError).code).toBe(code);
 }
 
-/** Every pending id of one kind, read page by page as an admin. */
 async function pendingIds(kind: "screen" | "flow", limit = 50): Promise<string[]> {
   const ids: string[] = [];
   let cursor: string | undefined;

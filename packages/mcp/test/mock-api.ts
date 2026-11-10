@@ -16,14 +16,12 @@ import {
 import sharp from "sharp";
 
 export const API_KEY = "sc_test_key";
-/** A member's key: everything an admin key does except review. */
 export const MEMBER_KEY = "sc_member_key";
 
 export interface MockApi {
   url: string;
   batches: ReturnType<typeof captureBatchInputSchema.parse>[];
   flows: unknown[];
-  /** Every review write, in order. */
   decisions: { kind: string; id: string; decision: string; reason?: string }[];
   close: () => Promise<void>;
 }

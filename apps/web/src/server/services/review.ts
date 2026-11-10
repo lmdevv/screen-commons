@@ -18,15 +18,13 @@ function requireAdmin(principal: Principal) {
   if (!isAdmin(principal)) throw forbidden("Only admins can review contributions");
 }
 
-/** Pending rows after the cursor in (createdAt, id) order, bounded so the status index serves it. */
 function pendingAfter(table: typeof screen | typeof flow, sort: string, cursor?: string): SQL {
   const pending = eq(table.status, "pending");
   if (!cursor) return pending;
   const { key, id } = decodeCursor(cursor, sort);
-  return sql`${pending} AND ${table.createdAt} >= ${key} AND (${table.createdAt} > ${key} OR ${table.id} > ${id})`;
+  return sql`${pending} AND (${table.createdAt}, ${table.id}) > (${key}, ${id})`;
 }
 
-/** One page of pending screens or flows, oldest first. */
 export async function reviewQueue(principal: Principal, input: unknown): Promise<ReviewQueue> {
   requireAdmin(principal);
   const { kind, cursor, limit } = parseInput(reviewQueueQuerySchema, input);
@@ -67,7 +65,6 @@ async function findItem(input: string, id: string) {
   return { kind, table, row };
 }
 
-/** An item's moderation status, read without counting a view as `getScreen` and `getFlow` do. */
 export async function reviewStatus(
   principal: Principal,
   kind: string,
@@ -79,8 +76,7 @@ export async function reviewStatus(
 }
 
 /**
- * Approve or reject a screen or flow. A decision the item already has writes nothing, so a
- * repeated or resumed review run changes no row and no `updatedAt`.
+ * Approve or reject a screen or flow. A decision the item already has writes nothing.
  * - Approving publishes the parent app (and bumps its `updatedAt`, since member uploads never
  *   touch a published app themselves); approving a flow also publishes its pending screens.
  * - Rejecting a screen removes it from every flow that contains it (remaining steps are

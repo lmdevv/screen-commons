@@ -70,14 +70,13 @@ const without = (page: ReviewQueueDetailed, ids: Set<string>): ReviewQueueDetail
 
 interface Count {
   loaded: number;
-  /** More pages wait on the server. */
-  more: boolean;
+  hasMore: boolean;
 }
 const countOf = (queue: { data?: Queue; hasNextPage: boolean }): Count => ({
   loaded: queue.data?.pages.reduce((sum, page) => sum + page.items.length, 0) ?? 0,
-  more: queue.hasNextPage,
+  hasMore: queue.hasNextPage,
 });
-const formatCount = ({ loaded, more }: Count) => `${loaded}${more ? "+" : ""}`;
+const formatCount = ({ loaded, hasMore }: Count) => `${loaded}${hasMore ? "+" : ""}`;
 
 export function ReviewPage({ tab }: { tab: ReviewTab }) {
   const queryClient = useQueryClient();
@@ -251,7 +250,7 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
                   }
                 >
                   Review{" "}
-                  {other.more
+                  {other.hasMore
                     ? `${formatCount(other)} ${tab === "screens" ? "flows" : "screens"}`
                     : pluralize(other.loaded, tab === "screens" ? "flow" : "screen")}
                 </Button>

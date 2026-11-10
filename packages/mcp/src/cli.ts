@@ -73,8 +73,7 @@ interface Context {
   /** A screen's own source URL, anywhere on the web. */
   sourceFetch: typeof fetch;
   apiKey: string | undefined;
-  /** One JSON line on stdout, for commands that report as they go. */
-  emit: (value: unknown) => void;
+  printLine: (value: unknown) => void;
 }
 
 interface Command {
@@ -316,8 +315,15 @@ const DECISIONS = {
   approve: { status: "published", result: "approved" },
   reject: { status: "rejected", result: "rejected" },
 } as const;
-/** No key, not allowed, or unreachable: every later id would fail the same way. */
-const STOPS_REVIEW = new Set([3, 5]);
+/** Every later id would fail the same way, so stop; a rerun resumes. */
+const STOPS_REVIEW = new Set([
+  "missing_api_key",
+  "unauthorized",
+  "forbidden",
+  "network",
+  "rate_limited",
+  "unavailable",
+]);
 
 function kindFlag(values: Values): ReviewKind | undefined {
   const kind = str(values, "kind");
@@ -328,7 +334,7 @@ function kindFlag(values: Values): ReviewKind | undefined {
 const isNotFound = (error: unknown) =>
   error instanceof ScreenCommonsApiError && error.code === "not_found";
 
-/** Calls with the kind given, or finds it: no screen shares an id with a flow. */
+/** Calls with the kind given, or finds it. Server ids never repeat across screens and flows. */
 async function withKind<T>(
   kind: ReviewKind | undefined,
   id: string,
@@ -358,7 +364,6 @@ async function stdinLines(): Promise<string[]> {
     .filter(Boolean);
 }
 
-/** Reads each status first, so a rerun after a crash or a kill writes only what is left. */
 async function decide(context: Context, decision: keyof typeof DECISIONS) {
   const kind = kindFlag(context.values);
   const reason = str(context.values, "reason");
@@ -373,16 +378,16 @@ async function decide(context: Context, decision: keyof typeof DECISIONS) {
     try {
       const item = await withKind(kind, id, (found) => client.reviewStatus(found, id));
       if (item.status === DECISIONS[decision].status) {
-        context.emit({ id, kind: item.kind, result: "unchanged" });
+        context.printLine({ id, kind: item.kind, result: "unchanged" });
         continue;
       }
       await client.review(item.kind, id, decision, reason);
-      context.emit({ id, kind: item.kind, result: DECISIONS[decision].result });
+      context.printLine({ id, kind: item.kind, result: DECISIONS[decision].result });
     } catch (error) {
       const { code, message } = errorInfo(error, context.origin);
-      if (STOPS_REVIEW.has(EXIT_CODES[code] ?? 1)) throw error;
+      if (STOPS_REVIEW.has(code)) throw error;
       failed += 1;
-      context.emit({ id, result: "failed", error: { code, message } });
+      context.printLine({ id, result: "failed", error: { code, message } });
     }
   }
   if (failed > 0) throw new CodedError("review_failed", `${failed} of ${ids.length} ids failed`);
@@ -933,7 +938,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
       apiKey: instance.apiKey,
       download: doFetch,
       sourceFetch: retryingFetch({ fetch: imageFetchFor(instance.url) }),
-      emit: (value) => print(`${JSON.stringify(value)}\n`),
+      printLine: (value) => print(`${JSON.stringify(value)}\n`),
       anonymousClient,
       client: () => {
         if (!instance.apiKey) {
