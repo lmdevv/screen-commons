@@ -1,6 +1,7 @@
 import type {
   AppSummary,
   CaptureBatchResult,
+  Contribution,
   ErrorCode,
   FlowDetail,
   FlowSummary,
@@ -50,6 +51,15 @@ export function compactFlow(origin: string, flow: FlowSummary) {
     stepCount: flow.stepCount,
     status: flow.status,
     url: `${origin}/flows/${flow.id}`,
+  };
+}
+
+export function compactContribution(origin: string, item: Contribution) {
+  return {
+    kind: item.kind,
+    ...(item.kind === "screen" ? compactScreen(origin, item) : compactFlow(origin, item)),
+    reviewReason: item.reviewReason,
+    createdAt: item.createdAt,
   };
 }
 

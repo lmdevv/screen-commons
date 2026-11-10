@@ -48,6 +48,7 @@ describe("help", () => {
     [["--help"], "Exit codes:"],
     [["screens", "--help"], "search"],
     [["screens", "search", "--help"], "--cursor"],
+    [["contributions", "list", "--help"], "--status"],
     [["manifest", "publish", "-h"], "<path>"],
     [["whoami", "--help"], "--api-key"],
   ])("%j", async (args, expected) => {
@@ -159,6 +160,30 @@ describe("commands", () => {
     expect(page.schemaVersion).toBe(1);
     expect(page.nextCursor).toBe("c1");
     expect(page.items[0]!.url).toBe(`${api.url}/screens/scr_1`);
+  });
+
+  it("lists your contributions, passing the filters through as the query", async () => {
+    const before = api.contributionQueries.length;
+    const { code, stdout } = await run(
+      ["contributions", "list", "--status", "rejected", "--kind", "screen", "--limit", "5"],
+      withKey(),
+    );
+    expect(code).toBe(0);
+    expect(api.contributionQueries[before]).toEqual({
+      kind: "screen",
+      status: "rejected",
+      limit: "5",
+    });
+    const page = JSON.parse(stdout) as {
+      items: Record<string, unknown>[];
+      nextCursor: string | null;
+    };
+    expect(page.nextCursor).toBe("c2");
+    expect(page.items.map((item) => [item.kind, item.id, item.status, item.reviewReason])).toEqual([
+      ["screen", "scr_mine", "rejected", "Blurry capture"],
+      ["flow", "flow_mine", "pending", null],
+    ]);
+    expect(page.items[0]!.url).toBe(`${api.url}/screens/scr_mine`);
   });
 
   it("downloads an image, and won't overwrite without --force", async () => {

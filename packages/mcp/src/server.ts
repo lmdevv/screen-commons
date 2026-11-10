@@ -18,7 +18,7 @@ export const SERVER_INFO = { name: "screen-commons-mcp", version: "0.2.0" } as c
 
 const INSTRUCTIONS = `Screen Commons is a UI reference library of real product screens and flows.
 - Catalog tools (search_screens, search_flows, list_apps, get_app, get_screen, get_flow, get_taxonomy) browse it for design inspiration; get_screen returns the screenshot as an image.
-- To move screens in yourself: upload_screen (a local file path, a URL, or base64 as a last resort), then create_flow. update_screen, delete_screen, update_flow and delete_flow manage what you contributed.
+- To move screens in yourself: upload_screen (a local file path, a URL, or base64 as a last resort), then create_flow. list_my_contributions shows what you contributed and its review status, with the reviewer's note on rejected items. update_screen, delete_screen, update_flow and delete_flow manage it.
 - Browser tools capture new references: site_crawl a site, then capture_pages the canonical pages (home, pricing, login, signup, docs, blog, changelog, about) with upload=true to publish them as one app, optionally as a flow.
 - publish_manifest moves a prepared multi-screen transfer from a manifest file, and is safe to repeat.
 - browser_status tells you whether captures run in the user's real browser (extension) or headless Chromium.`;

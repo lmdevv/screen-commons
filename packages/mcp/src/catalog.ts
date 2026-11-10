@@ -10,6 +10,7 @@ import {
   TAXONOMY,
   base64ToBytes,
   compactApp,
+  compactContribution,
   compactFlow,
   compactScreen,
   createdFlowResult,
@@ -256,6 +257,15 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
     // Without a key, the bundled copy of the same contract.
     const taxonomy = context.apiKey ? await client.taxonomy().catch(() => TAXONOMY) : TAXONOMY;
     return json(taxonomy);
+  });
+
+  register("list_my_contributions", async (args) => {
+    requireKey(context);
+    const page = await client.listContributions(args);
+    return json({
+      items: page.items.map((item) => compactContribution(origin, item)),
+      nextCursor: page.nextCursor,
+    });
   });
 
   register("upload_screen", async (args) => {

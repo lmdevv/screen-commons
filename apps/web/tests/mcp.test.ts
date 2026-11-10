@@ -6,6 +6,7 @@ import { Session, b64, baseUrl, captureScreen, keyClient, uniqueSuffix } from ".
 
 const suffix = uniqueSuffix();
 let token: string;
+let admin: Session;
 let batch: CaptureBatchResult;
 let nextId = 1;
 
@@ -43,7 +44,7 @@ async function call(name: string, args: Record<string, unknown>) {
 
 beforeAll(async () => {
   const credentials = inject("admin");
-  const admin = await Session.signIn(credentials.email, credentials.password);
+  admin = await Session.signIn(credentials.email, credentials.password);
   token = (await admin.client().createKey("MCP test")).token;
   batch = await keyClient(token).captures({
     app: { name: `Mcp Demo ${suffix}`, websiteUrl: `https://mcp-${suffix}.example.net` },
@@ -96,6 +97,9 @@ describe("remote MCP (/mcp)", () => {
       );
       expect(tool.annotations?.readOnlyHint).toBe(spec.readOnly);
     }
+    expect(
+      tools.find((tool) => tool.name === "list_my_contributions")?.annotations?.readOnlyHint,
+    ).toBe(true);
   });
 
   it("search_screens finds screens by text and filters", async () => {
@@ -316,6 +320,64 @@ describe("remote MCP (/mcp)", () => {
     const gone = await call("delete_flow", { id: flowId });
     expect(gone.isError).toBe(true);
     expect(gone.content![0]!.text).toMatch(/^not_found: /u);
+  });
+
+  it("list_my_contributions answers like REST for a member's key", async () => {
+    const member = await Session.signUp("Mcp Member", `mcp-member-${suffix}@screen-commons.test`);
+    const memberToken = (await member.client().createKey("MCP member")).token;
+    const uploaded = await keyClient(memberToken).captures({
+      app: {
+        name: `Mcp Member App ${suffix}`,
+        websiteUrl: `https://mcp-member-${suffix}.example.net`,
+      },
+      screens: [captureScreen({ title: "Kept" }), captureScreen({ title: "Turned down" })],
+    });
+    await admin.client().review("screen", uploaded.screens[1]!.id, "reject", "Off-topic");
+
+    const listed = async (args: Record<string, unknown>) => {
+      const response = await rpc(
+        "tools/call",
+        { name: "list_my_contributions", arguments: args },
+        memberToken,
+      );
+      const body = (await response.json()) as RpcResponse;
+      expect(body.result?.isError).toBeFalsy();
+      return JSON.parse(body.result!.content![0]!.text!) as {
+        items: { id: string; kind: string; status: string; reviewReason: string | null }[];
+        nextCursor: string | null;
+      };
+    };
+    const summary = (item: {
+      id: string;
+      kind: string;
+      status: string;
+      reviewReason: unknown;
+    }) => ({
+      id: item.id,
+      kind: item.kind,
+      status: item.status,
+      reviewReason: item.reviewReason,
+    });
+    const rest = await keyClient(memberToken).listContributions();
+    const viaMcp = await listed({});
+    expect(viaMcp.items.map(summary)).toEqual(rest.items.map(summary));
+    expect(viaMcp.items.map((item) => item.id).sort()).toEqual(
+      uploaded.screens.map((item) => item.id).sort(),
+    );
+    expect((await listed({ status: "rejected" })).items).toEqual([
+      expect.objectContaining({
+        id: uploaded.screens[1]!.id,
+        status: "rejected",
+        reviewReason: "Off-topic",
+        url: `${baseUrl()}/screens/${uploaded.screens[1]!.id}`,
+      }),
+    ]);
+    const first = await listed({ limit: 1 });
+    expect(first.items).toHaveLength(1);
+    const second = await listed({ limit: 1, cursor: first.nextCursor });
+    expect([...first.items, ...second.items].map((item) => item.id)).toEqual(
+      rest.items.map((item) => item.id),
+    );
   });
 
   it("rejects GET (stateless server, no SSE stream)", async () => {

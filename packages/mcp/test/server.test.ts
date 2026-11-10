@@ -377,6 +377,47 @@ describe("catalog tools", () => {
     expect(textOf(refused)).toBe("forbidden: Only the contributor");
   });
 
+  it("list_my_contributions passes its filters through and returns the shared result", async () => {
+    const { client } = await connect();
+    const before = api.contributionQueries.length;
+    const result = await call(client, "list_my_contributions", {
+      kind: "screen",
+      status: "rejected",
+      limit: 5,
+      cursor: "c1",
+    });
+    expect(api.contributionQueries[before]).toEqual({
+      kind: "screen",
+      status: "rejected",
+      limit: "5",
+      cursor: "c1",
+    });
+    expect(JSON.parse(textOf(result))).toEqual({
+      items: [
+        expect.objectContaining({
+          kind: "screen",
+          id: "scr_mine",
+          status: "rejected",
+          reviewReason: "Blurry capture",
+          url: `${api.url}/screens/scr_mine`,
+          createdAt: "2026-10-01T00:00:00.000Z",
+        }),
+        expect.objectContaining({
+          kind: "flow",
+          id: "flow_mine",
+          status: "pending",
+          reviewReason: null,
+          url: `${api.url}/flows/flow_mine`,
+        }),
+      ],
+      nextCursor: "c2",
+    });
+    const noKey = (await connect({ apiKey: undefined })).client;
+    const refused = await call(noKey, "list_my_contributions");
+    expect(refused.isError).toBe(true);
+    expect(textOf(refused)).toContain("SCREEN_COMMONS_API_KEY is not set");
+  });
+
   it("create_flow passes its retry id and description through", async () => {
     const { client } = await connect();
     const id = "4f6c1f5e-6a29-4a7e-9a55-0d3a6f6a7f10";

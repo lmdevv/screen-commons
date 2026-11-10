@@ -14,6 +14,7 @@ import {
   bundleImagePath,
   bundleSubject,
   compactApp,
+  compactContribution,
   compactFlow,
   compactScreen,
   createFlowInputSchema,
@@ -31,6 +32,7 @@ import {
   type BundleStep,
   type FlowDetail,
   type ListAppsQuery,
+  type ListContributionsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
   type ReferenceBundle,
@@ -1094,6 +1096,26 @@ const COMMANDS: Tree = {
       run: async ({ client, positionals }) => {
         await client().deleteFlow(positionals[0]!);
         return { deleted: true, id: positionals[0] };
+      },
+    },
+  },
+  contributions: {
+    list: {
+      summary:
+        "List the screens and flows you contributed, newest first, with review status and any rejection reason",
+      flags: {
+        kind: { help: "screen or flow" },
+        status: { help: "pending, published or rejected" },
+        ...paging,
+      },
+      run: async ({ values, client, origin }) => {
+        const page = await client().listContributions(
+          flagsOf(values, ["kind", "status", "limit", "cursor"]) as ListContributionsQuery,
+        );
+        return {
+          items: page.items.map((item) => compactContribution(origin, item)),
+          nextCursor: page.nextCursor,
+        };
       },
     },
   },

@@ -9,6 +9,7 @@ const CATALOG = [
   "get_screen",
   "get_taxonomy",
   "list_apps",
+  "list_my_contributions",
   "search_flows",
   "search_screens",
   "update_flow",

@@ -6,6 +6,7 @@ import {
   bytesToBase64,
   catalogTools,
   compactApp,
+  compactContribution,
   compactFlow,
   compactScreen,
   createdFlowResult,
@@ -103,6 +104,13 @@ function createHandlers(principal: Principal, origin: string) {
       };
     },
     get_taxonomy: async () => json(services.getTaxonomy()),
+    list_my_contributions: async (args) => {
+      const page = await services.listContributions(principal, args);
+      return json({
+        items: page.items.map((item) => compactContribution(origin, item)),
+        nextCursor: page.nextCursor,
+      });
+    },
     upload_screen: async (args) => {
       const result = await services.uploadScreenFromTool(principal, args, origin);
       const note = "base64" in args.image ? imageTypeNote(args.image) : undefined;
@@ -133,7 +141,7 @@ function createServer(principal: Principal, origin: string): McpServer {
     { name: "screen-commons", version: "0.1.0" },
     {
       instructions:
-        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs. To contribute, upload_screen (a URL this server can reach, or base64 as a last resort, which only suits small images; this server can't read your files, so use the local server or the screen-commons CLI for those, and don't post to /mcp by hand or read an MCP config for its API key), then create_flow; update_screen, delete_screen, update_flow and delete_flow manage what you contributed.",
+        "Screen Commons is a library of real product UI screens and flows. Use search_screens / search_flows to find references, get_screen to see an image, get_taxonomy for valid filter slugs. To contribute, upload_screen (a URL this server can reach, or base64 as a last resort, which only suits small images; this server can't read your files, so use the local server or the screen-commons CLI for those, and don't post to /mcp by hand or read an MCP config for its API key), then create_flow. list_my_contributions shows what you contributed and its review status, with the reviewer's note on rejected items; update_screen, delete_screen, update_flow and delete_flow manage it.",
     },
   );
   const handlers = createHandlers(principal, origin);

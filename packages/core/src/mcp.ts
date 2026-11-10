@@ -10,6 +10,7 @@ import {
   patternSchema,
   platformSchema,
   screenMetaSchema,
+  statusSchema,
   updateFlowInputSchema,
   updateScreenInputSchema,
 } from "./schemas";
@@ -132,6 +133,19 @@ export const catalogTools = {
     title: "Get taxonomy",
     description: "List valid platforms, categories, screen patterns, UI elements and flow types.",
     input: z.object({}),
+    readOnly: true,
+  }),
+  list_my_contributions: tool({
+    name: "list_my_contributions",
+    title: "List my contributions",
+    description:
+      "List the screens and flows you contributed, newest first, with their review status. Rejected items carry reviewReason, the reviewer's note. Filter by kind or status; pass nextCursor back as cursor for the next page.",
+    input: z.object({
+      kind: z.enum(["screen", "flow"]).optional(),
+      status: statusSchema.optional(),
+      limit: z.number().int().min(1).max(LIMITS.maxPageSize).default(25),
+      cursor: z.string().optional(),
+    }),
     readOnly: true,
   }),
   upload_screen: tool({
