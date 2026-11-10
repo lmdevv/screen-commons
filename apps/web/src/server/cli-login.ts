@@ -170,7 +170,11 @@ export async function decideCliLogin(principal: Principal, input: unknown): Prom
     );
     const record = db
       .update(verification)
-      .set({ value: JSON.stringify(decided), updatedAt: now })
+      .set({
+        value: JSON.stringify(decided),
+        updatedAt: now,
+        expiresAt: new Date(now.getTime() + TTL_MS),
+      })
       .where(stillPending);
     if (decision === "deny") {
       await record;

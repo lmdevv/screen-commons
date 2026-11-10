@@ -242,6 +242,19 @@ describe("cli login", () => {
     expect(await login.poll()).toEqual({ status: "expired" });
   });
 
+  it("still answers approved after the code's own expiry and another login's cleanup", async () => {
+    const login = await startLogin();
+    const deadline = Date.now() + 6_000;
+    await d1(
+      `UPDATE verification SET expires_at = ${deadline} WHERE identifier = 'cli-login:${login.code}'`,
+    );
+    await decided(admin, login.code, "approve");
+    await new Promise((done) => setTimeout(done, deadline + 500 - Date.now()));
+    await startLogin();
+    expect(await login.poll()).toEqual({ status: "approved", keyId: expect.any(String) });
+    expect((await keyClient(login.token).me()).email).toBe(inject("admin").email);
+  });
+
   it("clears expired requests when a new login starts", async () => {
     const stale = await startLogin();
     await expire(stale.code);
