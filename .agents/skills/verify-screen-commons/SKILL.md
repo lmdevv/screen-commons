@@ -63,13 +63,21 @@ A revision mismatch means you changed branch or committed after launching. `vite
 
 `control list` shows every run and whether it is alive. Never drive anything `list` doesn't show.
 
+## Seed a fixture catalog
+
+```bash
+.agents/skills/verify-screen-commons/scripts/control.mjs seed spotify-shape --run <id>
+```
+
+It publishes `fixtures/spotify-shape.json` with the real `screen-commons manifest publish`, as the admin, so every item is published at once. The fixture is the production Spotify catalog without its images: 317 flow names, types and descriptions over 1,150 screens. Then come the decoy apps Vercel, Linear, Stripe and Fixture Tunes from the search prototype, published last so they are newest. Each screen is a synthetic image whose bytes depend only on its place in the fixture, so a second seed changes nothing. It takes about 75 seconds and prints the flows and screens per app. `control drive search-eval` then scores search against it; see [`features/search-eval.md`](features/search-eval.md).
+
 ## Drive
 
 ```bash
 .agents/skills/verify-screen-commons/scripts/control.mjs drive <journey> --run <id>
 ```
 
-Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `cli`, `agent`, `mcp-extension`, `browse`, `search`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
+Shipped journeys are in `journeys/`, one per feature in [`features/README.md`](features/README.md): `mcp-remote`, `mcp-local`, `mcp-package`, `cli`, `agent`, `mcp-extension`, `browse`, `search`, `search-eval`, `collections`, `contribute`, `api-access`. Read the feature file before driving; it lists the entry points and what proves them. A journey exits 1 on any of these:
 
 - a failed step, or a rejected promise nothing handled;
 - a page error or console error on a watched page, meaning an `h.newPage` page or the extension's Options page;
@@ -124,6 +132,7 @@ export default async function (h) {
 | `h.r2()`                                                 | Every key in the instance's R2 bucket.                                                                                                                                              |
 | `h.pngs(labels)`                                         | 1440×900 PNG files with unique bytes, for `setInputFiles`.                                                                                                                          |
 | `h.base`, `h.admin`, `h.adminKey`, `h.stamp`             | Instance origin, admin credentials, admin API key, and a suffix unique to this drive.                                                                                               |
+| `h.out`                                                  | This drive's evidence directory, for a report file of your own.                                                                                                                     |
 | `h.d1Counter`                                            | Whether the run was launched with the D1 row counter.                                                                                                                               |
 
 Prefer the handles in the feature files. The app has ARIA names throughout, plus `data-screen-id` on tiles. Query D1 and R2 from the shell with:

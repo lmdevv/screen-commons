@@ -49,6 +49,7 @@ MCP is the main client surface, so its entries come first.
 - [Extension bridge](./mcp-extension.md) covers pairing the real extension and running browser tools through it. Journey: `mcp-extension`.
 - [Browse and view](./browse.md) covers public pages, Discover, filters, the screen and flow viewers, and app pages. Journey: `browse`.
 - [Search](./search.md) covers the palette, the results page, text inside screenshots, REST and MCP. Journey: `search`.
+- [Search eval](./search-eval.md) covers the `spotify-shape` seed and 34 judged questions scored against flow and screen search. Journey: `search-eval`.
 - [Collections](./collections.md) covers saving from the viewer, the `S` key and REST, plus `/saved` and deletion. Journey: `collections`.
 - [Contribute and review](./contribute.md) covers uploads, flows, member and admin paths, approve, reject, and owner edit and delete. Journey: `contribute`.
 - [API access](./api-access.md) covers API keys in Settings, then REST and remote MCP with a key, then revocation. Journey: `api-access`.

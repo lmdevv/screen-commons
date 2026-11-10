@@ -1,0 +1,331 @@
+{
+  "cases": [
+    {
+      "id": "t01",
+      "split": "tuning",
+      "query": "How does Spotify let users create a playlist?",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Creating a new playlist",
+          "Creating a playlist",
+          "Creating a playlist (from a song)"
+        ]
+      }
+    },
+    {
+      "id": "t02",
+      "split": "tuning",
+      "query": "create playlist",
+      "expect": {
+        "flows": [
+          "Creating a new playlist",
+          "Creating a playlist",
+          "Creating a playlist (from a song)"
+        ]
+      }
+    },
+    {
+      "id": "t03",
+      "split": "tuning",
+      "query": "How do I make a playlist on Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Creating a new playlist",
+          "Creating a playlist",
+          "Creating a playlist (from a song)"
+        ]
+      }
+    },
+    {
+      "id": "t04",
+      "split": "tuning",
+      "query": "How do I like a song on Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Adding a song (Liked Songs)",
+          "Adding to Liked Songs (quick)",
+          "Adding to liked songs"
+        ]
+      }
+    },
+    {
+      "id": "t05",
+      "split": "tuning",
+      "query": "How does Spotify let you share a playlist with friends?",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Copying link to playlist",
+          "Copying playlist link",
+          "Embedding playlist",
+          "Inviting to a blend playlist"
+        ]
+      }
+    },
+    {
+      "id": "t06",
+      "split": "tuning",
+      "query": "blend",
+      "expect": {
+        "flows": ["Inviting to a blend playlist", "Joining a blend"]
+      }
+    },
+    {
+      "id": "t07",
+      "split": "tuning",
+      "query": "How do I join a Spotify Blend?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Inviting to a blend playlist", "Joining a blend"]
+      }
+    },
+    {
+      "id": "t08",
+      "split": "tuning",
+      "query": "How does Netflix let users download episodes?",
+      "expect": {
+        "missingApp": "Netflix"
+      }
+    },
+    {
+      "id": "t09",
+      "split": "tuning",
+      "query": "how does netflix handle downloads",
+      "expect": {
+        "missingApp": "Netflix"
+      }
+    },
+    {
+      "id": "t10",
+      "split": "tuning",
+      "query": "How does Apple Music let users create a playlist?",
+      "expect": {
+        "missingApp": "Apple Music"
+      }
+    },
+    {
+      "id": "t11",
+      "split": "tuning",
+      "query": "How do users delete a playlist in Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Deleting a playlist"]
+      }
+    },
+    {
+      "id": "t12",
+      "split": "tuning",
+      "query": "How do I cancel my Spotify Premium subscription?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Canceling Premium plan", "Canceling subscription", "Cancelling Premium"]
+      }
+    },
+    {
+      "id": "t13",
+      "split": "tuning",
+      "query": "spotify add song to queue",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Adding a playlist to queue", "Adding to queue"]
+      }
+    },
+    {
+      "id": "t14",
+      "split": "tuning",
+      "query": "How does Spotify onboard new users?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Onboarding", "Signing up for newsletter"]
+      }
+    },
+    {
+      "id": "t15",
+      "split": "tuning",
+      "query": "download songs for offline listening",
+      "expect": {
+        "flows": ["Download"]
+      }
+    },
+    {
+      "id": "t16",
+      "split": "tuning",
+      "query": "How does Linear let users create an issue?",
+      "expect": {
+        "app": "Linear",
+        "flows": ["Creating an issue"]
+      }
+    },
+    {
+      "id": "t17",
+      "split": "tuning",
+      "query": "Show me Spotify flows for playlist folders",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Adding playlist to folder",
+          "Creating a playlist folder",
+          "Moving a playlist to folder",
+          "Moving playlist to a folder"
+        ]
+      }
+    },
+    {
+      "id": "h01",
+      "split": "holdout",
+      "query": "What does the Spotify signup flow look like?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Onboarding"]
+      }
+    },
+    {
+      "id": "h02",
+      "split": "holdout",
+      "query": "How do I follow an artist on Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Following an artist"]
+      }
+    },
+    {
+      "id": "h03",
+      "split": "holdout",
+      "query": "spotify change password",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Changing password"]
+      }
+    },
+    {
+      "id": "h04",
+      "split": "holdout",
+      "query": "How can users report inappropriate content in Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Reporting a playlist", "Reporting content"]
+      }
+    },
+    {
+      "id": "h05",
+      "split": "holdout",
+      "query": "How does Spotify let users rename a playlist?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Editing a playlist detail", "Editing playlist details"]
+      }
+    },
+    {
+      "id": "h06",
+      "split": "holdout",
+      "query": "Spotify lyrics",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Lyrics", "Switching to lyrics view", "Switching to lyrics view (expanded)"]
+      }
+    },
+    {
+      "id": "h07",
+      "split": "holdout",
+      "query": "How does Spotify handle gift cards?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Redeem gift card"]
+      }
+    },
+    {
+      "id": "h08",
+      "split": "holdout",
+      "query": "How does YouTube Music recommend songs?",
+      "expect": {
+        "missingApp": "YouTube Music"
+      }
+    },
+    {
+      "id": "h09",
+      "split": "holdout",
+      "query": "how does tidal let users create a playlist",
+      "expect": {
+        "missingApp": "Tidal"
+      }
+    },
+    {
+      "id": "h10",
+      "split": "holdout",
+      "query": "How does Spotify let users sort their library?",
+      "expect": {
+        "app": "Spotify",
+        "flows": [
+          "Sorting by custom order",
+          "Sorting library",
+          "Sorting library by alphabetical order"
+        ]
+      }
+    },
+    {
+      "id": "h11",
+      "split": "holdout",
+      "query": "How do I log out of spotify",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Logging out"]
+      }
+    },
+    {
+      "id": "h12",
+      "split": "holdout",
+      "query": "playlist sharing on Instagram",
+      "expect": {
+        "flows": ["Copying link to playlist", "Copying playlist link", "Embedding playlist"]
+      }
+    },
+    {
+      "id": "h13",
+      "split": "holdout",
+      "query": "How do I add songs to a playlist in the Fixture Tunes app?",
+      "expect": {
+        "app": "Fixture Tunes",
+        "flows": ["Adding a song to a playlist"]
+      }
+    },
+    {
+      "id": "h14",
+      "split": "holdout",
+      "query": "How do users update payment details on Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Change payment detail"]
+      }
+    },
+    {
+      "id": "h15",
+      "split": "holdout",
+      "query": "Stripe checkout",
+      "expect": {
+        "app": "Stripe",
+        "flows": ["Creating a payment link"]
+      }
+    },
+    {
+      "id": "h16",
+      "split": "holdout",
+      "query": "How does Spotify show song credits?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Showing credits", "Song credits"]
+      }
+    },
+    {
+      "id": "h17",
+      "split": "holdout",
+      "query": "Where can I see my listening history in Spotify?",
+      "expect": {
+        "app": "Spotify",
+        "flows": ["Recent searches"]
+      }
+    }
+  ]
+}
