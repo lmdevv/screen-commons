@@ -51,7 +51,7 @@ async function asUser<T>(run: (principal: Principal) => Promise<T> | T): Promise
     const failure = toServiceError(error);
     if (failure.code === "not_found") throw notFound();
     if (failure.code === "unauthorized") throw redirect({ to: "/sign-in" });
-    throw new Error(failure.message);
+    throw failure;
   }
 }
 

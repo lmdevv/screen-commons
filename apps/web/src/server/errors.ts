@@ -68,6 +68,7 @@ export function fromZod(error: ZodError): ServiceError {
 export function toServiceError(error: unknown): ServiceError {
   if (error instanceof ServiceError) return error;
   if (error instanceof ZodError) return fromZod(error);
-  console.error(error);
-  return new ServiceError("internal", "Something went wrong");
+  const requestId = crypto.randomUUID();
+  console.error(`screen-commons: request ${requestId} failed:`, error);
+  return new ServiceError("internal", `Something went wrong (request id ${requestId})`);
 }

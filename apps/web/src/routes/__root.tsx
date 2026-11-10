@@ -107,7 +107,7 @@ export function NotFound() {
   );
 }
 
-function RootError({ error, reset }: ErrorComponentProps) {
+export function RootError({ error, reset }: ErrorComponentProps) {
   return (
     <main className="grid min-h-[70dvh] place-items-center px-4">
       <EmptyState
