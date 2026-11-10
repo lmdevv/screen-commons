@@ -16,7 +16,7 @@ Users create API keys in Settings and use them to call the REST API and the remo
 - Open `/settings` and choose link `API keys` (driven).
 - Open `/settings?tab=keys` directly, or use the palette's settings commands (not scripted).
 - Call `/api/v1/*` and `/mcp` with `Authorization: Bearer sc_…` (driven).
-- Connect an MCP client with the key (driven in [Remote MCP](./mcp-remote.md) and [Local MCP](./mcp-local.md), with the SDK's client; a real agent such as Claude Code is not scripted).
+- Connect an MCP client with the key (driven in [Remote MCP](./mcp-remote.md) and [Local MCP](./mcp-local.md), with the SDK's client, and in [Real agent](./agent.md) with Claude Code and Codex).
 - Use the typed client from `@screen-commons/core` (driven only by the seed at launch, through `pnpm seed upload`).
 - Connect the browser extension from Settings (not scripted).
 

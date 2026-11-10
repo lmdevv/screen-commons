@@ -9,6 +9,7 @@ interface CloudflareEnv {
   IMAGES?: import("@cloudflare/workers-types").ImagesBinding;
   /** Test servers only: honour `x-test-images` fault headers (see `getImages`). */
   SCREEN_COMMONS_TEST_FAULTS?: string;
+  SC_D1_COUNTER?: string;
   APP_URL: string;
   BETTER_AUTH_SECRET?: string;
   GITHUB_CLIENT_ID?: string;

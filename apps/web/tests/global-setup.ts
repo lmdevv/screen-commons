@@ -75,6 +75,7 @@ export default async function setup(project: TestProject) {
       BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"),
       // honour `x-test-images: fail | missing` (simulated Images binding failures)
       SCREEN_COMMONS_TEST_FAULTS: "1",
+      SC_D1_COUNTER: "1",
     },
   });
   const env = {

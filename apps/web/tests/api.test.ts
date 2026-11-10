@@ -530,3 +530,20 @@ describe("collections + saves", () => {
     expect((await client.getFlow(batch.flow!.id)).saved).toBe(false);
   });
 });
+
+describe("D1 row counter", () => {
+  it("counts D1 rows when the counter is on and omits the header when off", async () => {
+    const counted = await admin.fetch("/api/v1/screens?limit=5");
+    expect(counted.status).toBe(200);
+    expect(Number(counted.headers.get("x-sc-d1-rows"))).toBeGreaterThan(0);
+
+    const noQueries = await fetch(new URL("/api/v1/taxonomy", baseUrl()));
+    expect(noQueries.headers.get("x-sc-d1-rows")).toBe("0");
+
+    const off = await admin.fetch("/api/v1/screens?limit=5", {
+      headers: { "x-test-d1-counter": "off" },
+    });
+    expect(off.status).toBe(200);
+    expect(off.headers.has("x-sc-d1-rows")).toBe(false);
+  });
+});
