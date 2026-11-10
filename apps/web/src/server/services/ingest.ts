@@ -715,6 +715,7 @@ export async function uploadScreenFromTool(
         patterns: input.patterns,
         elements: input.elements,
         tags: [],
+        text: input.text,
       },
     ],
   });

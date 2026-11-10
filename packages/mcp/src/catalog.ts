@@ -283,6 +283,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       png: bytes,
       sourceUrl: args.sourceUrl,
       title: args.title,
+      text: args.text,
       viewport,
       patterns: args.patterns.length ? args.patterns : undefined,
       elements: args.elements,

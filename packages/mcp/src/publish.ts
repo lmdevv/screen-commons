@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import { prepareScreen } from "@screen-commons/capture/screen";
+import { MAX_SCREEN_TEXT } from "@screen-commons/capture/extract";
+import { normalizeText, prepareScreen } from "@screen-commons/capture/screen";
 import {
   ImageDownloadError,
   LIMITS,
@@ -151,8 +152,9 @@ async function loadSource(
   return bytes;
 }
 
-const normalizeTitle = (title: string | null | undefined) =>
-  title?.replace(/\s+/gu, " ").trim().slice(0, 160) || null;
+const normalizeTitle = (title: string | null | undefined) => normalizeText(title, 160) ?? null;
+const normalizeScreenText = (text: string | null | undefined) =>
+  normalizeText(text, MAX_SCREEN_TEXT) ?? null;
 
 const sameSet = (left: readonly string[], right: readonly string[]) => {
   const a = new Set(left);
@@ -162,12 +164,14 @@ const sameSet = (left: readonly string[], right: readonly string[]) => {
 
 function screenPatch(
   screen: ManifestScreen,
-  current: Pick<Screen, "title" | "patterns" | "elements" | "tags">,
+  current: Pick<Screen, "title" | "patterns" | "elements" | "tags" | "text">,
 ): UpdateScreenInput | null {
   const patch: UpdateScreenInput = {};
   const title = normalizeTitle(screen.title);
+  const text = normalizeScreenText(screen.text);
   const tags = screen.tags ?? [];
   if (title !== current.title) patch.title = title;
+  if (text !== current.text) patch.text = text;
   if (!sameSet(screen.patterns, current.patterns)) patch.patterns = screen.patterns;
   if (!sameSet(screen.elements, current.elements)) patch.elements = screen.elements;
   if (!sameSet(tags, current.tags)) patch.tags = tags;
@@ -330,6 +334,7 @@ export async function publishManifest(
         patterns: screen.patterns,
         elements: screen.elements,
         tags: screen.tags,
+        text: screen.text,
         capturedAt: screen.capturedAt,
         viewport,
       });
@@ -441,6 +446,7 @@ async function reconcileScreens(
         patterns: first.patterns,
         elements: first.elements,
         tags: first.tags ?? [],
+        text: normalizeScreenText(first.text),
       })
     ) {
       item.warning = `Same image as "${first.localId}", so its metadata applies`;

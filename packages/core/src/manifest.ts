@@ -22,6 +22,7 @@ const manifestScreenSchema = z.strictObject({
   patterns: z.array(patternSchema).max(8),
   elements: z.array(elementSchema).max(24),
   tags: screenMetaSchema.shape.tags.removeDefault().optional(),
+  text: screenMetaSchema.shape.text,
   capturedAt: z.iso.datetime({ offset: true }).optional(),
 });
 export type ManifestScreen = z.output<typeof manifestScreenSchema>;

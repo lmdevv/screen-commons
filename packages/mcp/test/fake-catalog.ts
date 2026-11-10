@@ -24,6 +24,7 @@ interface Row {
   patterns: string[];
   elements: string[];
   tags: string[];
+  text: string | null;
 }
 
 interface FlowRow {
@@ -92,6 +93,7 @@ export function fakeCatalog(status = "published") {
           patterns: screen.patterns,
           elements: screen.elements,
           tags: screen.tags,
+          text: screen.text ?? null,
         });
         return { id, status, url: `/screens/${id}` };
       });

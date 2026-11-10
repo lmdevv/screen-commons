@@ -354,6 +354,7 @@ export const screens: Screen[] = apps.flatMap((app, appIndex) =>
       tags: [],
       version: "Oct 2026",
       dominantColor: null,
+      text: null,
       status: "published",
       source: "seed",
       saved: index === 1 && appIndex === 0,

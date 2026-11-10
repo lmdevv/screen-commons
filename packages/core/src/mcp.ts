@@ -9,6 +9,7 @@ import {
   flowTypeSchema,
   patternSchema,
   platformSchema,
+  screenMetaSchema,
   updateFlowInputSchema,
   updateScreenInputSchema,
 } from "./schemas";
@@ -151,6 +152,9 @@ export const catalogTools = {
       sourceUrl: z.url().optional(),
       patterns: z.array(patternSchema).max(8).default([]),
       elements: z.array(elementSchema).max(24).default([]),
+      text: screenMetaSchema.shape.text.describe(
+        "Words visible in the screenshot, such as its headings, buttons and labels, so search finds the screen by them",
+      ),
     }),
     readOnly: false,
     openWorld: true,
@@ -159,7 +163,7 @@ export const catalogTools = {
     name: "update_screen",
     title: "Update screen",
     description:
-      "Edit the title, patterns, elements or tags of a screen you contributed. Omitted fields stay as they are.",
+      "Edit the title, patterns, elements, tags or text of a screen you contributed. Text is the words visible in the screenshot, and search matches it. Omitted fields stay as they are.",
     input: updateScreenInputSchema.extend({ id: z.string().min(1) }),
     readOnly: false,
   }),
