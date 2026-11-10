@@ -933,6 +933,28 @@ describe("my contributions", () => {
     await expectApiError(owner.listContributions({ limit: 101 }), 400, "bad_request");
   });
 
+  it("reads a flow page's steps without walking the member's other screens", async () => {
+    const session = await Session.signUp("Fern", `fern-${suffix}@screen-commons.test`);
+    const fern = keyClient((await session.client().createKey("rows")).token);
+    const app = { name: `Rows App ${suffix}`, websiteUrl: `https://rows-${suffix}.example.org` };
+    const { app: created } = await fern.captures({
+      app,
+      flow: { name: "Checking out", type: "checkout" },
+      screens: [captureScreen(), captureScreen()],
+    });
+    const rows = async () => {
+      const response = await session.fetch("/api/v1/me/contributions?kind=flow");
+      expect((await response.json()).items).toHaveLength(1);
+      return Number(response.headers.get("x-sc-d1-rows"));
+    };
+    const before = await rows();
+    await fern.captures({
+      app: { slug: created.slug, name: app.name },
+      screens: Array.from({ length: 40 }, () => captureScreen()),
+    });
+    expect(await rows()).toBeLessThan(before + 10);
+  });
+
   it("requires sign-in", async () => {
     const response = await fetch(`${baseUrl()}/api/v1/me/contributions`);
     expect(response.status).toBe(401);
