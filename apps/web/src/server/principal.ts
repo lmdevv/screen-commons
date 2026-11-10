@@ -1,4 +1,5 @@
 import type { Role, User } from "@screen-commons/core";
+import type { ApiKeyKind } from "@screen-commons/db";
 
 import { getAuth } from "./auth";
 import { verifyToken } from "./keys";
@@ -13,11 +14,9 @@ export interface PrincipalUser {
 }
 
 /** Who is making a request: a signed-in browser session or an API key. */
-export interface Principal {
-  user: PrincipalUser;
-  via: "session" | "key";
-  keyId?: string;
-}
+export type Principal =
+  | { user: PrincipalUser; via: "session" }
+  | { user: PrincipalUser; via: "key"; keyId: string; keyKind: ApiKeyKind };
 
 export function isAdmin(principal: Principal | null | undefined): boolean {
   return principal?.user.role === "admin";
@@ -77,7 +76,12 @@ export async function getPrincipal(
   if (token) {
     const found = await verifyToken(token);
     if (!found) return null;
-    return { user: normalizeUser(found.user), via: "key", keyId: found.key.id };
+    return {
+      user: normalizeUser(found.user),
+      via: "key",
+      keyId: found.key.id,
+      keyKind: found.key.kind,
+    };
   }
   if (options.allowCookies === false) return null;
   return getSessionPrincipal(request.headers);

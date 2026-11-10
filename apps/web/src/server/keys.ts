@@ -20,9 +20,12 @@ function toApiKey(row: ApiKeyRow): ApiKey {
   };
 }
 
-function requireSession(principal: Principal) {
-  if (principal.via !== "session")
-    throw forbidden("API keys can only be managed from a signed-in session");
+function requireKeyManager(principal: Principal) {
+  if (principal.via === "key" && principal.keyKind !== "login") {
+    throw forbidden(
+      "API keys can only be managed from a signed-in session or a key from screen-commons login",
+    );
+  }
 }
 
 export function generateToken(): string {
@@ -30,7 +33,7 @@ export function generateToken(): string {
 }
 
 export async function listKeys(principal: Principal): Promise<{ items: ApiKey[] }> {
-  requireSession(principal);
+  requireKeyManager(principal);
   const rows = await getDb()
     .select()
     .from(apiKey)
@@ -43,7 +46,7 @@ export async function createKey(
   principal: Principal,
   input: unknown,
 ): Promise<{ key: ApiKey; token: string }> {
-  requireSession(principal);
+  requireKeyManager(principal);
   const { name } = parseInput(createApiKeyInputSchema, input);
   const token = generateToken();
   const [row] = await getDb()
@@ -61,7 +64,7 @@ export async function createKey(
 }
 
 export async function revokeKey(principal: Principal, id: string): Promise<void> {
-  requireSession(principal);
+  requireKeyManager(principal);
   const result = await getDb()
     .update(apiKey)
     .set({ revokedAt: new Date() })

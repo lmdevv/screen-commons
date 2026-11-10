@@ -21,6 +21,7 @@ type Status = "published" | "pending" | "rejected";
 type Source = "upload" | "extension" | "mcp" | "seed";
 type Role = "admin" | "member";
 export type CollectionItemKind = "screen" | "flow" | "app";
+export type ApiKeyKind = "standard" | "login";
 
 // ---------------------------------------------------------------------------------------------
 // Better Auth core tables (user has an extra `role` column)
@@ -291,6 +292,7 @@ export const apiKey = sqliteTable(
     prefix: text("prefix").notNull(),
     /** Hex SHA-256 of the full token. */
     hash: text("hash").notNull().unique(),
+    kind: text("kind").$type<ApiKeyKind>().default("standard").notNull(),
     lastUsedAt: timestamp("last_used_at"),
     createdAt: createdAt(),
     revokedAt: timestamp("revoked_at"),
