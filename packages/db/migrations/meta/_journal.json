@@ -57,6 +57,13 @@
       "when": 1794333591596,
       "tag": "0007_verification_expires_at",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794366028900,
+      "tag": "0008_contributor_keyset",
+      "breakpoints": true
     }
   ]
 }
