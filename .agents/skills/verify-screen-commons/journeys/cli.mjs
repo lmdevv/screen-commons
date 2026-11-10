@@ -932,7 +932,7 @@ async function journey(h, dir, closers) {
     ],
   );
   const flowGone = await run("flows delete", ["flows", "delete", madeId]);
-  assert.deepEqual(flowGone.json, { deleted: true, id: madeId });
+  assert.deepEqual(flowGone.json, { schemaVersion: 1, deleted: true, id: madeId });
   const flowAbsent = await run("the flow is gone", ["flows", "get", madeId]);
   assert.equal(flowAbsent.code, 4);
   const screenGone = await run("screens delete", ["screens", "delete", uploaded.json.id]);
