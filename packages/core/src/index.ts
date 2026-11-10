@@ -2,6 +2,7 @@ export * from "./taxonomy";
 export * from "./schemas";
 export * from "./manifest";
 export * from "./api";
+export * from "./search-query";
 export * from "./client";
 export * from "./utils";
 export * from "./bridge";

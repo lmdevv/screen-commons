@@ -31,6 +31,29 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/**
+ * How a screen or flow search read its query. `strict`: every item contains every term.
+ * `relaxed`: fewer than `MIN_STRICT_RESULTS` items did, so items that contain some of the terms
+ * follow them, most terms first. `none`: nothing to search for, so items keep the default order.
+ */
+export type SearchMode = "strict" | "relaxed" | "none";
+
+export interface SearchMatch {
+  mode: SearchMode;
+  /** Slug of the first app the query names. Items come only from apps with that name or host. */
+  app: string | null;
+  /** An app the query names that the catalog doesn't have, as typed. Items come from other apps. */
+  appNotFound: string | null;
+  /** Query words that some item contains. */
+  matchedTerms: string[];
+  /** Query words that no item contains. */
+  unmatchedTerms: string[];
+}
+
+export interface SearchPage<T> extends Page<T> {
+  match: SearchMatch;
+}
+
 export const ERROR_CODES = [
   "bad_request",
   "unauthorized",
