@@ -48,8 +48,9 @@ function CliLogin() {
     try {
       setLogin(await decideCliLogin({ data: { code, decision } }));
     } catch (failure) {
-      setError(errorMessage(failure));
+      const message = errorMessage(failure);
       setLogin(await getCliLogin({ data: { code } }).catch(() => null));
+      setError(message);
     } finally {
       setBusy(null);
     }
