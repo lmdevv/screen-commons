@@ -169,9 +169,11 @@ Frames: web 16:10, phones 9:19.5, always top-anchored. Short/wide captures are s
 (letterboxed at the top), tall ones are cropped at the bottom (`lib/screen.ts → screenFrame`).
 Flow steps (`FlowStrip`, a flow's step grid) are shown whole instead, letterboxed on the
 surface behind them, so a landscape capture keeps its bottom bar. A step taller than its
-thumbnail's crop loads its full image, and other steps offer the full image in `srcset` for 2x
-displays. Only page captures, which whole would be under half the frame's width, keep the top
-crop (`lib/screen.ts → stepSource`).
+thumbnail's crop loads its full image. In the strip, other steps offer the full image in
+`srcset` for a slot wider than the thumbnail, such as the 960px step at 1x or any step at 2x; the
+grid keeps their thumbnails, since lazy loading fetches tiles below the fold. Only page captures,
+which whole would be under half the frame's width, keep the top crop, from the thumbnail alone
+(`lib/screen.ts → stepSource`).
 
 ---
 
@@ -227,7 +229,7 @@ entities; components never fetch.
 | `CategoryChips`                                                | `items`, `value` (`null` = All), `onValueChange`, `leading`  | Scroll row with fade edges + arrows.                                                                                                                                                    |
 | `ScreenGrid`, `ScreenGridItem`, `ScreenGridSkeleton`           | `platform` or `columns`                                      | See recipes above.                                                                                                                                                                      |
 | `ScreenTile`                                                   | `screen: ScreenTileData` (⊂ `Screen`)                        | `linkRender`/`onOpen`, `showApp` (cross-app grids), `onSaveToggle`, `selectable/selected/onSelectedChange`, `priority` (first row), `variant` tile·bare, `badge`, `caption`.            |
-| `ScreenImage`                                                  | `src,width,height,platform,alt`                              | Low-level framed screenshot (`layout` frame·natural; `fullSrc` for a flow step).                                                                                                        |
+| `ScreenImage`                                                  | `src,width,height,platform,alt`                              | Low-level framed screenshot (`layout` frame·natural; `fullSrc`, `fullSrcSet` for a flow step).                                                                                          |
 | `AppLogo`                                                      | `app` (`name`, `logoUrl?`, `accentColor?`)                   | xs 20 · sm 28 · md 36 · lg 48 · xl 80.                                                                                                                                                  |
 | `AppCard`                                                      | `app: AppCardData` (⊂ `AppSummary`)                          | Tile with `previews[0]`, logo/name/tagline; `saved` + `onSaveToggle`; `badge`.                                                                                                          |
 | `AppHeader`                                                    | `app` (⊂ `AppSummary`/`AppDetail`)                           | `back`, `actions`, `meta`, `renderCategory`.                                                                                                                                            |

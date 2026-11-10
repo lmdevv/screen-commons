@@ -23,6 +23,11 @@ export interface ScreenImageProps extends Omit<React.HTMLAttributes<HTMLDivEleme
   layout?: "frame" | "natural";
   /** Full image of a flow step: the step is shown whole in its frame (`stepSource`). */
   fullSrc?: string;
+  /**
+   * Offer `fullSrc` in `srcset` for a slot wider than the thumbnail (the flow strip). A grid keeps
+   * the thumbnail, so tiles that lazy loading fetches below the fold stay small.
+   */
+  fullSrcSet?: boolean;
   /** Placeholder colour while loading (screen.dominantColor). */
   placeholderColor?: string | null;
   imgClassName?: string;
@@ -42,6 +47,7 @@ export function ScreenImage({
   sizes,
   layout = "frame",
   fullSrc,
+  fullSrcSet = false,
   placeholderColor,
   className,
   imgClassName,
@@ -67,7 +73,7 @@ export function ScreenImage({
     >
       <img
         src={step?.src ?? src}
-        srcSet={step?.srcSet}
+        srcSet={fullSrcSet ? step?.srcSet : undefined}
         alt={alt}
         width={size.width}
         height={size.height}

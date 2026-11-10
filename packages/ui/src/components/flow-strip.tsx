@@ -83,11 +83,12 @@ export function FlowStrip({
             <ScreenImage
               src={step.screen.thumbUrl}
               fullSrc={step.screen.imageUrl}
+              fullSrcSet
               width={step.screen.width}
               height={step.screen.height}
               platform={step.screen.app.platform}
               alt={step.label ?? step.screen.title ?? `Step ${index + 1}`}
-              priority={index < 3}
+              priority={index === 0}
               sizes={slot.sizes}
               placeholderColor={step.screen.dominantColor}
               className={cn(

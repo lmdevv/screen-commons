@@ -22,12 +22,8 @@ describe("stepSource", () => {
     });
   });
 
-  it("keeps the top crop of a page capture, whose thumbnail is that crop", () => {
-    expect(stepSource(step(1440, 6000), "web")).toEqual({
-      src: "/media/thumb.webp",
-      srcSet: "/media/thumb.webp 640w, /media/full.webp 1440w",
-      fit: "top",
-    });
+  it("keeps the top crop of a page capture from its thumbnail alone", () => {
+    expect(stepSource(step(1440, 6000), "web")).toEqual({ src: "/media/thumb.webp", fit: "top" });
   });
 
   it("uses the thumbnail alone when it is the full size", () => {

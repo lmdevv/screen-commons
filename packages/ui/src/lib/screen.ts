@@ -97,19 +97,25 @@ export interface StepSource {
  * Image source for a flow step, shown whole so a landscape capture keeps its bottom bar. A
  * thumbnail is a top crop (`thumbnailBox`), so a step taller than the thumbnail ratio is shown
  * from its full image. Otherwise `srcSet` lets the browser pick the full image when the rendered
- * size needs more pixels than the thumbnail has, such as on a 2x display.
+ * size needs more pixels than the thumbnail has. A page capture keeps the top crop, which its
+ * thumbnail already holds.
  */
 export function stepSource(
   screen: { thumbUrl: string; imageUrl: string; width: number; height: number },
   platform: Platform,
 ): StepSource {
   const { thumbUrl, imageUrl, width, height } = screen;
-  const whole = width / height >= FRAME_ASPECT[frameKind(platform)] * MIN_WHOLE_WIDTH_SHARE;
-  const fit = whole ? "whole" : "top";
+  if (width / height < FRAME_ASPECT[frameKind(platform)] * MIN_WHOLE_WIDTH_SHARE) {
+    return { src: thumbUrl, fit: "top" };
+  }
   const thumb = thumbnailBox(width, height, thumbnailKindFor(platform));
-  if (whole && thumb.cropped) return { src: imageUrl, fit };
-  if (thumb.width >= width) return { src: thumbUrl, fit };
-  return { src: thumbUrl, srcSet: `${thumbUrl} ${thumb.width}w, ${imageUrl} ${width}w`, fit };
+  if (thumb.cropped) return { src: imageUrl, fit: "whole" };
+  if (thumb.width >= width) return { src: thumbUrl, fit: "whole" };
+  return {
+    src: thumbUrl,
+    srcSet: `${thumbUrl} ${thumb.width}w, ${imageUrl} ${width}w`,
+    fit: "whole",
+  };
 }
 
 /** `sizes` attribute for grid thumbnails, matching ScreenGrid's column breakpoints. */
