@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { BRIDGE_DEFAULT_PORT } from "@screen-commons/core";
+import { z } from "zod";
 
 export interface McpConfig {
   /** Screen Commons instance origin. */
@@ -27,6 +28,7 @@ const HELP = `screen-commons-mcp — Screen Commons MCP server (stdio)
 Options (env var in brackets):
   --url <origin>          Screen Commons instance [SCREEN_COMMONS_URL] (default http://localhost:5173)
   --api-key <sc_…>       API key for catalog + upload tools [SCREEN_COMMONS_API_KEY]
+  --profile <name>        Login saved by screen-commons login [SCREEN_COMMONS_PROFILE] (default "default")
   --bridge-port <port>    Extension bridge port on 127.0.0.1 [SCREEN_COMMONS_BRIDGE_PORT] (default 7457)
   --bridge-token <token>  Pairing token [SCREEN_COMMONS_BRIDGE_TOKEN] (default: ~/.config/screen-commons/bridge-token)
   --no-bridge             Do not start the extension bridge (headless only)
@@ -68,9 +70,12 @@ export function parseArgs(argv: string[]): Record<string, string | boolean> {
 const truthy = (value: string | undefined) =>
   value !== undefined && !/^(0|false|no|off)$/iu.test(value.trim());
 
+function configDir(env: NodeJS.ProcessEnv, home: string): string {
+  return join(env.XDG_CONFIG_HOME?.trim() || join(home, ".config"), "screen-commons");
+}
+
 export function defaultTokenPath(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
-  const base = env.XDG_CONFIG_HOME?.trim() || join(home, ".config");
-  return join(base, "screen-commons", "bridge-token");
+  return join(configDir(env, home), "bridge-token");
 }
 
 /** Read the persisted pairing token, or generate (32 random bytes, hex) and save one (0600). */
@@ -96,20 +101,113 @@ export interface LoadConfigInput {
   home?: string;
 }
 
-/** The instance to talk to: flags, then `SCREEN_COMMONS_URL` / `SCREEN_COMMONS_API_KEY`. */
+const profileSchema = z.object({
+  url: z.string(),
+  apiKey: z.string(),
+  keyId: z.string().optional(),
+  email: z.string().optional(),
+});
+export type Profile = z.infer<typeof profileSchema>;
+
+const profilesFileSchema = z.object({
+  version: z.literal(1),
+  profiles: z.record(z.string(), profileSchema),
+});
+
+export const profilesPath = (env: NodeJS.ProcessEnv = process.env, home = homedir()) =>
+  join(configDir(env, home), "profiles.json");
+
+export async function readProfiles(path: string): Promise<Record<string, Profile>> {
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw error;
+  }
+  try {
+    return profilesFileSchema.parse(JSON.parse(text)).profiles;
+  } catch {
+    throw new Error(`${path} is not a profiles file. Fix or delete it`);
+  }
+}
+
+export async function writeFileAtomic(path: string, data: string | Uint8Array, mode?: number) {
+  const partial = `${path}.${process.pid}.partial`;
+  try {
+    await writeFile(partial, data, { mode });
+    if (mode !== undefined) await chmod(partial, mode);
+    await rename(partial, path);
+  } finally {
+    await rm(partial, { force: true });
+  }
+}
+
+export async function writeProfiles(path: string, profiles: Record<string, Profile>) {
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await writeFileAtomic(path, `${JSON.stringify({ version: 1, profiles }, null, 2)}\n`, 0o600);
+}
+
+const present = (value: string | undefined) => value?.trim() || undefined;
+
+export interface ProfileSelection {
+  name: string;
+  explicit: boolean;
+  saved: Profile | undefined;
+  path: string;
+}
+
+export async function selectProfile(
+  flag: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+  home = homedir(),
+): Promise<ProfileSelection> {
+  const chosen = present(flag) ?? present(env.SCREEN_COMMONS_PROFILE);
+  const name = chosen ?? "default";
+  const path = profilesPath(env, home);
+  return { name, explicit: chosen !== undefined, saved: (await readProfiles(path))[name], path };
+}
+
+export type Source = "flag" | "env" | "profile" | "default";
+
+export interface Instance {
+  url: string;
+  apiKey: string | undefined;
+  sources: { url: Source; apiKey: Exclude<Source, "default"> | undefined };
+}
+
+const normalizeUrl = (url: string) => url.trim().replace(/\/+$/u, "");
+
+function first<S>(candidates: [string | undefined, S][]): [string, S] | undefined {
+  return candidates.find((candidate): candidate is [string, S] => candidate[0] !== undefined);
+}
+
+const profileKeyFor = (url: string, profile: Profile | undefined) =>
+  profile && normalizeUrl(profile.url) === url ? profile.apiKey : undefined;
+
 export function resolveInstance(
   flags: { url?: string; apiKey?: string },
   env: NodeJS.ProcessEnv = process.env,
-): Pick<McpConfig, "url" | "apiKey"> {
-  const url = (flags.url ?? env.SCREEN_COMMONS_URL ?? "http://localhost:5173")
-    .trim()
-    .replace(/\/+$/u, "");
+  profile?: Profile,
+): Instance {
+  const [raw, urlSource] = first<Source>([
+    [present(flags.url), "flag"],
+    [present(env.SCREEN_COMMONS_URL), "env"],
+    [profile?.url, "profile"],
+    ["http://localhost:5173", "default"],
+  ])!;
+  const url = normalizeUrl(raw);
   try {
     new URL(url);
   } catch {
     throw new Error(`Invalid Screen Commons URL: ${url}`);
   }
-  return { url, apiKey: (flags.apiKey ?? env.SCREEN_COMMONS_API_KEY)?.trim() || undefined };
+  const key = first<Exclude<Source, "default">>([
+    [present(flags.apiKey), "flag"],
+    [present(env.SCREEN_COMMONS_API_KEY), "env"],
+    [profileKeyFor(url, profile), "profile"],
+  ]);
+  return { url, apiKey: key?.[0], sources: { url: urlSource, apiKey: key?.[1] } };
 }
 
 export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig> {
@@ -118,7 +216,12 @@ export async function loadConfig(input: LoadConfigInput = {}): Promise<McpConfig
   const args = parseArgs(input.argv ?? process.argv.slice(2));
   const str = (key: string) => (typeof args[key] === "string" ? (args[key] as string) : undefined);
 
-  const { url, apiKey } = resolveInstance({ url: str("url"), apiKey: str("api-key") }, env);
+  const profile = await selectProfile(str("profile"), env, input.home);
+  const { url, apiKey } = resolveInstance(
+    { url: str("url"), apiKey: str("api-key") },
+    env,
+    profile.saved,
+  );
 
   const portRaw = str("bridge-port") ?? setting("BRIDGE_PORT");
   const port = portRaw ? Number.parseInt(portRaw, 10) : BRIDGE_DEFAULT_PORT;

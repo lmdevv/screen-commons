@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { API_KEY, MEMBER_KEY, startMockApi, type MockApi } from "./mock-api";
+import { API_KEY, MEMBER_KEY, OTHER_KEY, startMockApi, type MockApi } from "./mock-api";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 let api: MockApi;
@@ -18,7 +19,7 @@ function run(args: string[], env: Record<string, string> = {}, stdin = "") {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((done, fail) => {
     const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
       cwd: packageDir,
-      env: { PATH: process.env.PATH, ...env },
+      env: { PATH: process.env.PATH, HOME: join(dir, "home"), ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });
     child.stdin.end(stdin);
@@ -149,7 +150,12 @@ describe("commands", () => {
       withKey(),
     );
     expect(code).toBe(0);
-    const page = JSON.parse(stdout) as { items: { url: string }[]; nextCursor: string };
+    const page = JSON.parse(stdout) as {
+      schemaVersion: number;
+      items: { url: string }[];
+      nextCursor: string;
+    };
+    expect(page.schemaVersion).toBe(1);
     expect(page.nextCursor).toBe("c1");
     expect(page.items[0]!.url).toBe(`${api.url}/screens/scr_1`);
   });
@@ -259,7 +265,11 @@ describe("review", () => {
     stdout
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line) as Record<string, unknown>);
+      .map((line) => {
+        const { schemaVersion, ...result } = JSON.parse(line) as Record<string, unknown>;
+        expect(schemaVersion).toBe(1);
+        return result;
+      });
 
   it("pages one kind of the queue", async () => {
     const first = await run(["review", "list", "--kind", "screen", "--limit", "2"], withKey());
@@ -389,5 +399,199 @@ describe("manifest validate", () => {
       code: "source_unreadable",
     });
     expect((await run(["manifest", "validate", join(dir, "absent.json")])).code).toBe(2);
+  });
+});
+
+let homes = 0;
+async function homeWith(profiles?: Record<string, { url: string; apiKey: string }>) {
+  const home = join(dir, `profile-home-${(homes += 1)}`);
+  await mkdir(join(home, ".config/screen-commons"), { recursive: true });
+  if (profiles) {
+    await writeFile(
+      join(home, ".config/screen-commons/profiles.json"),
+      JSON.stringify({ version: 1, profiles }),
+    );
+  }
+  return home;
+}
+const profilesFile = (home: string) => join(home, ".config/screen-commons/profiles.json");
+const emailOf = (stdout: string) => (JSON.parse(stdout) as { email: string }).email;
+
+describe("profiles", () => {
+  it("takes the key from a flag, then the environment, then the profile", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    expect(emailOf((await run(["whoami"], { HOME })).stdout)).toBe("admin@example.com");
+    expect(
+      emailOf((await run(["whoami"], { HOME, SCREEN_COMMONS_API_KEY: OTHER_KEY })).stdout),
+    ).toBe("other@example.com");
+    expect(
+      emailOf(
+        (await run(["whoami", "--api-key", API_KEY], { HOME, SCREEN_COMMONS_API_KEY: OTHER_KEY }))
+          .stdout,
+      ),
+    ).toBe("admin@example.com");
+  });
+
+  it("takes the profile from a flag, then the environment, then default", async () => {
+    const HOME = await homeWith({
+      default: { url: api.url, apiKey: API_KEY },
+      work: { url: api.url, apiKey: OTHER_KEY },
+    });
+    expect(emailOf((await run(["whoami", "--profile", "work"], { HOME })).stdout)).toBe(
+      "other@example.com",
+    );
+    expect(emailOf((await run(["whoami"], { HOME, SCREEN_COMMONS_PROFILE: "work" })).stdout)).toBe(
+      "other@example.com",
+    );
+    expect(
+      emailOf(
+        (await run(["whoami", "--profile", "default"], { HOME, SCREEN_COMMONS_PROFILE: "work" }))
+          .stdout,
+      ),
+    ).toBe("admin@example.com");
+  });
+
+  it("never sends a profile's key to another instance", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const elsewhere = await run(["whoami", "--url", "http://127.0.0.1:9"], { HOME });
+    expect(elsewhere.code).toBe(3);
+    expect(elsewhere.stderr).toMatch(/^missing_api_key: No API key for http:\/\/127\.0\.0\.1:9/u);
+    const missing = await run(["whoami", "--profile", "nope"], { HOME });
+    expect(missing.stderr).toContain(
+      "screen-commons login --url http://localhost:5173 --profile nope",
+    );
+  });
+
+  it("refuses a broken profiles file", async () => {
+    const HOME = await homeWith();
+    await writeFile(profilesFile(HOME), "{ not json");
+    const { code, stderr } = await run(["whoami"], { HOME });
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/^invalid_profiles: .*profiles\.json is not a profiles file/u);
+  });
+});
+
+describe("login", () => {
+  it("saves the token it made as a 0600 profile, and never prints it", async () => {
+    api.login.status = "approved";
+    const HOME = await homeWith();
+    const { code, stdout, stderr } = await run(["login", "--url", api.url], { HOME });
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(stdout).toContain(`${api.url}/cli-login?code=BCDF-GHJK`);
+    expect(stdout).toContain("Approve it if the page shows BCDF-GHJK");
+    expect(stdout).toMatch(/logged in as login@example\.com \(profile default\)\n$/u);
+
+    expect((await stat(profilesFile(HOME))).mode & 0o777).toBe(0o600);
+    const saved = JSON.parse(await readFile(profilesFile(HOME), "utf8")) as {
+      profiles: { default: { url: string; apiKey: string; keyId: string } };
+    };
+    const { apiKey, url, keyId } = saved.profiles.default;
+    const hash = createHash("sha256").update(apiKey).digest("hex");
+    expect(api.login.hashes).toContain(hash);
+    expect(url).toBe(api.url);
+    expect(stdout).not.toContain(apiKey);
+
+    expect(emailOf((await run(["whoami"], { HOME })).stdout)).toBe("login@example.com");
+    expect((await run(["profiles"], { HOME })).stdout).toBe(
+      `* default  login@example.com  ${api.url}\n`,
+    );
+
+    const out = await run(["logout"], { HOME });
+    expect(out.stdout).toBe(`Logged out of ${api.url} (profile default). Its key is revoked\n`);
+    expect(api.login.revoked).toContain(keyId);
+    expect(JSON.parse(await readFile(profilesFile(HOME), "utf8"))).toEqual({
+      version: 1,
+      profiles: {},
+    });
+    const again = await run(["logout", "--json"], { HOME });
+    expect(again.code).toBe(0);
+    expect(JSON.parse(again.stdout)).toEqual({
+      schemaVersion: 1,
+      profile: "default",
+      removed: false,
+      revoked: false,
+    });
+  });
+
+  it("prints one JSON line when it starts waiting and one when it's done", async () => {
+    api.login.status = "approved";
+    const HOME = await homeWith();
+    const { code, stdout } = await run(["login", "--url", api.url, "--profile", "ci", "--json"], {
+      HOME,
+    });
+    expect(code).toBe(0);
+    const lines = stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as object);
+    expect(lines).toEqual([
+      {
+        schemaVersion: 1,
+        status: "pending",
+        url: `${api.url}/cli-login?code=BCDF-GHJK`,
+        code: "BCDF-GHJK",
+        expiresAt: expect.any(String),
+      },
+      expect.objectContaining({
+        schemaVersion: 1,
+        status: "approved",
+        profile: "ci",
+        url: api.url,
+        user: expect.objectContaining({ email: "login@example.com" }),
+      }),
+    ]);
+  });
+
+  it.each([
+    ["denied", "login_denied"],
+    ["expired", "login_expired"],
+  ] as const)("exits 3 and saves nothing when %s", async (status, error) => {
+    api.login.status = status;
+    const HOME = await homeWith();
+    const { code, stderr } = await run(["login", "--url", api.url], { HOME });
+    expect(code).toBe(3);
+    expect(stderr).toMatch(new RegExp(`^${error}: `, "u"));
+    await expect(stat(profilesFile(HOME))).rejects.toThrow();
+  });
+});
+
+describe("keys", () => {
+  it("revokes a key by id and needs a name to create one", async () => {
+    const revoked = await run(["keys", "revoke", "key_9"], withKey());
+    expect(JSON.parse(revoked.stdout)).toEqual({ schemaVersion: 1, revoked: true, id: "key_9" });
+    expect(api.login.revoked).toContain("key_9");
+    expect((await run(["keys", "create"], withKey())).stderr).toMatch(/^usage: Pass --name/u);
+  });
+});
+
+describe("doctor", () => {
+  it("passes on a good profile and names the fix for a wrong URL", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const good = await run(["doctor"], { HOME });
+    expect(good.code).toBe(0);
+    expect(good.stdout).toMatch(/^ok {4}instance {2}http:\/\/127\.0\.0\.1:\d+ answers$/mu);
+    expect(good.stdout).toMatch(/^ok {4}profile {3}default, unknown account at /mu);
+    expect(good.stdout).toMatch(/^ok {4}key {7}valid for admin@example\.com \(admin\)$/mu);
+    expect(good.stdout).toMatch(/^(ok {2}|warn) {2}capture /mu);
+
+    const bad = await run(["doctor", "--url", "http://127.0.0.1:9", "--json"], { HOME });
+    expect(bad.code).toBe(1);
+    expect(bad.stderr).toBe("doctor_failed: Failed: instance, profile\n");
+    const report = JSON.parse(bad.stdout) as {
+      schemaVersion: number;
+      ok: boolean;
+      checks: object[];
+    };
+    expect(report).toMatchObject({ schemaVersion: 1, ok: false });
+    expect(report.checks.slice(0, 3)).toEqual([
+      expect.objectContaining({ name: "instance", status: "fail", fix: "check --url" }),
+      expect.objectContaining({
+        name: "profile",
+        status: "fail",
+        fix: `use --url ${api.url}, or run screen-commons login --url http://127.0.0.1:9`,
+      }),
+      expect.objectContaining({ name: "key", status: "skip" }),
+    ]);
   });
 });
