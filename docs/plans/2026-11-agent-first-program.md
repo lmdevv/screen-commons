@@ -25,7 +25,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `/home/zxcv/.claude/plugins/cache/cursor-plugins/pstack/0.15.36/skills/poteto-mode/playbooks/opening-a-pr.md`
   - [ ] The leaf skills this program cites in Appendix D.
 - [ ] Publish the pending Spotify content the operator approved on 2026-11-09. The operator approved this production write on 2026-11-09 and 2026-11-10. It needs an admin key from the operator.
-  - [ ] Write a throwaway lever in the session scratchpad. For each of the 317 flow ids in `/tmp/sc-evidence/prod-spotify/publish1.json`, it reads the flow as admin and posts `{"decision":"approve"}` to `/api/v1/review/flow/<id>` only when the status is `pending`. It throttles to one call per 300 ms, retries 5xx with backoff, stops on `unavailable`, and appends each result to a log so a rerun skips finished ids.
+  - [ ] Write a throwaway lever in the session scratchpad. For each of the 317 flow ids in `/mnt/data-ssd/screen-commons-work/evidence/sc-evidence/prod-spotify/publish1.json`, it reads the flow as admin and posts `{"decision":"approve"}` to `/api/v1/review/flow/<id>` only when the status is `pending`. It throttles to one call per 300 ms, retries 5xx with backoff, stops on `unavailable`, and appends each result to a log so a rerun skips finished ids.
   - [ ] Read the admin key from `~/.config/screen-commons/prod-secrets.json` into an environment variable without printing it.
   - [ ] Run the same lever over the 1,150 screen ids. Expect zero writes, because approving a flow publishes its screens.
   - [ ] Check with a key that did not contribute. `GET /api/v1/apps/spotify` reports 317 flows and 1,150 screens, and `search_flows {"app":"spotify","query":"playlist"}` returns published flows. Save the JSON to the evidence folder.
@@ -45,9 +45,10 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] SC-03 after SC-02.
   - [ ] SC-04 after SC-03.
   - [ ] SC-05 and SC-07 after SC-04.
-  - [ ] SC-11 after SC-08.
+  - [ ] SC-11 after SC-08 and SC-05, because its lane 4 searches an edited step label.
   - [ ] SC-15 after SC-04, SC-05, SC-06, SC-07, SC-08, SC-09, SC-11, and SC-12.
   - [ ] SC-16 after SC-12 and SC-15.
+  - [ ] A live lane runs `control seed spotify-shape` only once SC-03 is on trunk, and reads the D1 row counter only once SC-02 is on trunk. The root merges SC-02 before it verifies SC-12, so the SC-12 perf lane has the counter.
 - [ ] Hold the file boundaries.
   - [ ] SC-04 and SC-05 own `apps/web/src/server/services/catalog.ts` and `packages/db/src/index.ts`. Nobody else edits them.
   - [ ] SC-08 and SC-11 own `packages/core/src/schemas.ts` update schemas and `apps/web/src/server/services/contributions.ts`.
@@ -79,7 +80,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 - [ ] `git fetch origin <head-branch> && git checkout <head SHA>`.
 - [ ] Run `pnpm install`, then `.agents/skills/verify-screen-commons/scripts/control.mjs launch --run <pr-id>-w<n>`. Wait for `ready at http://localhost:<port>`. From SC-03 on, also run `control seed spotify-shape --run <pr-id>-w<n>`.
 - [ ] Deliver input only through `control-cli`, `control-ui`, `control mcp`, and `control agent` (from SC-02). Read-only diagnostics are `control doctor`, `control sql`, `control r2`, and the D1 row counter from SC-02.
-- [ ] Save every screenshot to `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png` and return the paths with the report. Tear the run down with `control teardown --run <pr-id>-w<n>`.
+- [ ] Save every screenshot to `/mnt/data-ssd/screen-commons-work/evidence/swarm-<pr-id>/worker-<n>/<slug>.png` and return the paths with the report. Tear the run down with `control teardown --run <pr-id>-w<n>`.
 
 ## Hide SQL and stack traces from public error responses (SC-01)
 
@@ -113,7 +114,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 - [ ] Lane 6. Request a missing screen id with a healthy D1. Save `not-found.png`. Pass when the response is still `not_found` with its normal message.
 - [ ] Lane 7. Send an invalid body to `POST /api/v1/screens`. Save `bad-request.png`. Pass when validation details still appear.
 - [ ] Lane 8. Run `screen-commons screens list` through `control-cli` against the broken instance. Save `cli-error.png`. Pass when the CLI exits 5 and prints no SQL.
-- [ ] Lane 9. View the page source of the lane 1 head response in `control-ui`. Save `ssr-payload.png`. Pass when the dehydrated payload has no SQL or stack.
+- [ ] Lane 9. Break D1 in this lane's own run, load `/` at head, and view its page source in `control-ui`. Save `ssr-payload.png`. Pass when the dehydrated payload has no SQL or stack.
 - [ ] Lane 10. Restore the tables and run the `search` journey. Save `healthy.png`. Pass when the journey exits 0.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -191,7 +192,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 
 **Files.**
 
-- [ ] Create `.agents/skills/verify-screen-commons/fixtures/spotify-shape.json` with the 317 production flow names and step counts from `/tmp/sc-evidence/prod-spotify/manifest.json`, plus the Fixture Tunes, Vercel, Linear, and Stripe decoys from the prototype.
+- [ ] Create `.agents/skills/verify-screen-commons/fixtures/spotify-shape.json` with the 317 production flow names and step counts from `/mnt/data-ssd/screen-commons-work/evidence/sc-evidence/prod-spotify/manifest.json`, plus the Fixture Tunes, Vercel, Linear, and Stripe decoys from the prototype.
 - [ ] Create `.agents/skills/verify-screen-commons/eval/search-cases.json` with the 34 prototype queries split into tuning and holdout sets.
 - [ ] Create `.agents/skills/verify-screen-commons/journeys/search-eval.mjs`.
 - [ ] Edit `.agents/skills/verify-screen-commons/scripts/control.mjs` to add `control seed spotify-shape`.
@@ -374,7 +375,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `opus` at the PR head, per the boot recipe.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no bundle command. Record that, then compare head's bundle with the assessment's hand-built bundle in `/tmp/screen-commons-agent-assessment-20261109/reference-bundle-fixture-tunes-create-playlist/`. Save `bundle-vs-hand.png`. Pass when every step id and image hash matches.
+- [ ] Lane 1. Regression lane against trunk. Trunk has no bundle command. Record that, then compare head's bundle with the assessment's hand-built bundle in `/mnt/data-ssd/screen-commons-work/evidence/assessment-20261109/reference-bundle-fixture-tunes-create-playlist/`. Save `bundle-vs-hand.png`. Pass when every step id and image hash matches.
 - [ ] Lane 2. Bundle a flow through `control-cli`. Save `bundle.png`. Pass when `bundle.json` parses with `referenceBundleSchema`.
 - [ ] Lane 3. Rerun the same bundle. Save `rerun.png`. Pass when no image downloads again.
 - [ ] Lane 4. Kill the command after two images, then rerun. Save `resume.png`. Pass when the result equals a clean run.
@@ -619,7 +620,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 
 ## Let admins correct metadata on any contribution (SC-11)
 
-**Depends on.** SC-08.
+**Depends on.** SC-08 and SC-05.
 
 **Files.**
 
@@ -961,7 +962,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 
 **Lexical search is enough for the target question.** The prototype loads the 317 production Spotify flow names into SQLite FTS5 with the repo's tokenizer, plus four decoy apps. It compares the current search with the proposed one. No branch or SHA exists, because it is a throwaway script outside the repo.
 
-- Script. `/tmp/claude-1000/-home-zxcv-Projects-screen-commons/10391aad-9f97-421c-91d5-090095255a3a/scratchpad/search-proto/proto.py`. Results are in `run.txt`, `holdout.txt`, `robustness.txt`, and `detect.txt` beside it.
+- Script. `/mnt/data-ssd/screen-commons-work/evidence/prototypes/search-proto/proto.py`. Results are in `run.txt`, `holdout.txt`, `robustness.txt`, and `detect.txt` beside it.
 - The current search answered 1 of 17 tuning queries at rank 1, and gave another app's flow for 13 of them, including all three missing-app questions. The cause is the OR fallback over `"a"*` plus newest-first order.
 - The proposed search answered 12 at rank 1, 1 at rank 3, all 3 missing-app questions correctly, and missed 1. On a holdout written before running, it scored 12 of 17 against the current 1 at rank 1.
 - The proposed tallies held with the decoys reordered and with no decoys.
@@ -971,7 +972,7 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 - Still unproven. Synonyms such as "rename" for "Editing playlist details", compound words such as "signup", and dictionary-word app names such as "linear progress bar". Screen search on `screen_fts` was not prototyped.
 - Verb table for flow types, inferred and not yet run. Creating maps to `creating`, Editing and Renaming to `editing`, Deleting and Removing to `deleting`, Sharing and Inviting to `sharing`, Onboarding and Signing up to `onboarding`, and Searching to `searching`. SC-11 lane 3 checks the mechanism.
 
-**A one-time code on the existing verification table gives the CLI a key with no migration.** The facts run executed Better Auth 1.7.7's device-authorization plugin against local D1 at `/tmp/claude-1000/-home-zxcv-Projects-screen-commons/10391aad-9f97-421c-91d5-090095255a3a/scratchpad/facts/device.mjs`. The plugin works, but it needs a new table and a page, returns a session token that `principal.ts:76-81` rejects, and accepts JSON only on its token route. The custom path reuses the `verification` table and `keys.ts` insert logic. Its own run is still unproven and is SC-12's first unit.
+**A one-time code on the existing verification table gives the CLI a key with no migration.** The facts run executed Better Auth 1.7.7's device-authorization plugin against local D1 at `/mnt/data-ssd/screen-commons-work/evidence/prototypes/facts/device.mjs`. The plugin works, but it needs a new table and a page, returns a session token that `principal.ts:76-81` rejects, and accepts JSON only on its token route. The custom path reuses the `verification` table and `keys.ts` insert logic. Its own run is still unproven and is SC-12's first unit.
 
 **Skill locations.** Codex, Cursor, and OpenCode read `~/.agents/skills`. Claude Code reads `~/.claude/skills`. One copy plus a symlink covers all four. This was read from the installed binaries and the repo's own `.claude/skills` symlink, not run.
 
@@ -1003,14 +1004,14 @@ Each live lane runs in its own git worktree at the PR head, because Claude Code 
 
 ## Appendix D. Links and reading list
 
-- Feasibility report. `/tmp/screen-commons-agent-assessment-20261109/REPORT.md`, with `COMMANDS.md`, `evidence/`, and the hand-built bundle.
-- Spotify transfer evidence. `/tmp/sc-evidence/prod-spotify/`, including `publish1.json` and `manifest.json`.
-- Prototype scratch. `/tmp/claude-1000/-home-zxcv-Projects-screen-commons/10391aad-9f97-421c-91d5-090095255a3a/scratchpad/search-proto/` and `.../facts/`.
+- Feasibility report. `/mnt/data-ssd/screen-commons-work/evidence/assessment-20261109/REPORT.md`, with `COMMANDS.md`, `evidence/`, and the hand-built bundle.
+- Spotify transfer evidence. `/mnt/data-ssd/screen-commons-work/evidence/sc-evidence/prod-spotify/`, including `publish1.json` and `manifest.json`.
+- Prototype inputs and results. `/mnt/data-ssd/screen-commons-work/evidence/prototypes/search-proto/` and `/mnt/data-ssd/screen-commons-work/evidence/prototypes/facts/`. All program evidence lives under `/mnt/data-ssd/screen-commons-work/evidence/` on the data drive, so it survives a /tmp cleanup.
 - The draft plan this replaces. `/home/zxcv/.claude/plans/continue-planning-screen-commons-sprightly-fountain.md`.
 - Linear. Project 47d9d858-691c-4ef3-88de-53a8982b70d0 and roadmap document e92fb97d-f08e-4dc5-947d-8d16fcc4e752.
 - Read before editing. `.agents/skills/verify-screen-commons/SKILL.md`, `apps/web/content/docs/contributing.md`, `packages/core/src/mcp.ts`, and `apps/web/src/server/services/catalog.ts`.
 - SC-04, SC-12, and SC-15 get `pstack/skills/how/SKILL.md` before building and `pstack/skills/interrogate/SKILL.md` before code-ready.
-- Keep the decision trail per `pstack/skills/show-me-your-work/SKILL.md` in the session scratchpad, and commit it with SC-15.
+- Keep the decision trail per `pstack/skills/show-me-your-work/SKILL.md` at .audit/agent-first-program.tsv, and commit it with SC-15.
 - Principles cited by this plan. Laziness Protocol, Subtract Before You Add, Sequence Verifiable Units, Prove It Works, Make Operations Idempotent, Experience First, Build the Lever, Explain the Number, Model the Domain, Boundary Discipline, Never Block on the Human, and Guard the Context Window.
 
 ## Appendix E. Decision record (ADR-001)
