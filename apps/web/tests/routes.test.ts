@@ -38,6 +38,7 @@ const ENDPOINTS = [
   ["POST", "/keys"],
   ["DELETE", "/keys/:id"],
   ["GET", "/review"],
+  ["GET", "/review/:kind/:id"],
   ["POST", "/review/:kind/:id"],
   ["POST", "/admin/media/backfill"],
 ] as const;

@@ -7,17 +7,24 @@ import {
   createFlowInputSchema,
   type CaptureBatchInput,
   type FlowDetail,
+  type FlowSummary,
+  type ReviewKind,
+  type Status,
   type Screen,
   type ScreenDetail,
 } from "@screen-commons/core";
 import sharp from "sharp";
 
 export const API_KEY = "sc_test_key";
+/** A member's key: everything an admin key does except review. */
+export const MEMBER_KEY = "sc_member_key";
 
 export interface MockApi {
   url: string;
   batches: ReturnType<typeof captureBatchInputSchema.parse>[];
   flows: unknown[];
+  /** Every review write, in order. */
+  decisions: { kind: string; id: string; decision: string; reason?: string }[];
   close: () => Promise<void>;
 }
 
@@ -72,6 +79,25 @@ export async function startMockApi(): Promise<MockApi> {
     .toBuffer();
   const batches: MockApi["batches"] = [];
   const flows: unknown[] = [];
+  const decisions: MockApi["decisions"] = [];
+  const reviewItems = new Map<string, { kind: ReviewKind; status: Status }>([
+    ["scr_p1", { kind: "screen", status: "pending" }],
+    ["scr_p2", { kind: "screen", status: "pending" }],
+    ["scr_p3", { kind: "screen", status: "pending" }],
+    ["flow_p1", { kind: "flow", status: "pending" }],
+  ]);
+  const flowSummary = (id: string): FlowSummary => ({
+    id,
+    app,
+    name: "Signing up",
+    type: "signing-up",
+    description: null,
+    stepCount: 2,
+    previews: [],
+    status: "pending",
+    saved: false,
+    createdAt: "2026-10-01T00:00:00.000Z",
+  });
   let counter = 0;
 
   const server = createServer(async (request, response) => {
@@ -87,11 +113,52 @@ export async function startMockApi(): Promise<MockApi> {
     }
     if (!url.pathname.startsWith("/api/v1/"))
       return json(404, { error: { code: "not_found", message: "nope" } });
-    if (request.headers.authorization !== `Bearer ${API_KEY}`) {
+    const member = request.headers.authorization === `Bearer ${MEMBER_KEY}`;
+    if (request.headers.authorization !== `Bearer ${API_KEY}` && !member) {
       return json(401, { error: { code: "unauthorized", message: "Invalid API key" } });
     }
     const path = url.pathname.slice("/api/v1".length);
     try {
+      if (path.startsWith("/review") && member) {
+        return json(403, {
+          error: { code: "forbidden", message: "Only admins can review contributions" },
+        });
+      }
+      if (request.method === "GET" && path === "/review") {
+        const kind = url.searchParams.get("kind");
+        if (kind !== "screen" && kind !== "flow")
+          return json(400, { error: { code: "bad_request", message: "kind: Invalid option" } });
+        const pending = [...reviewItems]
+          .filter(([, item]) => item.kind === kind && item.status === "pending")
+          .map(([id]) => id);
+        const start = Number(url.searchParams.get("cursor") ?? 0);
+        const end = start + Number(url.searchParams.get("limit") ?? 25);
+        return json(200, {
+          kind,
+          items: pending
+            .slice(start, end)
+            .map((id) =>
+              kind === "screen" ? { ...screen(id), status: "pending" } : flowSummary(id),
+            ),
+          nextCursor: end < pending.length ? String(end) : null,
+        });
+      }
+      const reviewMatch = /^\/review\/(screen|flow)\/([^/]+)$/u.exec(path);
+      if (reviewMatch) {
+        const kind = reviewMatch[1] as ReviewKind;
+        const id = reviewMatch[2]!;
+        const item = reviewItems.get(id);
+        if (item?.kind !== kind) {
+          const noun = kind === "screen" ? "Screen" : "Flow";
+          return json(404, { error: { code: "not_found", message: `${noun} not found` } });
+        }
+        if (request.method === "GET") return json(200, { kind, id, status: item.status });
+        const body = JSON.parse(await readBody(request)) as { decision: string; reason?: string };
+        decisions.push({ kind, id, ...body });
+        item.status = body.decision === "approve" ? "published" : "rejected";
+        response.writeHead(204);
+        return response.end();
+      }
       if (request.method === "GET" && path === "/taxonomy") return json(200, TAXONOMY);
       if (request.method === "GET" && path === "/me") {
         return json(200, {
@@ -202,6 +269,7 @@ export async function startMockApi(): Promise<MockApi> {
     url: `http://127.0.0.1:${port}`,
     batches,
     flows,
+    decisions,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

@@ -1,4 +1,4 @@
-import type { FlowSummary, ReviewQueue, Screen } from "@screen-commons/core";
+import type { ReviewKind, ReviewQueue } from "@screen-commons/core";
 import { flow, flowStep, screen, user } from "@screen-commons/db";
 import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -14,26 +14,30 @@ export interface Contributor {
   email: string;
 }
 
-export interface ReviewQueueDetailed extends ReviewQueue {
-  /** Contributor per item id (screens and flows). Missing when the account was deleted. */
+export type ReviewQueueDetailed = ReviewQueue & {
+  /** Contributor per item id. Missing when the account was deleted. */
   contributors: Record<string, Contributor>;
   /** Pending screens per flow id, so approving a flow can drop them from the screen list. */
   flowScreens: Record<string, string[]>;
-}
+};
+
+const REVIEW_PAGE_SIZE = 50;
 
 /**
- * Admin review queue plus who contributed each item (the core `ReviewQueue` shape has no
- * contributor). Members get a 404, like any hidden page.
+ * One page of the admin review queue plus who contributed each item (the core `ReviewQueue`
+ * shape has no contributor). Members get a 404, like any hidden page.
  */
-export const getReviewQueueDetailed = createServerFn({ method: "GET" }).handler(
-  async (): Promise<ReviewQueueDetailed> => {
+export const getReviewQueueDetailed = createServerFn({ method: "GET" })
+  .validator((data: { kind: ReviewKind; cursor?: string }) => data)
+  .handler(async ({ data }): Promise<ReviewQueueDetailed> => {
     const principal = await getSessionPrincipal(getRequest().headers);
     if (!principal) throw redirect({ to: "/sign-in", search: { redirect: "/review" } });
     if (!isAdmin(principal)) throw notFound();
-    const queue = await services.reviewQueue(principal);
+    const queue = await services.reviewQueue(principal, { ...data, limit: REVIEW_PAGE_SIZE });
     const db = getDb();
-    const screenIds = queue.screens.map((s: Screen) => s.id);
-    const flowIds = queue.flows.map((f: FlowSummary) => f.id);
+    const ids = queue.items.map((item) => item.id);
+    const screenIds = queue.kind === "screen" ? ids : [];
+    const flowIds = queue.kind === "flow" ? ids : [];
     const [screenRows, flowRows, stepRows] = await Promise.all([
       screenIds.length
         ? db
@@ -73,5 +77,4 @@ export const getReviewQueueDetailed = createServerFn({ method: "GET" }).handler(
     const flowScreens: Record<string, string[]> = {};
     for (const step of stepRows) (flowScreens[step.flowId] ??= []).push(step.screenId);
     return { ...queue, contributors, flowScreens };
-  },
-);
+  });

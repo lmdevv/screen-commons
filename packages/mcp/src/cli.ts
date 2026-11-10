@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { access, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs, type ParseArgsConfig } from "node:util";
 
 import {
@@ -20,6 +21,9 @@ import {
   type ListAppsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
+  type ReviewKind,
+  type ReviewQueueQuery,
+  type Screen,
   type ScreenCommonsClient,
   ScreenCommonsApiError,
 } from "@screen-commons/core";
@@ -69,6 +73,8 @@ interface Context {
   /** A screen's own source URL, anywhere on the web. */
   sourceFetch: typeof fetch;
   apiKey: string | undefined;
+  /** One JSON line on stdout, for commands that report as they go. */
+  emit: (value: unknown) => void;
 }
 
 interface Command {
@@ -170,9 +176,12 @@ const extensions: Record<string, string> = {
 };
 
 async function downloadScreen(context: Context) {
+  return saveImage(context, await context.client().getScreen(context.positionals[0]!));
+}
+
+async function saveImage(context: Context, screen: Screen) {
   const { values, origin } = context;
-  const id = context.positionals[0]!;
-  const screen = await context.client().getScreen(id);
+  const { id } = screen;
   const url = new URL(values.thumb ? screen.thumbUrl : screen.imageUrl, `${origin}/`);
   const response = await context.download(url, {
     // Media can live on another host, which must never see the key.
@@ -301,6 +310,85 @@ async function publish(context: Context) {
       : `${count(report.screens)} screens and ${count(report.flows)} flows failed`,
   );
 }
+
+const REVIEW_INTERVAL_MS = 300;
+const DECISIONS = {
+  approve: { status: "published", result: "approved" },
+  reject: { status: "rejected", result: "rejected" },
+} as const;
+/** No key, not allowed, or unreachable: every later id would fail the same way. */
+const STOPS_REVIEW = new Set([3, 5]);
+
+function kindFlag(values: Values): ReviewKind | undefined {
+  const kind = str(values, "kind");
+  if (kind === undefined || kind === "screen" || kind === "flow") return kind;
+  throw usage("--kind must be screen or flow");
+}
+
+const isNotFound = (error: unknown) =>
+  error instanceof ScreenCommonsApiError && error.code === "not_found";
+
+/** Calls with the kind given, or finds it: no screen shares an id with a flow. */
+async function withKind<T>(
+  kind: ReviewKind | undefined,
+  id: string,
+  call: (kind: ReviewKind) => Promise<T>,
+): Promise<T> {
+  if (kind) return call(kind);
+  try {
+    return await call("screen");
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+  try {
+    return await call("flow");
+  } catch (error) {
+    if (isNotFound(error)) throw new CodedError("not_found", `No screen or flow has id ${id}`);
+    throw error;
+  }
+}
+
+async function stdinLines(): Promise<string[]> {
+  if (process.stdin.isTTY) return [];
+  let text = "";
+  for await (const chunk of process.stdin) text += String(chunk);
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** Reads each status first, so a rerun after a crash or a kill writes only what is left. */
+async function decide(context: Context, decision: keyof typeof DECISIONS) {
+  const kind = kindFlag(context.values);
+  const reason = str(context.values, "reason");
+  const ids = context.positionals.length > 0 ? context.positionals : await stdinLines();
+  if (ids.length === 0) throw usage("Pass ids as arguments or one per line on stdin");
+  const client = context.client();
+  let failed = 0;
+  let next = 0;
+  for (const id of ids) {
+    await sleep(Math.max(0, next - Date.now()));
+    next = Date.now() + REVIEW_INTERVAL_MS;
+    try {
+      const item = await withKind(kind, id, (found) => client.reviewStatus(found, id));
+      if (item.status === DECISIONS[decision].status) {
+        context.emit({ id, kind: item.kind, result: "unchanged" });
+        continue;
+      }
+      await client.review(item.kind, id, decision, reason);
+      context.emit({ id, kind: item.kind, result: DECISIONS[decision].result });
+    } catch (error) {
+      const { code, message } = errorInfo(error, context.origin);
+      if (STOPS_REVIEW.has(EXIT_CODES[code] ?? 1)) throw error;
+      failed += 1;
+      context.emit({ id, result: "failed", error: { code, message } });
+    }
+  }
+  if (failed > 0) throw new CodedError("review_failed", `${failed} of ${ids.length} ids failed`);
+}
+
+const reviewKind = { kind: { help: "screen or flow. Found from each id if omitted" } };
 
 /** A failure that still has a JSON answer for stdout. */
 class PartialFailure extends CodedError {
@@ -546,6 +634,77 @@ const COMMANDS: Tree = {
     },
     run: upload,
   },
+  review: {
+    list: {
+      summary: "List pending screens or flows, oldest first. Admin only",
+      flags: {
+        kind: { help: "screen or flow (required)" },
+        limit: { help: "Items per page, up to 50. Default 25" },
+        cursor: paging.cursor,
+      },
+      run: async ({ values, client, origin }) => {
+        const kind = kindFlag(values);
+        if (!kind) throw usage("Pass --kind screen or --kind flow");
+        const page = await client().reviewQueue({
+          kind,
+          ...flagsOf(values, ["limit", "cursor"]),
+        } as ReviewQueueQuery & { kind: ReviewKind });
+        return {
+          kind: page.kind,
+          items:
+            page.kind === "screen"
+              ? page.items.map((screen) => compactScreen(origin, screen))
+              : page.items.map((flow) => compactFlow(origin, flow)),
+          nextCursor: page.nextCursor,
+        };
+      },
+    },
+    show: {
+      summary: "Show a screen or flow with its status. Admin only for others' pending items",
+      args: ["id"],
+      flags: {
+        ...reviewKind,
+        download: { help: "Also save the screen's image, as screens download does", boolean: true },
+        out: { help: "File to write. Default <id>.<ext> in this folder" },
+        force: { help: "Replace an existing file", boolean: true },
+      },
+      run: async (context) => {
+        const { values, origin } = context;
+        const id = context.positionals[0]!;
+        const client = context.client();
+        const found = await withKind(kindFlag(values), id, async (kind) =>
+          kind === "screen"
+            ? { kind, screen: await client.getScreen(id) }
+            : { kind, flow: await client.getFlow(id) },
+        );
+        if (found.kind === "flow") {
+          if (values.download) throw usage("--download saves a screen's image; a flow has none");
+          return { kind: found.kind, ...flowDetailResult(origin, found.flow) };
+        }
+        return {
+          kind: found.kind,
+          ...screenDetailResult(origin, found.screen),
+          ...(values.download ? { download: await saveImage(context, found.screen) } : {}),
+        };
+      },
+    },
+    approve: {
+      summary:
+        "Publish ids given as arguments or one per line on stdin. Safe to repeat. Admin only",
+      optionalArgs: ["id..."],
+      flags: reviewKind,
+      run: (context) => decide(context, "approve"),
+    },
+    reject: {
+      summary: "Reject ids given as arguments or one per line on stdin. Safe to repeat. Admin only",
+      optionalArgs: ["id..."],
+      flags: {
+        ...reviewKind,
+        reason: { help: "Why, kept with each item. Up to 500 characters" },
+      },
+      run: (context) => decide(context, "reject"),
+    },
+  },
   manifest: {
     validate: {
       summary: "Check a manifest and its local files, without the network. Needs no key",
@@ -578,7 +737,7 @@ const GLOBAL_FLAGS = `Global flags:
 
 const EXIT_HELP = `Exit codes:
   0  Success
-  1  Failed, including a publish where any item failed (see its JSON report)
+  1  Failed, including a publish or review where any item failed (see its JSON output)
   2  Bad input: usage, manifest, image or a request the server refuses as invalid
   3  No API key, a rejected one, or not allowed
   4  Not found
@@ -586,6 +745,8 @@ const EXIT_HELP = `Exit codes:
 `;
 
 const OUTPUT_HELP = `Output: JSON on stdout. Errors are one "code: message" line on stderr.
+review approve and review reject print one JSON line per id as they go, one id per 300 ms.
+A result of unchanged means the item already had that decision.
 `;
 
 function commandHelp(path: string[], command: Command): string {
@@ -772,6 +933,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
       apiKey: instance.apiKey,
       download: doFetch,
       sourceFetch: retryingFetch({ fetch: imageFetchFor(instance.url) }),
+      emit: (value) => print(`${JSON.stringify(value)}\n`),
       anonymousClient,
       client: () => {
         if (!instance.apiKey) {
@@ -788,7 +950,8 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
         });
       },
     };
-    print(await command.run(context));
+    const result = await command.run(context);
+    if (result !== undefined) print(result);
     return 0;
   } catch (error) {
     if (error instanceof PartialFailure) print(error.report);

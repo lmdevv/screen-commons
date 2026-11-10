@@ -7,20 +7,21 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { API_KEY, startMockApi, type MockApi } from "./mock-api";
+import { API_KEY, MEMBER_KEY, startMockApi, type MockApi } from "./mock-api";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 let api: MockApi;
 let dir: string;
 
 /** Asynchronous, because the mock API answers from this process. */
-function run(args: string[], env: Record<string, string> = {}) {
+function run(args: string[], env: Record<string, string> = {}, stdin = "") {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((done, fail) => {
     const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
       cwd: packageDir,
       env: { PATH: process.env.PATH, ...env },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
+    child.stdin.end(stdin);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
@@ -250,6 +251,89 @@ describe("screen text", () => {
     );
     expect(missing.code).toBe(2);
     expect(missing.stderr).toMatch(/^source_unreadable: /u);
+  });
+});
+
+describe("review", () => {
+  const lines = (stdout: string) =>
+    stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+  it("pages one kind of the queue", async () => {
+    const first = await run(["review", "list", "--kind", "screen", "--limit", "2"], withKey());
+    expect(first.code).toBe(0);
+    const page = JSON.parse(first.stdout) as { kind: string; items: { id: string }[] };
+    expect(page).toMatchObject({ kind: "screen", nextCursor: "2" });
+    expect(page.items.map((item) => item.id)).toEqual(["scr_p1", "scr_p2"]);
+    const missing = await run(["review", "list"], withKey());
+    expect(missing.code).toBe(2);
+    expect(missing.stderr).toMatch(/^usage: Pass --kind/u);
+  });
+
+  it("approves ids from stdin once, and a rerun prints unchanged", async () => {
+    const first = await run(
+      ["review", "approve", "--kind", "screen"],
+      withKey(),
+      "scr_p1\n\nscr_p2\n",
+    );
+    expect(first.code).toBe(0);
+    expect(lines(first.stdout)).toEqual([
+      { id: "scr_p1", kind: "screen", result: "approved" },
+      { id: "scr_p2", kind: "screen", result: "approved" },
+    ]);
+    const started = Date.now();
+    const again = await run(["review", "approve", "scr_p1", "scr_p2"], withKey());
+    expect(Date.now() - started).toBeGreaterThanOrEqual(300);
+    expect(again.code).toBe(0);
+    expect(lines(again.stdout).map((line) => line.result)).toEqual(["unchanged", "unchanged"]);
+    expect(api.decisions.filter((item) => item.decision === "approve")).toHaveLength(2);
+  });
+
+  it("finds each id's kind, keeps going past a missing id, and exits 1", async () => {
+    const { code, stdout, stderr } = await run(
+      ["review", "reject", "flow_p1", "nope", "scr_p3", "--reason", "Blurry"],
+      withKey(),
+    );
+    expect(code).toBe(1);
+    expect(lines(stdout)).toEqual([
+      { id: "flow_p1", kind: "flow", result: "rejected" },
+      { id: "nope", result: "failed", error: { code: "not_found", message: expect.any(String) } },
+      { id: "scr_p3", kind: "screen", result: "rejected" },
+    ]);
+    expect(stderr).toBe("review_failed: 1 of 3 ids failed\n");
+    expect(api.decisions.at(-1)).toEqual({
+      kind: "screen",
+      id: "scr_p3",
+      decision: "reject",
+      reason: "Blurry",
+    });
+  });
+
+  it("stops at the first refusal for a member", async () => {
+    const member = { ...withKey(), SCREEN_COMMONS_API_KEY: MEMBER_KEY };
+    const listed = await run(["review", "list", "--kind", "flow"], member);
+    expect(listed.code).toBe(3);
+    expect(listed.stderr).toMatch(/^forbidden: /u);
+    const approved = await run(["review", "approve", "scr_p1", "scr_p2"], member);
+    expect(approved.code).toBe(3);
+    expect(approved.stdout).toBe("");
+  });
+
+  it("shows a screen and saves its image", async () => {
+    const out = join(dir, "review.png");
+    const { code, stdout } = await run(
+      ["review", "show", "scr_p1", "--download", "--out", out],
+      withKey(),
+    );
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({
+      kind: "screen",
+      id: "scr_p1",
+      download: { path: out, type: "image/png" },
+    });
+    expect((await sharp(await readFile(out)).metadata()).format).toBe("png");
   });
 });
 

@@ -1,46 +1,86 @@
-import { reviewDecisionSchema, type ReviewQueue } from "@screen-commons/core";
+import {
+  reviewDecisionSchema,
+  reviewQueueQuerySchema,
+  type ReviewKind,
+  type ReviewQueue,
+  type ReviewStatus,
+} from "@screen-commons/core";
 import { app, flow, flowStep, screen } from "@screen-commons/db";
-import { and, asc, eq, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, lt, ne, sql, type SQL } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { getDb } from "../env";
 import { badRequest, forbidden, notFound, parseInput } from "../errors";
 import { isAdmin, type Principal } from "../principal";
-import { flowSummaries, screensToApi } from "./shared";
-
-const QUEUE_LIMIT = 100;
+import { decodeCursor, encodeCursor, flowSummaries, screensToApi, toPage } from "./shared";
 
 function requireAdmin(principal: Principal) {
   if (!isAdmin(principal)) throw forbidden("Only admins can review contributions");
 }
 
-/** Pending screens and flows, oldest first. */
-export async function reviewQueue(principal: Principal): Promise<ReviewQueue> {
+/** Pending rows after the cursor in (createdAt, id) order, bounded so the status index serves it. */
+function pendingAfter(table: typeof screen | typeof flow, sort: string, cursor?: string): SQL {
+  const pending = eq(table.status, "pending");
+  if (!cursor) return pending;
+  const { key, id } = decodeCursor(cursor, sort);
+  return sql`${pending} AND ${table.createdAt} >= ${key} AND (${table.createdAt} > ${key} OR ${table.id} > ${id})`;
+}
+
+/** One page of pending screens or flows, oldest first. */
+export async function reviewQueue(principal: Principal, input: unknown): Promise<ReviewQueue> {
   requireAdmin(principal);
+  const { kind, cursor, limit } = parseInput(reviewQueueQuerySchema, input);
   const db = getDb();
-  const [screenRows, flowRows] = await Promise.all([
-    db
+  const sort = `review-${kind}`;
+  const cursorOf = (row: { id: string; createdAt: Date }) =>
+    encodeCursor(sort, row.createdAt.getTime(), row.id);
+  if (kind === "screen") {
+    const rows = await db
       .select()
       .from(screen)
-      .where(eq(screen.status, "pending"))
+      .where(pendingAfter(screen, sort, cursor))
       .orderBy(asc(screen.createdAt), asc(screen.id))
-      .limit(QUEUE_LIMIT),
-    db
-      .select()
-      .from(flow)
-      .where(eq(flow.status, "pending"))
-      .orderBy(asc(flow.createdAt), asc(flow.id))
-      .limit(QUEUE_LIMIT),
-  ]);
-  const [screens, flows] = await Promise.all([
-    screensToApi(principal, screenRows),
-    flowSummaries(principal, flowRows),
-  ]);
-  return { screens, flows };
+      .limit(limit + 1);
+    const page = toPage(rows, limit, cursorOf);
+    return { kind, items: await screensToApi(principal, page.rows), nextCursor: page.nextCursor };
+  }
+  const rows = await db
+    .select()
+    .from(flow)
+    .where(pendingAfter(flow, sort, cursor))
+    .orderBy(asc(flow.createdAt), asc(flow.id))
+    .limit(limit + 1);
+  const page = toPage(rows, limit, cursorOf);
+  return { kind, items: await flowSummaries(principal, page.rows), nextCursor: page.nextCursor };
+}
+
+async function findItem(input: string, id: string) {
+  if (input !== "screen" && input !== "flow") throw badRequest("kind must be screen or flow");
+  const kind: ReviewKind = input;
+  const table = kind === "screen" ? screen : flow;
+  const [row] = await getDb()
+    .select({ appId: table.appId, status: table.status })
+    .from(table)
+    .where(eq(table.id, id))
+    .limit(1);
+  if (!row) throw notFound(kind === "screen" ? "Screen" : "Flow");
+  return { kind, table, row };
+}
+
+/** An item's moderation status, read without counting a view as `getScreen` and `getFlow` do. */
+export async function reviewStatus(
+  principal: Principal,
+  kind: string,
+  id: string,
+): Promise<ReviewStatus> {
+  requireAdmin(principal);
+  const item = await findItem(kind, id);
+  return { kind: item.kind, id, status: item.row.status };
 }
 
 /**
- * Approve or reject a screen or flow.
+ * Approve or reject a screen or flow. A decision the item already has writes nothing, so a
+ * repeated or resumed review run changes no row and no `updatedAt`.
  * - Approving publishes the parent app (and bumps its `updatedAt`, since member uploads never
  *   touch a published app themselves); approving a flow also publishes its pending screens.
  * - Rejecting a screen removes it from every flow that contains it (remaining steps are
@@ -53,18 +93,11 @@ export async function review(
   input: unknown,
 ): Promise<void> {
   requireAdmin(principal);
-  if (kind !== "screen" && kind !== "flow") throw badRequest("kind must be screen or flow");
   const { decision, reason } = parseInput(reviewDecisionSchema, input);
+  const { table, row } = await findItem(kind, id);
   const db = getDb();
-  const table = kind === "screen" ? screen : flow;
-  const [row] = await db
-    .select({ id: table.id, appId: table.appId })
-    .from(table)
-    .where(eq(table.id, id))
-    .limit(1);
-  if (!row) throw notFound(kind === "screen" ? "Screen" : "Flow");
-
   const status = decision === "approve" ? "published" : "rejected";
+  if (row.status === status) return;
   const writes: BatchItem<"sqlite">[] = [
     db
       .update(table)

@@ -10,7 +10,11 @@ export const Route = createFileRoute("/_app/review")({
     // Members don't learn this page exists.
     if (context.user.role !== "admin") throw notFound();
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(reviewQueueQuery()),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureInfiniteQueryData(reviewQueueQuery("screen")),
+      context.queryClient.ensureInfiniteQueryData(reviewQueueQuery("flow")),
+    ]),
   head: () => ({ meta: [{ title: "Review · Screen Commons" }] }),
   component: Review,
 });

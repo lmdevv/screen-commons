@@ -26,7 +26,13 @@ import {
   useHotkey,
   useSingleKeyShortcuts,
 } from "@screen-commons/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Check, CheckCheck, ExternalLink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -36,6 +42,7 @@ import { SHORTCUTS } from "../../lib/shortcuts";
 import { errorMessage, notify } from "../../lib/toast";
 import { reviewItem } from "../../server/functions";
 import { patternLabel } from "../contribute/model";
+import { InfiniteSentinel } from "../library/infinite-sentinel";
 import { timeAgo } from "../settings/time";
 import type { Contributor, ReviewQueueDetailed } from "./review.functions";
 import { reviewQueueQuery } from "./queries";
@@ -49,16 +56,42 @@ const SOURCE_LABELS: Record<Screen["source"], string> = {
   seed: "Seed",
 };
 type Item = { kind: "screen"; item: Screen } | { kind: "flow"; item: FlowSummary };
+type Queue = InfiniteData<ReviewQueueDetailed>;
+
+const toItems = (page: ReviewQueueDetailed): Item[] =>
+  page.kind === "screen"
+    ? page.items.map((item) => ({ kind: "screen", item }))
+    : page.items.map((item) => ({ kind: "flow", item }));
+
+const without = (page: ReviewQueueDetailed, ids: Set<string>): ReviewQueueDetailed =>
+  page.kind === "screen"
+    ? { ...page, items: page.items.filter((item) => !ids.has(item.id)) }
+    : { ...page, items: page.items.filter((item) => !ids.has(item.id)) };
+
+interface Count {
+  loaded: number;
+  /** More pages wait on the server. */
+  more: boolean;
+}
+const countOf = (queue: { data?: Queue; hasNextPage: boolean }): Count => ({
+  loaded: queue.data?.pages.reduce((sum, page) => sum + page.items.length, 0) ?? 0,
+  more: queue.hasNextPage,
+});
+const formatCount = ({ loaded, more }: Count) => `${loaded}${more ? "+" : ""}`;
 
 export function ReviewPage({ tab }: { tab: ReviewTab }) {
   const queryClient = useQueryClient();
-  const queue = useQuery(reviewQueueQuery());
-  const data = queue.data;
-  const items: Item[] = data
-    ? tab === "screens"
-      ? data.screens.map((item) => ({ kind: "screen", item }))
-      : data.flows.map((item) => ({ kind: "flow", item }))
-    : [];
+  const queues = {
+    screens: useInfiniteQuery(reviewQueueQuery("screen")),
+    flows: useInfiniteQuery(reviewQueueQuery("flow")),
+  };
+  const queue = queues[tab];
+  const pages = queue.data?.pages ?? [];
+  const items = pages.flatMap(toItems);
+  const contributors: Record<string, Contributor> = Object.assign(
+    {},
+    ...pages.map((page) => page.contributors),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const index = Math.max(
     0,
@@ -83,22 +116,21 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
         },
       }),
     onMutate: async ({ entry, decision }) => {
-      const key = reviewQueueQuery().queryKey;
-      await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<ReviewQueueDetailed>(key);
-      if (previous) {
-        // Approving a flow publishes its pending screens too: drop them from the queue.
-        const alsoScreens =
-          entry.kind === "flow" && decision === "approve"
-            ? new Set(previous.flowScreens[entry.item.id] ?? [])
-            : new Set<string>();
-        queryClient.setQueryData<ReviewQueueDetailed>(key, {
-          ...previous,
-          screens: previous.screens.filter(
-            (s) => !(entry.kind === "screen" && s.id === entry.item.id) && !alsoScreens.has(s.id),
-          ),
-          flows: previous.flows.filter((f) => !(entry.kind === "flow" && f.id === entry.item.id)),
-        });
+      await queryClient.cancelQueries({ queryKey: ["review"] });
+      const keys = [reviewQueueQuery("screen").queryKey, reviewQueueQuery("flow").queryKey];
+      const previous = keys.map((key) => [key, queryClient.getQueryData<Queue>(key)] as const);
+      // Approving a flow publishes its pending screens too: drop them from the queue.
+      const dropped = new Set([
+        entry.item.id,
+        ...(entry.kind === "flow" && decision === "approve"
+          ? pages.flatMap((page) => page.flowScreens[entry.item.id] ?? [])
+          : []),
+      ]);
+      for (const key of keys) {
+        queryClient.setQueryData<Queue>(
+          key,
+          (data) => data && { ...data, pages: data.pages.map((page) => without(page, dropped)) },
+        );
       }
       // Keep the cursor at the same position: the next item slides into place.
       const next = items[index + 1] ?? items[index - 1] ?? null;
@@ -114,12 +146,10 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
       });
     },
     onError: (error, _input, context) => {
-      if (context?.previous)
-        queryClient.setQueryData(reviewQueueQuery().queryKey, context.previous);
+      for (const [key, data] of context?.previous ?? []) queryClient.setQueryData(key, data);
       notify.error(errorMessage(error));
     },
-    onSettled: () =>
-      void queryClient.invalidateQueries({ queryKey: queries.reviewQueue().queryKey }),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ["review"] }),
   });
 
   const approve = () => selected && decide.mutate({ entry: selected, decision: "approve" });
@@ -135,6 +165,7 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
   const move = (step: 1 | -1) => {
     const next = items[index + step];
     if (next) setSelectedId(next.item.id);
+    else if (step === 1 && queue.hasNextPage) void queue.fetchNextPage();
   };
   useHotkey(SHORTCUTS.reviewNext.keys, () => move(1), { ...keys, allowRepeat: true });
   useHotkey(SHORTCUTS.reviewPrevious.keys, () => move(-1), { ...keys, allowRepeat: true });
@@ -145,7 +176,8 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
   });
   const [singleKeys] = useSingleKeyShortcuts();
 
-  const counts = { screens: data?.screens.length ?? 0, flows: data?.flows.length ?? 0 };
+  const counts = { screens: countOf(queues.screens), flows: countOf(queues.flows) };
+  const other = tab === "screens" ? counts.flows : counts.screens;
 
   return (
     <Container ref={pageRef} className="pt-10 pb-24 sm:pt-12">
@@ -175,9 +207,9 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
             key={value}
             active={tab === value}
             badge={
-              counts[value] > 0 ? (
+              counts[value].loaded > 0 ? (
                 <Badge tone={tab === value ? "inverse" : "neutral"} className="tabular-nums">
-                  {counts[value]}
+                  {formatCount(counts[value])}
                 </Badge>
               ) : null
             }
@@ -200,7 +232,7 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
             </div>
             <Skeleton className="hidden aspect-[16/10] rounded-tile lg:block" />
           </div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && !queue.hasNextPage ? (
           <EmptyState
             tone="tile"
             icon={<CheckCheck />}
@@ -211,7 +243,7 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
                 : "No flows are waiting for review."
             }
             actions={
-              (tab === "screens" ? counts.flows : counts.screens) > 0 ? (
+              other.loaded > 0 ? (
                 <Button
                   variant="outline"
                   render={
@@ -219,34 +251,42 @@ export function ReviewPage({ tab }: { tab: ReviewTab }) {
                   }
                 >
                   Review{" "}
-                  {tab === "screens"
-                    ? pluralize(counts.flows, "flow")
-                    : pluralize(counts.screens, "screen")}
+                  {other.more
+                    ? `${formatCount(other)} ${tab === "screens" ? "flows" : "screens"}`
+                    : pluralize(other.loaded, tab === "screens" ? "flow" : "screen")}
                 </Button>
               ) : null
             }
           />
         ) : (
           <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
-            <ul aria-label="Pending items" className="flex flex-col gap-1.5">
-              {items.map((entry) => (
-                <li key={entry.item.id}>
-                  <QueueRow
-                    entry={entry}
-                    contributor={data?.contributors[entry.item.id]}
-                    active={entry.item.id === selected?.item.id}
-                    onSelect={() => setSelectedId(entry.item.id)}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div>
+              <ul aria-label="Pending items" className="flex flex-col gap-1.5">
+                {items.map((entry) => (
+                  <li key={entry.item.id}>
+                    <QueueRow
+                      entry={entry}
+                      contributor={contributors[entry.item.id]}
+                      active={entry.item.id === selected?.item.id}
+                      onSelect={() => setSelectedId(entry.item.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              {queue.hasNextPage ? (
+                <InfiniteSentinel
+                  onVisible={() => void queue.fetchNextPage()}
+                  disabled={queue.isFetchingNextPage}
+                />
+              ) : null}
+            </div>
             {selected ? (
               <div className="max-lg:order-first lg:sticky lg:top-[calc(var(--spacing-topbar)+24px)]">
                 <ItemDetail
                   key={selected.item.id}
                   entry={selected}
-                  contributor={data?.contributors[selected.item.id]}
-                  position={{ index, total: items.length }}
+                  contributor={contributors[selected.item.id]}
+                  position={{ index, total: formatCount(counts[tab]) }}
                   rejecting={rejecting}
                   onRejectingChange={setRejecting}
                   onApprove={approve}
@@ -337,7 +377,7 @@ function ItemDetail({
 }: {
   entry: Item;
   contributor?: Contributor;
-  position: { index: number; total: number };
+  position: { index: number; total: string };
   rejecting: boolean;
   onRejectingChange: (rejecting: boolean) => void;
   onApprove: () => void;

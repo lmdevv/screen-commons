@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { noSuchEndpoint } from "../../../server/http/api";
+import { noSuchEndpoint, query } from "../../../server/http/api";
 import { requireUser } from "../../../server/http/auth";
 import * as services from "../../../server/services";
 
@@ -9,8 +9,8 @@ export const Route = createFileRoute("/api/v1/review")({
   caseSensitive: true,
   server: {
     handlers: {
-      GET: async ({ context }) =>
-        Response.json(await services.reviewQueue(requireUser(context.principal))),
+      GET: async ({ request, context }) =>
+        Response.json(await services.reviewQueue(requireUser(context.principal), query(request))),
       ANY: noSuchEndpoint,
     },
   },

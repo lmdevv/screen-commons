@@ -10,6 +10,10 @@ export const Route = createFileRoute("/api/v1/review/$kind/$id")({
   caseSensitive: true,
   server: {
     handlers: {
+      GET: async ({ params, context }) =>
+        Response.json(
+          await services.reviewStatus(requireUser(context.principal), params.kind, params.id),
+        ),
       POST: async ({ request, params, context }) => {
         await services.review(
           requireUser(context.principal),

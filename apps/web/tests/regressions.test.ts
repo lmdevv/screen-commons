@@ -125,9 +125,7 @@ describe("1. flows never expose screens the viewer can't see", () => {
     const flowId = published.flow!.id;
     await admin.client().review("screen", published.screens[2]!.id, "reject");
     expect((await apiError(other.client().getFlow(flowId))).status).toBe(404);
-    const queue = await admin.client().reviewQueue();
-    const queued = queue.flows.find((item) => item.id === flowId);
-    expect(queued).toMatchObject({ status: "pending", stepCount: 1 });
+    expect(await admin.client().getFlow(flowId)).toMatchObject({ status: "pending", stepCount: 1 });
   });
 });
 
