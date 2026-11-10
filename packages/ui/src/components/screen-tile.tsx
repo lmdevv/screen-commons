@@ -43,6 +43,8 @@ export interface ScreenTileProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   badge?: React.ReactNode;
   /** Show the screen title under the tile. */
   caption?: boolean;
+  /** Full image of a flow step: the tile shows the step whole (`ScreenImage` `fullSrc`). */
+  fullSrc?: string;
 }
 
 /**
@@ -62,6 +64,7 @@ export function ScreenTile({
   variant,
   badge,
   caption = false,
+  fullSrc,
   className,
   ...props
 }: ScreenTileProps) {
@@ -101,6 +104,7 @@ export function ScreenTile({
           >
             <ScreenImage
               src={screen.thumbUrl}
+              fullSrc={fullSrc}
               width={screen.width}
               height={screen.height}
               platform={screen.app.platform}

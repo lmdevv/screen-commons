@@ -1,3 +1,4 @@
+import { thumbnailBox, thumbnailKindFor } from "@screen-commons/core/image-policy";
 import type { Platform } from "@screen-commons/core/taxonomy";
 
 /**
@@ -76,6 +77,39 @@ export function intrinsicSize(
   if (!(width > 0 && height > 0)) return { width: maxWidth, height: Math.round(maxWidth / 1.6) };
   const scale = Math.min(1, maxWidth / width);
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
+/**
+ * A page capture whole in its frame would be narrower than this share of the frame, an unreadable
+ * sliver, so it keeps the top crop instead.
+ */
+const MIN_WHOLE_WIDTH_SHARE = 0.5;
+
+export interface StepSource {
+  src: string;
+  /** Thumbnail and full image, when the thumbnail shows the same picture as the full image. */
+  srcSet?: string;
+  /** `whole`: letterboxed in the frame. `top`: fills the frame's width, cropped at the bottom. */
+  fit: "whole" | "top";
+}
+
+/**
+ * Image source for a flow step, shown whole so a landscape capture keeps its bottom bar. A
+ * thumbnail is a top crop (`thumbnailBox`), so a step taller than the thumbnail ratio is shown
+ * from its full image. Otherwise `srcSet` lets the browser pick the full image when the rendered
+ * size needs more pixels than the thumbnail has, such as on a 2x display.
+ */
+export function stepSource(
+  screen: { thumbUrl: string; imageUrl: string; width: number; height: number },
+  platform: Platform,
+): StepSource {
+  const { thumbUrl, imageUrl, width, height } = screen;
+  const whole = width / height >= FRAME_ASPECT[frameKind(platform)] * MIN_WHOLE_WIDTH_SHARE;
+  const fit = whole ? "whole" : "top";
+  const thumb = thumbnailBox(width, height, thumbnailKindFor(platform));
+  if (whole && thumb.cropped) return { src: imageUrl, fit };
+  if (thumb.width >= width) return { src: thumbUrl, fit };
+  return { src: thumbUrl, srcSet: `${thumbUrl} ${thumb.width}w, ${imageUrl} ${width}w`, fit };
 }
 
 /** `sizes` attribute for grid thumbnails, matching ScreenGrid's column breakpoints. */

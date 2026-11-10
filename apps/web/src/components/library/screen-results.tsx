@@ -84,6 +84,7 @@ export function ScreenResults({
             <ScreenTile
               data-screen-id={screen.id}
               screen={screen}
+              fullSrc={flowId ? screen.imageUrl : undefined}
               showApp={showApp}
               priority={priority && index < firstRow}
               linkRender={screenLink(screen.id, flowId ? index : undefined)}

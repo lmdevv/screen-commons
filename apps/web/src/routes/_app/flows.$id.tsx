@@ -83,7 +83,7 @@ function FlowPage() {
               <p className="max-w-2xl text-md text-fg-muted">{flow.description}</p>
             ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ContributionActions
               key={id}
               kind="flow"
