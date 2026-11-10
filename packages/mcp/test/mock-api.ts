@@ -27,6 +27,7 @@ export interface MockApi {
   flows: unknown[];
   decisions: { kind: string; id: string; decision: string; reason?: string }[];
   login: { status: CliLoginStatus; hashes: string[]; revoked: string[] };
+  mediaRequests: string[];
   close: () => Promise<void>;
 }
 
@@ -110,6 +111,7 @@ export async function startMockApi(): Promise<MockApi> {
     createdAt: "2026-10-01T00:00:00.000Z",
   });
   const login: MockApi["login"] = { status: "approved", hashes: [], revoked: [] };
+  const mediaRequests: string[] = [];
   let counter = 0;
 
   const server = createServer(async (request, response) => {
@@ -119,6 +121,7 @@ export async function startMockApi(): Promise<MockApi> {
       response.end(JSON.stringify(body));
     };
     if (url.pathname.startsWith("/media/")) {
+      mediaRequests.push(url.pathname);
       const isThumb = url.pathname.endsWith(".webp");
       response.writeHead(200, { "content-type": isThumb ? "image/webp" : "image/png" });
       return response.end(isThumb ? thumb : full);
@@ -248,7 +251,12 @@ export async function startMockApi(): Promise<MockApi> {
         return response.end();
       }
       const flowMatch = /^\/flows\/([^/]+)$/u.exec(path);
+      if (request.method === "GET" && flowMatch?.[1] === "missing")
+        return json(404, { error: { code: "not_found", message: "Flow not found" } });
       if ((request.method === "GET" || request.method === "PATCH") && flowMatch) {
+        const pending = flowMatch[1] === "pending";
+        const step = (id: string): Screen =>
+          pending ? { ...screen(id), status: "pending", owned: true } : screen(id);
         const patch =
           request.method === "PATCH"
             ? (JSON.parse(await readBody(request)) as { name?: string })
@@ -261,12 +269,12 @@ export async function startMockApi(): Promise<MockApi> {
           description: null,
           stepCount: 2,
           previews: [],
-          status: "published",
+          status: pending ? "pending" : "published",
           saved: false,
           createdAt: "2026-10-01T00:00:00.000Z",
           steps: [
-            { position: 0, label: "Landing", screen: screen("scr_1") },
-            { position: 1, label: "Pricing", screen: screen("scr_2") },
+            { position: 0, label: "Landing", screen: step("scr_1") },
+            { position: 1, label: "Pricing", screen: step("scr_2") },
           ],
         };
         return json(200, flow);
@@ -312,6 +320,7 @@ export async function startMockApi(): Promise<MockApi> {
     flows,
     decisions,
     login,
+    mediaRequests,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();
