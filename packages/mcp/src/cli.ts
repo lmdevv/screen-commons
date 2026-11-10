@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { resolve } from "node:path";
@@ -34,10 +35,11 @@ import type { z } from "zod";
 import { version } from "../package.json";
 import {
   readProfiles,
+  removeProfile,
   resolveInstance,
+  saveProfile,
   selectProfile,
   writeFileAtomic,
-  writeProfiles,
   type Instance,
   type Profile,
   type ProfileSelection,
@@ -453,9 +455,13 @@ async function login(context: Context) {
     const poll = await api.pollCliLogin({ code: started.code, hash });
     if (poll.status === "approved") {
       const user = await context.connect(origin, token).me();
-      const profiles = await readProfiles(profile.path);
-      profiles[profile.name] = { url: origin, apiKey: token, keyId: poll.keyId, email: user.email };
-      await writeProfiles(profile.path, profiles);
+      await saveProfile(profile.dir, profile.name, {
+        version: 1,
+        url: origin,
+        apiKey: token,
+        keyId: poll.keyId,
+        email: user.email,
+      });
       return new Readable(
         { status: "approved", profile: profile.name, url: origin, user },
         `logged in as ${user.email} (profile ${profile.name})\n`,
@@ -491,7 +497,7 @@ async function revokeSaved(context: Context, saved: Profile): Promise<boolean> {
 }
 
 async function logout(context: Context) {
-  const { name, saved, path } = context.profile;
+  const { name, saved, dir } = context.profile;
   if (!saved) {
     return new Readable(
       { profile: name, removed: false, revoked: false },
@@ -499,9 +505,7 @@ async function logout(context: Context) {
     );
   }
   const revoked = await revokeSaved(context, saved);
-  const profiles = await readProfiles(path);
-  delete profiles[name];
-  await writeProfiles(path, profiles);
+  await removeProfile(dir, name);
   return new Readable(
     { profile: name, url: saved.url, removed: true, revoked },
     `Logged out of ${saved.url} (profile ${name}). ${
@@ -513,8 +517,8 @@ async function logout(context: Context) {
 }
 
 async function listProfiles({ profile }: Context) {
-  const profiles = Object.entries(await readProfiles(profile.path)).map(
-    ([name, { url, email, apiKey }]) => ({
+  const profiles = (await readProfiles(profile.dir)).map(
+    ({ name, profile: { url, email, apiKey } }) => ({
       name,
       url,
       email: email ?? null,
@@ -620,7 +624,14 @@ async function doctor(context: Context) {
         name: "key",
         status: "fail",
         detail: message,
-        fix: code === "unauthorized" ? relogin : undefined,
+        fix:
+          code !== "unauthorized"
+            ? undefined
+            : {
+                flag: "check --api-key",
+                env: `replace or unset SCREEN_COMMONS_API_KEY, which wins over profile ${profile.name}`,
+                profile: relogin,
+              }[instance.sources.apiKey!],
       });
     }
   }
@@ -628,12 +639,14 @@ async function doctor(context: Context) {
   const { findChrome } = await import("@screen-commons/capture");
   const chrome = findChrome();
   checks.push(
-    chrome
+    chrome && existsSync(chrome)
       ? { name: "capture", status: "ok", detail: `Chromium at ${chrome}` }
       : {
           name: "capture",
           status: "warn",
-          detail: "no Chromium found, so screen-commons-mcp can't capture headless",
+          detail: chrome
+            ? `no Chromium at ${chrome}, so screen-commons-mcp can't capture headless`
+            : "no Chromium found, so screen-commons-mcp can't capture headless",
           fix: "install Chromium or Chrome, or set CHROME_PATH",
         },
   );
@@ -1162,7 +1175,9 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
     .map((secret) => secret?.trim())
     .filter((secret): secret is string => Boolean(secret));
   const redact = (value: string) =>
-    secrets.reduce((text, secret) => text.replaceAll(secret, "[redacted]"), value);
+    secrets
+      .filter((secret) => secret.length >= 8)
+      .reduce((text, secret) => text.replaceAll(secret, "[redacted]"), value);
   const print = (text: string) => process.stdout.write(redact(text));
   let wantsJson = false;
   let jsonLines = false;

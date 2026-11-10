@@ -403,18 +403,16 @@ describe("manifest validate", () => {
 });
 
 let homes = 0;
-async function homeWith(profiles?: Record<string, { url: string; apiKey: string }>) {
+async function homeWith(profiles: Record<string, { url: string; apiKey: string }> = {}) {
   const home = join(dir, `profile-home-${(homes += 1)}`);
-  await mkdir(join(home, ".config/screen-commons"), { recursive: true });
-  if (profiles) {
-    await writeFile(
-      join(home, ".config/screen-commons/profiles.json"),
-      JSON.stringify({ version: 1, profiles }),
-    );
+  await mkdir(join(home, ".config/screen-commons/profiles"), { recursive: true });
+  for (const [name, profile] of Object.entries(profiles)) {
+    await writeFile(profileFile(home, name), JSON.stringify({ version: 1, ...profile }));
   }
   return home;
 }
-const profilesFile = (home: string) => join(home, ".config/screen-commons/profiles.json");
+const profileFile = (home: string, name = "default") =>
+  join(home, `.config/screen-commons/profiles/${name}.json`);
 const emailOf = (stdout: string) => (JSON.parse(stdout) as { email: string }).email;
 
 describe("profiles", () => {
@@ -451,8 +449,10 @@ describe("profiles", () => {
     ).toBe("admin@example.com");
   });
 
-  it("never sends a profile's key to another instance", async () => {
+  it("sends a profile's key to its own instance however it is spelled, and nowhere else", async () => {
     const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const shouted = await run(["whoami", "--url", `${api.url.toUpperCase()}/`], { HOME });
+    expect(emailOf(shouted.stdout)).toBe("admin@example.com");
     const elsewhere = await run(["whoami", "--url", "http://127.0.0.1:9"], { HOME });
     expect(elsewhere.code).toBe(3);
     expect(elsewhere.stderr).toMatch(/^missing_api_key: No API key for http:\/\/127\.0\.0\.1:9/u);
@@ -462,12 +462,36 @@ describe("profiles", () => {
     );
   });
 
-  it("refuses a broken profiles file", async () => {
+  it.each([
+    ["not JSON", "{ not json"],
+    ["an empty key", JSON.stringify({ version: 1, url: "http://x.example", apiKey: "" })],
+    ["a one-letter key", JSON.stringify({ version: 1, url: "http://x.example", apiKey: "e" })],
+  ])("refuses a profile with %s", async (_, text) => {
     const HOME = await homeWith();
-    await writeFile(profilesFile(HOME), "{ not json");
-    const { code, stderr } = await run(["whoami"], { HOME });
+    await writeFile(profileFile(HOME), text);
+    const { code, stdout, stderr } = await run(["taxonomy", "--url", api.url], { HOME });
     expect(code).toBe(2);
-    expect(stderr).toMatch(/^invalid_profiles: .*profiles\.json is not a profiles file/u);
+    expect(stdout).toBe("");
+    expect(stderr).toMatch(/^invalid_profiles: .*profiles\/default\.json is not a profile/u);
+  });
+
+  it.each([
+    ["constructor", 0],
+    ["__proto__", 2],
+    ["../escape", 2],
+    [".hidden", 2],
+  ] as const)("takes --profile %s only as a plain file name", async (name, exit) => {
+    const HOME = await homeWith();
+    const args = ["whoami", "--profile", name, "--api-key", API_KEY, "--url", api.url];
+    const { code, stderr } = await run(args, { HOME });
+    expect(code).toBe(exit);
+    if (exit) expect(stderr).toMatch(/^invalid_profiles: Profile names are letters/u);
+  });
+
+  it("ignores a relative XDG_CONFIG_HOME", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const viaRelative = await run(["whoami"], { HOME, XDG_CONFIG_HOME: "cfg" });
+    expect(emailOf(viaRelative.stdout)).toBe("admin@example.com");
   });
 });
 
@@ -482,15 +506,16 @@ describe("login", () => {
     expect(stdout).toContain("Approve it if the page shows BCDF-GHJK");
     expect(stdout).toMatch(/logged in as login@example\.com \(profile default\)\n$/u);
 
-    expect((await stat(profilesFile(HOME))).mode & 0o777).toBe(0o600);
-    const saved = JSON.parse(await readFile(profilesFile(HOME), "utf8")) as {
-      profiles: { default: { url: string; apiKey: string; keyId: string } };
+    expect((await stat(profileFile(HOME))).mode & 0o777).toBe(0o600);
+    const saved = JSON.parse(await readFile(profileFile(HOME), "utf8")) as {
+      url: string;
+      apiKey: string;
+      keyId: string;
     };
-    const { apiKey, url, keyId } = saved.profiles.default;
-    const hash = createHash("sha256").update(apiKey).digest("hex");
+    const hash = createHash("sha256").update(saved.apiKey).digest("hex");
     expect(api.login.hashes).toContain(hash);
-    expect(url).toBe(api.url);
-    expect(stdout).not.toContain(apiKey);
+    expect(saved.url).toBe(api.url);
+    expect(stdout).not.toContain(saved.apiKey);
 
     expect(emailOf((await run(["whoami"], { HOME })).stdout)).toBe("login@example.com");
     expect((await run(["profiles"], { HOME })).stdout).toBe(
@@ -499,11 +524,8 @@ describe("login", () => {
 
     const out = await run(["logout"], { HOME });
     expect(out.stdout).toBe(`Logged out of ${api.url} (profile default). Its key is revoked\n`);
-    expect(api.login.revoked).toContain(keyId);
-    expect(JSON.parse(await readFile(profilesFile(HOME), "utf8"))).toEqual({
-      version: 1,
-      profiles: {},
-    });
+    expect(api.login.revoked).toContain(saved.keyId);
+    await expect(stat(profileFile(HOME))).rejects.toThrow();
     const again = await run(["logout", "--json"], { HOME });
     expect(again.code).toBe(0);
     expect(JSON.parse(again.stdout)).toEqual({
@@ -512,6 +534,20 @@ describe("login", () => {
       removed: false,
       revoked: false,
     });
+  });
+
+  it("keeps every profile when logins run at the same time", async () => {
+    api.login.status = "approved";
+    const HOME = await homeWith();
+    const names = ["p1", "p2", "p3", "p4", "p5", "p6"];
+    const results = await Promise.all(
+      names.map((name) => run(["login", "--url", api.url, "--profile", name, "--json"], { HOME })),
+    );
+    expect(results.map((result) => result.code)).toEqual(names.map(() => 0));
+    const listed = JSON.parse((await run(["profiles", "--json"], { HOME })).stdout) as {
+      profiles: { name: string }[];
+    };
+    expect(listed.profiles.map((item) => item.name)).toEqual(names);
   });
 
   it("prints one JSON line when it starts waiting and one when it's done", async () => {
@@ -552,7 +588,7 @@ describe("login", () => {
     const { code, stderr } = await run(["login", "--url", api.url], { HOME });
     expect(code).toBe(3);
     expect(stderr).toMatch(new RegExp(`^${error}: `, "u"));
-    await expect(stat(profilesFile(HOME))).rejects.toThrow();
+    await expect(stat(profileFile(HOME))).rejects.toThrow();
   });
 });
 
@@ -593,5 +629,24 @@ describe("doctor", () => {
       }),
       expect.objectContaining({ name: "key", status: "skip" }),
     ]);
+  });
+
+  it("names the variable when a key from the environment is rejected", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const { code, stdout } = await run(["doctor"], {
+      HOME,
+      SCREEN_COMMONS_API_KEY: "sc_stale_key",
+    });
+    expect(code).toBe(1);
+    expect(stdout).toMatch(
+      /^FAIL {2}key {7}.*Fix: replace or unset SCREEN_COMMONS_API_KEY, which wins over profile default$/mu,
+    );
+  });
+
+  it("warns when CHROME_PATH points at nothing", async () => {
+    const HOME = await homeWith({ default: { url: api.url, apiKey: API_KEY } });
+    const { code, stdout } = await run(["doctor"], { HOME, CHROME_PATH: "/nonexistent/chromium" });
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/^warn {2}capture {3}no Chromium at \/nonexistent\/chromium/mu);
   });
 });
