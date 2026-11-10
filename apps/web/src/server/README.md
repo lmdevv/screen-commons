@@ -54,10 +54,14 @@ src/server/
   `maxThumbnailBytes`, 512 KiB logos) and the batch by `LIMITS.maxBatchBytes` (28 MiB decoded) —
   split larger batches. Images are then decoded, validated and stored one at a time.
 - **Pagination.** `{ items, nextCursor }`; pass `nextCursor` back as `cursor`. Cursors are opaque
-  and tied to the sort (`latest` | `popular`). Popular = `save_count * 4 + view_count` (apps also
-  add their published screens' scores).
-- **Search.** FTS5 with prefix matching; all terms must match (AND). When the viewer has no AND
-  results under the same filters and visibility, terms are OR-ed instead.
+  and tied to the sort (`latest` | `popular`), or for a screen or flow search to its mode
+  (`strict` | `relaxed`). Popular = `save_count * 4 + view_count` (apps also add their published
+  screens' scores).
+- **Search.** FTS5 with prefix matching. `listApps` and `search` need every term (AND), and OR
+  them when the viewer has no AND results under the same filters and visibility. `listScreens`
+  and `listFlows` read the query with `planSearchQuery` (core): an app the query names becomes a
+  filter, results rank by bm25, and when fewer than `MIN_STRICT_RESULTS` rows contain every term,
+  rows with some of them follow, most terms first. Pages carry `match`.
 - **Media.** Entity media URLs (`imageUrl` / `thumbUrl` / `logoUrl` on apps, screens, flows,
   collections — REST, server functions) are always relative `/media/<kind>/<sha256>[.v<n>[-kind]].<ext>` paths.
   The one exception is the `POST /api/v1/captures` response (`submitCaptures`), where every URL
