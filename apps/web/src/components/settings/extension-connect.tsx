@@ -249,7 +249,7 @@ export function ExtensionConnect() {
   );
 }
 
-function Panel({
+export function Panel({
   tone = "neutral",
   icon,
   title,

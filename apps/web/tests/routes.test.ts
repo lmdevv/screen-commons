@@ -37,6 +37,9 @@ const ENDPOINTS = [
   ["GET", "/keys"],
   ["POST", "/keys"],
   ["DELETE", "/keys/:id"],
+  ["POST", "/cli-login"],
+  ["POST", "/cli-login/poll"],
+  ["POST", "/cli-login/decision"],
   ["GET", "/review"],
   ["GET", "/review/:kind/:id"],
   ["POST", "/review/:kind/:id"],
@@ -44,6 +47,7 @@ const ENDPOINTS = [
 ] as const;
 
 const PUBLIC = new Set(["GET /taxonomy"]);
+const ANONYMOUS = new Set(["POST /cli-login", "POST /cli-login/poll"]);
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const XO = "chrome-extension://abc";
 
@@ -68,7 +72,7 @@ async function expectNoSuchEndpoint(response: Response) {
 
 describe("REST route table", () => {
   it("has a file route for every endpoint, and no others", () => {
-    expect(ENDPOINTS).toHaveLength(32);
+    expect(ENDPOINTS).toHaveLength(35);
     const tree = readFileSync(new URL("../src/routeTree.gen.ts", import.meta.url), "utf8");
     const byFullPath = tree.slice(tree.indexOf("interface FileRoutesByFullPath"));
     const routed = new Set(
@@ -92,6 +96,9 @@ describe("REST route table", () => {
       const body = await response.json();
       if (PUBLIC.has(`${method} ${path}`)) {
         expect(response.status).toBe(200);
+      } else if (ANONYMOUS.has(`${method} ${path}`)) {
+        expect(response.status).toBe(400);
+        expect(body.error.code).toBe("bad_request");
       } else {
         expect(response.status).toBe(401);
         expect(body).toEqual({ error: { code: "unauthorized", message: expect.any(String) } });

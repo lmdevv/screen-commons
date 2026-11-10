@@ -1,6 +1,10 @@
+import { createHash, randomBytes } from "node:crypto";
+
 import {
   ScreenCommonsApiError,
+  createScreenCommonsClient,
   type CaptureBatchResult,
+  type CliLoginView,
   type ScreenCommonsClient,
 } from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
@@ -122,6 +126,171 @@ describe("api keys", () => {
     expect((await admin.client().listKeys()).items.map((key) => key.id)).not.toContain(
       throwaway.key.id,
     );
+  });
+});
+
+describe("cli login", () => {
+  const anonymous = () => createScreenCommonsClient({ baseUrl: baseUrl() });
+
+  async function startLogin(token = `sc_${randomBytes(32).toString("base64url")}`) {
+    const hash = createHash("sha256").update(token).digest("hex");
+    const started = await anonymous().startCliLogin({
+      hash,
+      prefix: token.slice(0, 8),
+      device: "test-host",
+    });
+    return {
+      ...started,
+      token,
+      hash,
+      poll: () => anonymous().pollCliLogin({ code: started.code, hash }),
+    };
+  }
+
+  const decide = (session: Session, code: string, decision: "approve" | "deny") =>
+    session.fetch("/api/v1/cli-login/decision", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, decision }),
+    });
+
+  async function decided(session: Session, code: string, decision: "approve" | "deny") {
+    const response = await decide(session, code, decision);
+    expect(response.status).toBe(200);
+    return (await response.json()) as CliLoginView;
+  }
+
+  async function refused(session: Session, code: string, decision: "approve" | "deny") {
+    const response = await decide(session, code, decision);
+    expect(response.status).toBe(409);
+    return ((await response.json()) as { error: { code: string; message: string } }).error;
+  }
+
+  const expire = (code: string) =>
+    d1(`UPDATE verification SET expires_at = 0 WHERE identifier = 'cli-login:${code}'`);
+
+  it("starts pending, and one approval turns the CLI's own token into a key", async () => {
+    const login = await startLogin();
+    expect(login.code).toMatch(/^[B-Z]{4}-[B-Z]{4}$/u);
+    expect(login.url).toBe(`${baseUrl()}/cli-login?code=${login.code}`);
+    expect(login.interval).toBe(2);
+    expect(Date.parse(login.expiresAt) - Date.now()).toBeGreaterThan(9 * 60_000);
+    expect(await login.poll()).toEqual({ status: "pending" });
+    await expectApiError(keyClient(login.token).me(), 401, "unauthorized");
+
+    const both = await Promise.all([
+      decided(admin, login.code, "approve"),
+      decided(admin, login.code, "approve"),
+    ]);
+    expect(both.map((result) => result.status)).toEqual(["approved", "approved"]);
+    expect(both[0]).toMatchObject({ code: login.code, device: "test-host" });
+
+    const poll = await login.poll();
+    expect(poll).toEqual({ status: "approved", keyId: expect.any(String) });
+    expect((await login.poll()).status).toBe("approved");
+    expect((await keyClient(login.token).me()).email).toBe(inject("admin").email);
+
+    expect((await decided(admin, login.code, "approve")).status).toBe("approved");
+    const keys = (await admin.client().listKeys()).items.filter(
+      (key) => key.prefix === login.token.slice(0, 8),
+    );
+    expect(keys).toEqual([
+      expect.objectContaining({
+        id: (poll as { keyId: string }).keyId,
+        name: "CLI login on test-host",
+      }),
+    ]);
+
+    expect((await refused(member, login.code, "approve")).message).toMatch(/already approved/u);
+    expect((await refused(admin, login.code, "deny")).message).toMatch(/already approved/u);
+  });
+
+  it("lets a login key manage keys, and no other key", async () => {
+    const login = await startLogin();
+    await decided(member, login.code, "approve");
+    const loginApi = keyClient(login.token);
+
+    const made = await loginApi.createKey("Made from the CLI");
+    expect((await loginApi.listKeys()).items.map((key) => key.id)).toContain(made.key.id);
+    const madeApi = keyClient(made.token);
+    expect((await madeApi.me()).role).toBe("member");
+    await expectApiError(madeApi.listKeys(), 403, "forbidden");
+    await expectApiError(madeApi.createKey("Nope"), 403, "forbidden");
+
+    await loginApi.revokeKey(made.key.id);
+    await expectApiError(madeApi.me(), 401, "unauthorized");
+    await expectApiError(adminApi.listKeys(), 403, "forbidden");
+  });
+
+  it("denies: no key, and the decision sticks", async () => {
+    const login = await startLogin();
+    expect((await decided(member, login.code, "deny")).status).toBe("denied");
+    expect((await decided(member, login.code, "deny")).status).toBe("denied");
+    expect(await login.poll()).toEqual({ status: "denied" });
+    expect((await refused(member, login.code, "approve")).message).toMatch(/already denied/u);
+    await expectApiError(keyClient(login.token).me(), 401, "unauthorized");
+  });
+
+  it("expires: a poll after expiry says so, and the code no longer approves", async () => {
+    const login = await startLogin();
+    await expire(login.code);
+    expect(await login.poll()).toEqual({ status: "expired" });
+    expect((await refused(admin, login.code, "approve")).message).toMatch(/expired/u);
+    await expectApiError(keyClient(login.token).me(), 401, "unauthorized");
+
+    await d1(`DELETE FROM verification WHERE identifier = 'cli-login:${login.code}'`);
+    expect(await login.poll()).toEqual({ status: "expired" });
+  });
+
+  it("clears expired requests when a new login starts", async () => {
+    const stale = await startLogin();
+    await expire(stale.code);
+    await startLogin();
+    expect(
+      await d1(`SELECT id FROM verification WHERE identifier = 'cli-login:${stale.code}'`),
+    ).toEqual([]);
+  });
+
+  it("refuses to approve a token that is already a key", async () => {
+    const first = await startLogin();
+    await decided(admin, first.code, "approve");
+    const reused = await startLogin(first.token);
+    expect((await refused(admin, reused.code, "approve")).message).toMatch(/can't be approved/u);
+    expect(await reused.poll()).toEqual({ status: "pending" });
+    expect((await keyClient(first.token).me()).email).toBe(inject("admin").email);
+  });
+
+  it("answers a poll only with its own hash", async () => {
+    const login = await startLogin();
+    const other = createHash("sha256").update("not the token").digest("hex");
+    expect(await anonymous().pollCliLogin({ code: login.code, hash: other })).toEqual({
+      status: "expired",
+    });
+    expect(await login.poll()).toEqual({ status: "pending" });
+  });
+
+  it("approves only from a signed-in browser, and checks its input", async () => {
+    const login = await startLogin();
+    const viaKey = await fetch(`${baseUrl()}/api/v1/cli-login/decision`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${adminKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ code: login.code, decision: "approve" }),
+    });
+    expect(viaKey.status).toBe(403);
+    const anonymousDecision = await fetch(`${baseUrl()}/api/v1/cli-login/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: login.code, decision: "approve" }),
+    });
+    expect(anonymousDecision.status).toBe(401);
+    expect(await login.poll()).toEqual({ status: "pending" });
+
+    await expectApiError(
+      anonymous().startCliLogin({ hash: "abc", prefix: "sc_12345", device: "x" }),
+      400,
+      "bad_request",
+    );
+    expect((await decide(admin, "not-a-code", "approve")).status).toBe(400);
   });
 });
 

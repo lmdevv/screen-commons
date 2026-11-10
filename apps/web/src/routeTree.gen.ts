@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as CliLoginRouteImport } from './routes/cli-login'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as SignInRouteImport } from './routes/sign-in'
@@ -34,6 +35,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as ApiV1AppsRouteImport } from './routes/api/v1/apps'
 import { Route as ApiV1CapturesRouteImport } from './routes/api/v1/captures'
+import { Route as ApiV1CliLoginRouteImport } from './routes/api/v1/cli-login'
 import { Route as ApiV1CollectionsRouteImport } from './routes/api/v1/collections'
 import { Route as ApiV1FlowsRouteImport } from './routes/api/v1/flows'
 import { Route as ApiV1KeysRouteImport } from './routes/api/v1/keys'
@@ -44,6 +46,8 @@ import { Route as ApiV1ScreensRouteImport } from './routes/api/v1/screens'
 import { Route as ApiV1SearchRouteImport } from './routes/api/v1/search'
 import { Route as ApiV1TaxonomyRouteImport } from './routes/api/v1/taxonomy'
 import { Route as ApiV1AppsSlugRouteImport } from './routes/api/v1/apps.$slug'
+import { Route as ApiV1CliLoginDecisionRouteImport } from './routes/api/v1/cli-login.decision'
+import { Route as ApiV1CliLoginPollRouteImport } from './routes/api/v1/cli-login.poll'
 import { Route as ApiV1CollectionsIdRouteImport } from './routes/api/v1/collections.$id'
 import { Route as ApiV1FlowsIdRouteImport } from './routes/api/v1/flows.$id'
 import { Route as ApiV1KeysIdRouteImport } from './routes/api/v1/keys.$id'
@@ -59,6 +63,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CliLoginRoute = CliLoginRouteImport.update({
+  id: '/cli-login',
+  path: '/cli-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsRoute = DocsRouteImport.update({
@@ -176,6 +185,11 @@ const ApiV1CapturesRoute = ApiV1CapturesRouteImport.update({
   path: '/captures',
   getParentRoute: () => ApiV1RouteRoute,
 } as any)
+const ApiV1CliLoginRoute = ApiV1CliLoginRouteImport.update({
+  id: '/cli-login',
+  path: '/cli-login',
+  getParentRoute: () => ApiV1RouteRoute,
+} as any)
 const ApiV1CollectionsRoute = ApiV1CollectionsRouteImport.update({
   id: '/collections',
   path: '/collections',
@@ -226,6 +240,16 @@ const ApiV1AppsSlugRoute = ApiV1AppsSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ApiV1AppsRoute,
 } as any)
+const ApiV1CliLoginDecisionRoute = ApiV1CliLoginDecisionRouteImport.update({
+  id: '/decision',
+  path: '/decision',
+  getParentRoute: () => ApiV1CliLoginRoute,
+} as any)
+const ApiV1CliLoginPollRoute = ApiV1CliLoginPollRouteImport.update({
+  id: '/poll',
+  path: '/poll',
+  getParentRoute: () => ApiV1CliLoginRoute,
+} as any)
 const ApiV1CollectionsIdRoute = ApiV1CollectionsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -264,6 +288,7 @@ const ApiV1ReviewKindIdRoute = ApiV1ReviewKindIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cli-login': typeof CliLoginRoute
   '/docs': typeof DocsRouteWithChildren
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
@@ -286,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
   '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/cli-login': typeof ApiV1CliLoginRouteWithChildren
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
@@ -297,6 +323,8 @@ export interface FileRoutesByFullPath {
   '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/saved/': typeof AppSavedIndexRoute
   '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/cli-login/decision': typeof ApiV1CliLoginDecisionRoute
+  '/api/v1/cli-login/poll': typeof ApiV1CliLoginPollRoute
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
@@ -307,6 +335,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cli-login': typeof CliLoginRoute
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -328,6 +357,7 @@ export interface FileRoutesByTo {
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
   '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/cli-login': typeof ApiV1CliLoginRouteWithChildren
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
@@ -339,6 +369,8 @@ export interface FileRoutesByTo {
   '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/saved': typeof AppSavedIndexRoute
   '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/cli-login/decision': typeof ApiV1CliLoginDecisionRoute
+  '/api/v1/cli-login/poll': typeof ApiV1CliLoginPollRoute
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
@@ -351,6 +383,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/cli-login': typeof CliLoginRoute
   '/docs': typeof DocsRouteWithChildren
   '/mcp': typeof McpRoute
   '/sign-in': typeof SignInRoute
@@ -373,6 +406,7 @@ export interface FileRoutesById {
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/v1/apps': typeof ApiV1AppsRouteWithChildren
   '/api/v1/captures': typeof ApiV1CapturesRoute
+  '/api/v1/cli-login': typeof ApiV1CliLoginRouteWithChildren
   '/api/v1/collections': typeof ApiV1CollectionsRouteWithChildren
   '/api/v1/flows': typeof ApiV1FlowsRouteWithChildren
   '/api/v1/keys': typeof ApiV1KeysRouteWithChildren
@@ -384,6 +418,8 @@ export interface FileRoutesById {
   '/api/v1/taxonomy': typeof ApiV1TaxonomyRoute
   '/_app/saved/': typeof AppSavedIndexRoute
   '/api/v1/apps/$slug': typeof ApiV1AppsSlugRoute
+  '/api/v1/cli-login/decision': typeof ApiV1CliLoginDecisionRoute
+  '/api/v1/cli-login/poll': typeof ApiV1CliLoginPollRoute
   '/api/v1/collections/$id': typeof ApiV1CollectionsIdRouteWithChildren
   '/api/v1/flows/$id': typeof ApiV1FlowsIdRoute
   '/api/v1/keys/$id': typeof ApiV1KeysIdRoute
@@ -396,6 +432,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/cli-login'
     | '/docs'
     | '/mcp'
     | '/sign-in'
@@ -418,6 +455,7 @@ export interface FileRouteTypes {
     | '/api/v1/$'
     | '/api/v1/apps'
     | '/api/v1/captures'
+    | '/api/v1/cli-login'
     | '/api/v1/collections'
     | '/api/v1/flows'
     | '/api/v1/keys'
@@ -429,6 +467,8 @@ export interface FileRouteTypes {
     | '/api/v1/taxonomy'
     | '/saved/'
     | '/api/v1/apps/$slug'
+    | '/api/v1/cli-login/decision'
+    | '/api/v1/cli-login/poll'
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
@@ -439,6 +479,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cli-login'
     | '/mcp'
     | '/sign-in'
     | '/sign-up'
@@ -460,6 +501,7 @@ export interface FileRouteTypes {
     | '/api/v1/$'
     | '/api/v1/apps'
     | '/api/v1/captures'
+    | '/api/v1/cli-login'
     | '/api/v1/collections'
     | '/api/v1/flows'
     | '/api/v1/keys'
@@ -471,6 +513,8 @@ export interface FileRouteTypes {
     | '/api/v1/taxonomy'
     | '/saved'
     | '/api/v1/apps/$slug'
+    | '/api/v1/cli-login/decision'
+    | '/api/v1/cli-login/poll'
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
@@ -482,6 +526,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/cli-login'
     | '/docs'
     | '/mcp'
     | '/sign-in'
@@ -504,6 +549,7 @@ export interface FileRouteTypes {
     | '/api/v1/$'
     | '/api/v1/apps'
     | '/api/v1/captures'
+    | '/api/v1/cli-login'
     | '/api/v1/collections'
     | '/api/v1/flows'
     | '/api/v1/keys'
@@ -515,6 +561,8 @@ export interface FileRouteTypes {
     | '/api/v1/taxonomy'
     | '/_app/saved/'
     | '/api/v1/apps/$slug'
+    | '/api/v1/cli-login/decision'
+    | '/api/v1/cli-login/poll'
     | '/api/v1/collections/$id'
     | '/api/v1/flows/$id'
     | '/api/v1/keys/$id'
@@ -527,6 +575,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  CliLoginRoute: typeof CliLoginRoute
   DocsRoute: typeof DocsRouteWithChildren
   McpRoute: typeof McpRoute
   SignInRoute: typeof SignInRoute
@@ -551,6 +600,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cli-login': {
+      id: '/cli-login'
+      path: '/cli-login'
+      fullPath: '/cli-login'
+      preLoaderRoute: typeof CliLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs': {
@@ -714,6 +770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1CapturesRouteImport
       parentRoute: typeof ApiV1RouteRoute
     }
+    '/api/v1/cli-login': {
+      id: '/api/v1/cli-login'
+      path: '/cli-login'
+      fullPath: '/api/v1/cli-login'
+      preLoaderRoute: typeof ApiV1CliLoginRouteImport
+      parentRoute: typeof ApiV1RouteRoute
+    }
     '/api/v1/collections': {
       id: '/api/v1/collections'
       path: '/collections'
@@ -783,6 +846,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/v1/apps/$slug'
       preLoaderRoute: typeof ApiV1AppsSlugRouteImport
       parentRoute: typeof ApiV1AppsRoute
+    }
+    '/api/v1/cli-login/decision': {
+      id: '/api/v1/cli-login/decision'
+      path: '/decision'
+      fullPath: '/api/v1/cli-login/decision'
+      preLoaderRoute: typeof ApiV1CliLoginDecisionRouteImport
+      parentRoute: typeof ApiV1CliLoginRoute
+    }
+    '/api/v1/cli-login/poll': {
+      id: '/api/v1/cli-login/poll'
+      path: '/poll'
+      fullPath: '/api/v1/cli-login/poll'
+      preLoaderRoute: typeof ApiV1CliLoginPollRouteImport
+      parentRoute: typeof ApiV1CliLoginRoute
     }
     '/api/v1/collections/$id': {
       id: '/api/v1/collections/$id'
@@ -888,6 +965,20 @@ const ApiV1AppsRouteWithChildren = ApiV1AppsRoute._addFileChildren(
   ApiV1AppsRouteChildren,
 )
 
+interface ApiV1CliLoginRouteChildren {
+  ApiV1CliLoginDecisionRoute: typeof ApiV1CliLoginDecisionRoute
+  ApiV1CliLoginPollRoute: typeof ApiV1CliLoginPollRoute
+}
+
+const ApiV1CliLoginRouteChildren: ApiV1CliLoginRouteChildren = {
+  ApiV1CliLoginDecisionRoute: ApiV1CliLoginDecisionRoute,
+  ApiV1CliLoginPollRoute: ApiV1CliLoginPollRoute,
+}
+
+const ApiV1CliLoginRouteWithChildren = ApiV1CliLoginRoute._addFileChildren(
+  ApiV1CliLoginRouteChildren,
+)
+
 interface ApiV1CollectionsIdRouteChildren {
   ApiV1CollectionsIdItemsRoute: typeof ApiV1CollectionsIdItemsRoute
 }
@@ -962,6 +1053,7 @@ interface ApiV1RouteRouteChildren {
   ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiV1AppsRoute: typeof ApiV1AppsRouteWithChildren
   ApiV1CapturesRoute: typeof ApiV1CapturesRoute
+  ApiV1CliLoginRoute: typeof ApiV1CliLoginRouteWithChildren
   ApiV1CollectionsRoute: typeof ApiV1CollectionsRouteWithChildren
   ApiV1FlowsRoute: typeof ApiV1FlowsRouteWithChildren
   ApiV1KeysRoute: typeof ApiV1KeysRouteWithChildren
@@ -978,6 +1070,7 @@ const ApiV1RouteRouteChildren: ApiV1RouteRouteChildren = {
   ApiV1SplatRoute: ApiV1SplatRoute,
   ApiV1AppsRoute: ApiV1AppsRouteWithChildren,
   ApiV1CapturesRoute: ApiV1CapturesRoute,
+  ApiV1CliLoginRoute: ApiV1CliLoginRouteWithChildren,
   ApiV1CollectionsRoute: ApiV1CollectionsRouteWithChildren,
   ApiV1FlowsRoute: ApiV1FlowsRouteWithChildren,
   ApiV1KeysRoute: ApiV1KeysRouteWithChildren,
@@ -997,6 +1090,7 @@ const ApiV1RouteRouteWithChildren = ApiV1RouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  CliLoginRoute: CliLoginRoute,
   DocsRoute: DocsRouteWithChildren,
   McpRoute: McpRoute,
   SignInRoute: SignInRoute,
