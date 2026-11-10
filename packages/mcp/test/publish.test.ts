@@ -234,6 +234,26 @@ describe("publishManifest", () => {
     expect(small.batches.reduce((sum, batch) => sum + batch.screens, 0)).toBe(4);
   });
 
+  it("stores screen text, and a republish that changes only text patches only text", async () => {
+    const catalog = fakeCatalog();
+    const input = manifestInput();
+    input.screens[0]!.text = "Blend\n  Invite friends";
+    await publish(catalog, input);
+    expect(catalog.screens.get("scr_1")!.text).toBe("Blend Invite friends");
+    await publish(catalog, input);
+    expect(catalog.writes()).toEqual([]);
+
+    input.screens[0]!.text = "Folder";
+    expect((await publish(catalog, input)).ok).toBe(true);
+    delete input.screens[0]!.text;
+    await publish(catalog, input);
+    expect(catalog.writes().map(({ path, body }) => [path, body])).toEqual([
+      ["/screens/scr_1", { text: "Folder" }],
+      ["/screens/scr_1", { text: null }],
+    ]);
+    expect(catalog.screens.get("scr_1")!.text).toBeNull();
+  });
+
   it("gives identical images one row, and says whose metadata applies", async () => {
     const catalog = fakeCatalog();
     const input = manifestInput();

@@ -182,6 +182,77 @@ describe("commands", () => {
   });
 });
 
+describe("screen text", () => {
+  const shot = async () => {
+    const path = join(dir, "text-shot.png");
+    await writeFile(
+      path,
+      await sharp({ create: { width: 64, height: 40, channels: 3, background: "#654321" } })
+        .png()
+        .toBuffer(),
+    );
+    return path;
+  };
+
+  it("uploads --text and --text-file with the screen", async () => {
+    const image = await shot();
+    const inline = await run(
+      ["upload", image, "--app-name", "Demo", "--text", "Blend Invite friends"],
+      withKey(),
+    );
+    expect(inline.code).toBe(0);
+    expect(api.batches.at(-1)!.screens[0]!.text).toBe("Blend Invite friends");
+
+    const file = join(dir, "text.txt");
+    await writeFile(file, "Playlist\nFolder\n");
+    const fromFile = await run(
+      ["upload", image, "--app-name", "Demo", "--text-file", file],
+      withKey(),
+    );
+    expect(fromFile.code).toBe(0);
+    expect(api.batches.at(-1)!.screens[0]!.text).toBe("Playlist Folder");
+  });
+
+  it("updates text and shows it", async () => {
+    const file = join(dir, "update.txt");
+    await writeFile(file, "Folder");
+    for (const flag of [
+      ["--text", "Folder"],
+      ["--text-file", file],
+    ]) {
+      const { code, stdout } = await run(["screens", "update", "scr_1", ...flag], withKey());
+      expect(code).toBe(0);
+      expect(JSON.parse(stdout)).toMatchObject({ id: "scr_1", text: "Folder" });
+    }
+  });
+
+  it("refuses text over 20,000 characters, both flags, and a missing file", async () => {
+    const image = await shot();
+    const long = "x".repeat(20_001);
+    const batches = api.batches.length;
+    const upload = await run(["upload", image, "--app-name", "Demo", "--text", long], withKey());
+    expect(upload.code).toBe(2);
+    expect(upload.stderr).toMatch(/^invalid_manifest: screens\.0\.text: /u);
+    const update = await run(["screens", "update", "scr_1", "--text", long], withKey());
+    expect(update.code).toBe(2);
+    expect(update.stderr).toMatch(/^bad_request: text: /u);
+    expect(api.batches.length).toBe(batches);
+
+    const both = await run(
+      ["screens", "update", "scr_1", "--text", "a", "--text-file", join(dir, "update.txt")],
+      withKey(),
+    );
+    expect(both.code).toBe(2);
+    expect(both.stderr).toMatch(/^usage: Pass --text or --text-file/u);
+    const missing = await run(
+      ["screens", "update", "scr_1", "--text-file", join(dir, "absent.txt")],
+      withKey(),
+    );
+    expect(missing.code).toBe(2);
+    expect(missing.stderr).toMatch(/^source_unreadable: /u);
+  });
+});
+
 describe("manifest validate", () => {
   it("passes a good manifest with no key and no network", async () => {
     const good = join(dir, "good.png");

@@ -62,6 +62,14 @@ describe("captureManifestSchema", () => {
     expect(issues(manifest)).toEqual(["flows.0.steps"]);
   });
 
+  it("takes screen text up to 20,000 characters, and stays valid without it", () => {
+    const manifest = valid();
+    manifest.screens[0]!.text = "x".repeat(20_000);
+    expect(issues(manifest)).toEqual([]);
+    manifest.screens[0]!.text += "x";
+    expect(issues(manifest)).toEqual(["screens.0.text"]);
+  });
+
   it("takes https sources only, and refuses unknown fields and bad dates", () => {
     const manifest = valid();
     manifest.screens[1]!.source = { url: "http://acme.example.com/b.png" };

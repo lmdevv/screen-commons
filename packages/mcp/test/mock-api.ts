@@ -45,6 +45,7 @@ const screen = (id: string): Screen => ({
   tags: [],
   version: "Oct 2026",
   dominantColor: "#000000",
+  text: null,
   status: "published",
   source: "seed",
   saved: false,
@@ -121,10 +122,11 @@ export async function startMockApi(): Promise<MockApi> {
         return json(200, detail);
       }
       if (request.method === "PATCH" && screenMatch) {
-        const patch = JSON.parse(await readBody(request)) as { title?: string };
+        const patch = JSON.parse(await readBody(request)) as { title?: string; text?: string };
         const detail: ScreenDetail = {
           ...screen(screenMatch[1]!),
           title: patch.title ?? null,
+          text: patch.text ?? null,
           previousId: null,
           nextId: null,
           flows: [],

@@ -66,6 +66,7 @@ export function screenDetailResult(origin: string, screen: ScreenDetail) {
   return {
     ...compactScreen(origin, screen),
     version: screen.version,
+    text: screen.text,
     capturedAt: screen.capturedAt,
     previousId: screen.previousId,
     nextId: screen.nextId,

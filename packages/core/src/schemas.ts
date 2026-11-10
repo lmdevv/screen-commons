@@ -101,6 +101,7 @@ export const screenSchema = z.object({
   tags: z.array(z.string()),
   version: z.string().nullable(),
   dominantColor: hexColor.nullable(),
+  text: z.string().nullable(),
   status: statusSchema,
   source: sourceSchema,
   saved: z.boolean(),
@@ -256,6 +257,7 @@ export const updateScreenInputSchema = z.object({
   patterns: screenMetaSchema.shape.patterns.removeDefault().optional(),
   elements: screenMetaSchema.shape.elements.removeDefault().optional(),
   tags: screenMetaSchema.shape.tags.removeDefault().optional(),
+  text: screenMetaSchema.shape.text.nullable(),
 });
 export type UpdateScreenInput = z.input<typeof updateScreenInputSchema>;
 export const updateFlowInputSchema = createFlowInputSchema

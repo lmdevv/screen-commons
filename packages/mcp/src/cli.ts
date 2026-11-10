@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
-import { access, rename, rm, writeFile } from "node:fs/promises";
+import { access, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs, type ParseArgsConfig } from "node:util";
 
@@ -135,6 +135,26 @@ function requireChanges(patch: Record<string, unknown>) {
   return patch;
 }
 
+async function screenText(values: Values): Promise<string | undefined> {
+  const text = str(values, "text");
+  const file = str(values, "text-file");
+  if (file === undefined) return text;
+  if (text !== undefined) throw usage("Pass --text or --text-file, not both");
+  try {
+    return await readFile(resolve(file), "utf8");
+  } catch (error) {
+    const reason = (error as NodeJS.ErrnoException).code ?? "read failed";
+    throw new CodedError("source_unreadable", `Can't read ${resolve(file)}: ${reason}`);
+  }
+}
+
+const textFlags = {
+  text: {
+    help: "Words visible in the screenshot, so search finds them. 20,000 characters at most",
+  },
+  "text-file": { help: "Read --text from this UTF-8 file" },
+};
+
 const parseSteps = (values: Values) =>
   list(values, "step")?.map((step) => {
     const split = step.indexOf("=");
@@ -239,6 +259,7 @@ async function upload(context: Context) {
         patterns: list(values, "pattern") ?? suggestPatterns(sourceUrl ?? "", title),
         elements: list(values, "element") ?? [],
         tags: list(values, "tag"),
+        text: await screenText(values),
         capturedAt: str(values, "captured-at"),
       }),
     ],
@@ -368,6 +389,7 @@ const COMMANDS: Tree = {
         pattern: { help: "Pattern slug", multiple: true },
         element: { help: "Element slug", multiple: true },
         tag: { help: "Tag", multiple: true },
+        ...textFlags,
         patch: { help: 'JSON patch, for nulls and empty lists: {"title":null,"tags":[]}' },
       },
       run: async ({ client, origin, positionals, values }) => {
@@ -378,6 +400,7 @@ const COMMANDS: Tree = {
             patterns: list(values, "pattern"),
             elements: list(values, "element"),
             tags: list(values, "tag"),
+            text: await screenText(values),
           }),
         });
         const screen = await client().updateScreen(
@@ -518,6 +541,7 @@ const COMMANDS: Tree = {
       },
       element: { help: "Element slug", multiple: true },
       tag: { help: "Tag", multiple: true },
+      ...textFlags,
       "captured-at": { help: "When it was captured, ISO 8601" },
     },
     run: upload,

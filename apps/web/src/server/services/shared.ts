@@ -173,6 +173,7 @@ export function toScreen(row: ScreenRow, appRow: AppRow, saved: boolean): Screen
     tags: row.tags,
     version: row.version,
     dominantColor: row.dominantColor,
+    text: row.text,
     status: row.status,
     source: row.source,
     saved,

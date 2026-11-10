@@ -36,6 +36,9 @@ export interface PreparedScreen {
   thumbnail: EncodedImage;
 }
 
+export const normalizeText = (value: string | null | undefined, max: number) =>
+  value?.replace(/\s+/gu, " ").trim().slice(0, max) || undefined;
+
 /**
  * Turn a raw capture into a core `CaptureScreen`: display image + thumbnail per the shared display
  * policy (both derived from the lossless capture, never from each other), base64.
@@ -46,8 +49,8 @@ export async function prepareScreen(input: ToCaptureScreenInput): Promise<Prepar
     makeThumbnail(input.png, { viewport: input.viewport ?? "desktop" }),
     dominantColor(input.png).catch(() => undefined),
   ]);
-  const title = input.title?.replace(/\s+/gu, " ").trim().slice(0, 160) || undefined;
-  const text = input.text?.replace(/\s+/gu, " ").trim().slice(0, MAX_SCREEN_TEXT) || undefined;
+  const title = normalizeText(input.title, 160);
+  const text = normalizeText(input.text, MAX_SCREEN_TEXT);
   const capturedAt = input.capturedAt ?? new Date().toISOString();
   const screen: CaptureScreen = {
     image: { type: image.type, base64: image.buffer.toString("base64") },
