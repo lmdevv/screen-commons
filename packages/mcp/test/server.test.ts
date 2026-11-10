@@ -199,7 +199,7 @@ describe("catalog tools", () => {
     const missing = await connect({ apiKey: undefined });
     const noKey = await call(missing.client, "search_screens", {});
     expect(noKey.isError).toBe(true);
-    expect(textOf(noKey)).toContain("SCREEN_COMMONS_API_KEY is not set");
+    expect(textOf(noKey)).toMatch(/^unauthorized: SCREEN_COMMONS_API_KEY is not set/);
     // taxonomy still works from the bundled contract
     expect(JSON.parse(textOf(await call(missing.client, "get_taxonomy")))).toEqual(TAXONOMY);
 

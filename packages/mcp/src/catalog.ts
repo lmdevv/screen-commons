@@ -61,7 +61,7 @@ const MAX_LOCAL_FILE_BYTES = 256 * 1024 * 1024;
 function requireKey(context: CatalogContext) {
   if (!context.apiKey) {
     throw new FriendlyError(
-      `SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env, e.g. "env": { "SCREEN_COMMONS_API_KEY": "sc_…" }.`,
+      `unauthorized: SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env, e.g. "env": { "SCREEN_COMMONS_API_KEY": "sc_…" }.`,
     );
   }
 }
