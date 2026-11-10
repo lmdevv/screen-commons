@@ -1,0 +1,1766 @@
+{
+  "source": "The production Spotify manifest mobbin-spotify-web-2026-10 without its images: its flow names, types and descriptions, and the screen index of each flow step. Then the decoy apps of the search prototype. Apps publish in this order, so the decoys are newest.",
+  "apps": [
+    {
+      "name": "Spotify",
+      "websiteUrl": "https://open.spotify.com",
+      "screens": 1150,
+      "flows": [
+        {
+          "name": "Filtering library",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/02dea4ff-d53c-4f29-b6c1-e59daae84247",
+          "steps": [0, 1]
+        },
+        {
+          "name": "Switching to lyrics view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/03617d2d-27a7-4e3a-bc58-a0302eaa51b1",
+          "steps": [2, 3, 4]
+        },
+        {
+          "name": "Rating a podcast",
+          "description": "Source: Mobbin, https://mobbin.com/flows/07505e8f-f61e-4c50-9643-ef5595ba33df",
+          "steps": [5, 6, 7, 8, 9, 10]
+        },
+        {
+          "name": "Adding to interested events",
+          "description": "Source: Mobbin, https://mobbin.com/flows/07695fb1-14f9-45ec-bc52-d1b3fed13532",
+          "steps": [11, 12]
+        },
+        {
+          "name": "Podcast episode",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0b05a6eb-487c-4bfe-9c12-250e9b47e5c5",
+          "steps": [5, 13, 14]
+        },
+        {
+          "name": "Event detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0fa88948-f29d-4408-ac5b-26bc3cde1a00",
+          "steps": [15, 16, 11, 17, 18]
+        },
+        {
+          "name": "Top up listening time",
+          "description": "Source: Mobbin, https://mobbin.com/flows/137d2305-f501-44e4-bd15-12e96147f8c9",
+          "steps": [19, 20, 21]
+        },
+        {
+          "name": "Live events",
+          "description": "Source: Mobbin, https://mobbin.com/flows/13815f64-3076-4f26-9fc6-6154ff9c5a9c",
+          "steps": [22, 23, 15]
+        },
+        {
+          "name": "Playing a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/14fd94ec-e075-4899-b570-cf20489e46e3",
+          "steps": [2, 24]
+        },
+        {
+          "name": "Pinning a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/189ae544-1deb-4e47-91c2-71ce2f5d76c2",
+          "steps": [25, 26, 27]
+        },
+        {
+          "name": "Reordering queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/18b1d718-c218-4279-85a5-bc1468b9f145",
+          "steps": [28, 29, 30]
+        },
+        {
+          "name": "Onboarding",
+          "type": "signing-up",
+          "description": "Source: Mobbin, https://mobbin.com/flows/197542ce-9a56-43d5-9e2c-601b9757bcea",
+          "steps": [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+        },
+        {
+          "name": "Upgrading to Premium",
+          "type": "upgrading",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1ac4629a-57fa-4599-94a5-132ce47f7378",
+          "steps": [44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
+        },
+        {
+          "name": "Settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1cb87ea0-0153-4812-b536-7e70a48de923",
+          "steps": [56, 57]
+        },
+        {
+          "name": "Profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1d9bbcc0-a1ff-4016-add4-f6ec26047e40",
+          "steps": [56, 58, 59, 60]
+        },
+        {
+          "name": "Copying playlist link",
+          "description": "Source: Mobbin, https://mobbin.com/flows/20548711-f33a-41a3-80cf-fa1a999ff28f",
+          "steps": [61, 62, 63]
+        },
+        {
+          "name": "Redeem gift card",
+          "description": "Source: Mobbin, https://mobbin.com/flows/23b38f2e-1083-40ed-b53e-4a58f6fd62d6",
+          "steps": [19, 64, 65, 66]
+        },
+        {
+          "name": "Interested events",
+          "description": "Source: Mobbin, https://mobbin.com/flows/23e69967-ae4f-44b9-bb55-3e932ec848d9",
+          "steps": [67, 68, 69]
+        },
+        {
+          "name": "Muting an artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/245b9b2b-67b5-46a0-8fcd-bc2d336f8a4e",
+          "steps": [70, 71, 72]
+        },
+        {
+          "name": "Podcasts",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2557bb48-c173-49e2-afa7-331da62f2b56",
+          "steps": [0, 22, 73]
+        },
+        {
+          "name": "Requesting account data",
+          "description": "Source: Mobbin, https://mobbin.com/flows/257d466f-7404-4151-806b-999bf866f174",
+          "steps": [74, 75, 76, 77, 78]
+        },
+        {
+          "name": "About",
+          "description": "Source: Mobbin, https://mobbin.com/flows/271498d7-bad0-49bf-be1e-91e0e3cb1991",
+          "steps": [79, 80, 81, 82]
+        },
+        {
+          "name": "Enabling now playing view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2ae0740c-a0f2-47d8-8651-c844de8f1de3",
+          "steps": [2, 83, 84, 85]
+        },
+        {
+          "name": "Filtering genres",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2b74e31d-dfc7-4f48-8a53-8441c2e47910",
+          "steps": [67, 86, 87, 88]
+        },
+        {
+          "name": "Following an artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2d3d8df1-f07c-45f2-9e8f-9614f708c070",
+          "steps": [70, 89]
+        },
+        {
+          "name": "Switching to list view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2d8a7ea2-a3db-4d5e-b47b-c409cf51846f",
+          "steps": [67, 90]
+        },
+        {
+          "name": "Home",
+          "description": "Source: Mobbin, https://mobbin.com/flows/32c3325e-1c5d-42da-8a34-94f07bb473cd",
+          "steps": [55, 0, 91, 92]
+        },
+        {
+          "name": "Inviting to a blend playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/34f2d621-42a3-406f-a1d2-832beb484dd1",
+          "steps": [22, 93, 94, 95, 96]
+        },
+        {
+          "name": "Canceling subscription",
+          "description": "Source: Mobbin, https://mobbin.com/flows/37998e1a-699e-4079-b131-7bcd2ed9d888",
+          "steps": [97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108]
+        },
+        {
+          "name": "Editing notification settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/382f87c8-59f0-4aec-86fc-32dc040072b3",
+          "steps": [74, 109, 110, 111, 112]
+        },
+        {
+          "name": "Uploading profile photo",
+          "description": "Source: Mobbin, https://mobbin.com/flows/39ad8e23-5d5f-4df5-9ef1-bb6de3248f7d",
+          "steps": [58, 113, 114, 115, 116]
+        },
+        {
+          "name": "Creating a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3ac3ee5b-a158-4ede-a1d2-f7c8ee0f871f",
+          "steps": [0, 117, 118, 119, 25]
+        },
+        {
+          "name": "Setting preferred location",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3b9277ba-4413-487e-bd10-440cbab37392",
+          "steps": [23, 120, 121, 122, 123, 67]
+        },
+        {
+          "name": "Logging out",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3c7fbe55-66bb-4773-a241-51fafe215c7f",
+          "steps": [56, 31]
+        },
+        {
+          "name": "Switching to grid view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/40ef4dd6-efa2-47c3-b7e3-4c02226cb312",
+          "steps": [124, 125, 126, 127]
+        },
+        {
+          "name": "Sorting library",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/43496a7a-942e-4482-814c-df2cd24c0393",
+          "steps": [0, 124, 128]
+        },
+        {
+          "name": "Editing profile",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/457db596-37dd-4a70-be43-5f7c7f59a80d",
+          "steps": [97, 129, 130, 131, 132]
+        },
+        {
+          "name": "Switching to fullscreen",
+          "description": "Source: Mobbin, https://mobbin.com/flows/4ac9cdc0-01ef-4cc5-bde8-ec9867eae30d",
+          "steps": [2, 133, 134, 135]
+        },
+        {
+          "name": "Discography",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5092121b-0706-45cc-8f3c-75d5d67379dc",
+          "steps": [136, 137]
+        },
+        {
+          "name": "Deleting an account",
+          "description": "Source: Mobbin, https://mobbin.com/flows/58d43411-10e9-4b38-8d4b-299d89f62188",
+          "steps": [74, 138, 139]
+        },
+        {
+          "name": "Adding to queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5a4e7313-447f-419b-bf5a-27b26bf6d7e9",
+          "steps": [28, 140, 141, 142]
+        },
+        {
+          "name": "Adding a login method",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5af4d641-60b6-4aa7-a38d-ad8820adc4cd",
+          "steps": [74, 143, 144, 145]
+        },
+        {
+          "name": "Listening to an audiobook",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6ad5a010-a86f-4c62-ba2d-a05852f0d5f0",
+          "steps": [146, 147, 148]
+        },
+        {
+          "name": "Filtering event dates",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7070b330-0785-4e87-8c7f-94a38285a7d3",
+          "steps": [67, 149, 150, 151]
+        },
+        {
+          "name": "Logging in",
+          "type": "logging-in",
+          "description": "Source: Mobbin, https://mobbin.com/flows/720acc41-b459-4a7d-81c9-cbdbe49c05ee",
+          "steps": [31, 152, 153, 154, 155, 0]
+        },
+        {
+          "name": "Playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/78c3a1db-11e2-4520-a4ac-d33ef9477456",
+          "steps": [0, 2, 156]
+        },
+        {
+          "name": "Copying embed code",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7cd4b4e8-2048-4b10-84ce-f6580a3ee307",
+          "steps": [62, 157, 158, 159, 160]
+        },
+        {
+          "name": "Removing from profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7d27765a-71f1-4317-8b2e-0c3e4caf44a5",
+          "steps": [25, 161, 162]
+        },
+        {
+          "name": "Recovering a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7ec70144-c1c4-45b5-a49f-aae875638a51",
+          "steps": [97, 163, 164]
+        },
+        {
+          "name": "Podcast detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7ec95160-4db0-41a3-a220-2d45ba668ff0",
+          "steps": [73, 5, 165]
+        },
+        {
+          "name": "Changing audio speed",
+          "description": "Source: Mobbin, https://mobbin.com/flows/80b9de9f-632d-4d4b-98ad-35125da28a7a",
+          "steps": [166, 167, 168]
+        },
+        {
+          "name": "Adding a song",
+          "description": "Source: Mobbin, https://mobbin.com/flows/833ab9dc-b0a4-4145-99f0-5249b85ae35d",
+          "steps": [169, 170, 171]
+        },
+        {
+          "name": "Joining a blend",
+          "description": "Source: Mobbin, https://mobbin.com/flows/89940f2d-c3dd-4824-b034-9f91ad28e9bd",
+          "steps": [172, 96]
+        },
+        {
+          "name": "Resetting password",
+          "type": "resetting-password",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8e851553-43ae-4cac-bc39-a1a6ae082a8e",
+          "steps": [154, 173, 174, 175, 176, 177, 178, 179]
+        },
+        {
+          "name": "Change payment detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8ec1197f-4975-440c-8030-580b40dbd072",
+          "steps": [97, 180, 181, 182]
+        },
+        {
+          "name": "Account settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9525d08f-727c-426a-95a3-f035f9c22623",
+          "steps": [0, 56, 97, 19, 74]
+        },
+        {
+          "name": "Song credits",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9a8242ab-1690-43bf-ab40-e58f15fd09c4",
+          "steps": [183, 184, 185]
+        },
+        {
+          "name": "Deleting a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9c55e6a1-a7d5-4afd-a046-7d562b6b5ff4",
+          "steps": [26, 186, 187]
+        },
+        {
+          "name": "Editing playlist details",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a271f870-40bf-4c87-97bd-3f4d5cea37cb",
+          "steps": [119, 188, 189, 190, 191, 169]
+        },
+        {
+          "name": "Switching to compact view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a2f4a114-5c69-4796-902f-724113f58fdf",
+          "steps": [2, 192, 193]
+        },
+        {
+          "name": "Queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a6039de6-1ec4-470f-a629-2679bd7affd5",
+          "steps": [2, 28]
+        },
+        {
+          "name": "Reporting a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a7ffa958-2064-48e4-a1fa-6af77a14249f",
+          "steps": [2, 61, 194, 195, 196, 197, 198, 199]
+        },
+        {
+          "name": "Changing language",
+          "description": "Source: Mobbin, https://mobbin.com/flows/aa92008c-15d0-4d92-86fe-72e23233ebdc",
+          "steps": [57, 200, 201]
+        },
+        {
+          "name": "Adding to library",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b19119a3-0a48-4a11-a486-3eda5b90a755",
+          "steps": [2, 202]
+        },
+        {
+          "name": "Moving playlist to a folder",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b2a3ae77-b645-416f-8acf-d08da0aa731c",
+          "steps": [161, 203, 204]
+        },
+        {
+          "name": "Audiobooks",
+          "description": "Source: Mobbin, https://mobbin.com/flows/bb78afb0-e1ae-436e-9cab-2d7526c6950d",
+          "steps": [22, 146]
+        },
+        {
+          "name": "Connecting to a device",
+          "description": "Source: Mobbin, https://mobbin.com/flows/bc86c8e1-ff6f-4859-ac99-6523f6357124",
+          "steps": [2, 205, 206, 207]
+        },
+        {
+          "name": "Changing password",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c3b01e5b-dff5-4b91-a62a-86cc889ec27f",
+          "steps": [74, 208, 209, 210, 211]
+        },
+        {
+          "name": "Excluding from taste profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c3eb073b-8827-4510-a732-81ec9f2521e9",
+          "steps": [61, 212]
+        },
+        {
+          "name": "Artist profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/cd2c5b17-e2ea-4282-a4c3-6decb0ff4bd4",
+          "steps": [213, 70, 214, 136, 215, 79]
+        },
+        {
+          "name": "Enabling repeat",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d08b3d63-206c-4a2b-aa93-39e6627899e6",
+          "steps": [2, 216, 217, 218]
+        },
+        {
+          "name": "Order history",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d9d80403-6aae-4f9d-a5e1-4217b62af0e3",
+          "steps": [19, 219]
+        },
+        {
+          "name": "Adding to liked songs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/def553a4-3729-4bcf-8967-0a6c27580386",
+          "steps": [2, 183, 220, 221]
+        },
+        {
+          "name": "Searching Spotify",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e6e5cbe6-5496-46d4-8478-a729bcce4fec",
+          "steps": [0, 222, 223, 224]
+        },
+        {
+          "name": "Collapsing library",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ec930c03-e9d0-43e8-add0-c8c692d5a729",
+          "steps": [0, 225]
+        },
+        {
+          "name": "Adding a song (Liked Songs)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/eda34b3b-f349-47cd-8c8d-2ca1011cf2fb",
+          "steps": [169, 226, 227, 228, 229, 230]
+        },
+        {
+          "name": "Listening to a podcast",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f4902d26-ad50-45fb-8ca0-1399469bf0ee",
+          "steps": [13, 166, 231, 232, 233]
+        },
+        {
+          "name": "Watching a podcast video",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fab7b6a7-7d3c-40e9-932e-cad154e8529b",
+          "steps": [5, 234, 235, 236, 237]
+        },
+        {
+          "name": "Listening to Spotify DJ",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fceffeeb-126a-4c3f-9e77-34c4a33bff49",
+          "steps": [0, 238, 239, 240]
+        },
+        {
+          "name": "Showing and copying code",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0017eff5-8ffb-4ca9-813d-49f7119f5bd5",
+          "steps": [241, 242, 243]
+        },
+        {
+          "name": "Pinning a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/087b8adb-0dac-4609-b867-7d435cb43065",
+          "steps": [244, 245, 246]
+        },
+        {
+          "name": "Sorting by custom order",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/08c1756a-ddbe-455b-b073-31a6e10206d7",
+          "steps": [247, 248, 249]
+        },
+        {
+          "name": "Switching to lyrics view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0ac3dc42-8d58-4334-8201-2aa88c674cd4",
+          "steps": [250, 251, 252, 253]
+        },
+        {
+          "name": "Adding track to playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0c1c8f08-8fc6-4aa9-9135-799519aebf3c",
+          "steps": [254, 255, 256, 257, 258]
+        },
+        {
+          "name": "Editing color and size",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0e2d4e53-63bd-44ef-8ce2-95e13d57c46a",
+          "steps": [259, 260, 241, 261]
+        },
+        {
+          "name": "Searching for songs",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0efeff11-be73-43dd-b9b7-313b39faae2c",
+          "steps": [262, 263, 254, 264]
+        },
+        {
+          "name": "Creating a similar playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/103d2427-c979-4e32-8905-e744ca1a1610",
+          "steps": [246, 265, 266]
+        },
+        {
+          "name": "Filtering live events",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1443d358-9b9c-42aa-a4b3-b37ecfefeec3",
+          "steps": [267, 268, 269, 270]
+        },
+        {
+          "name": "View receipt",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1598530e-14e1-4a3e-b42d-4184ba674ada",
+          "steps": [271, 272, 273]
+        },
+        {
+          "name": "Recovering a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/15f80cc3-60b5-4962-99f0-47c4d5f01d52",
+          "steps": [271, 274, 275, 276]
+        },
+        {
+          "name": "Searching library",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1691fbe2-ef62-4529-9fc5-05984d7d3f9e",
+          "steps": [277, 278, 279]
+        },
+        {
+          "name": "Removing playlist from library",
+          "description": "Source: Mobbin, https://mobbin.com/flows/189706eb-c6c0-42b4-945a-258cb8c1d5a2",
+          "steps": [280, 281]
+        },
+        {
+          "name": "Expanding library view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1e235dc1-0e1b-4a1d-bf14-66975efa6131",
+          "steps": [246, 282, 277, 283]
+        },
+        {
+          "name": "Redeem code",
+          "description": "Source: Mobbin, https://mobbin.com/flows/25352479-a976-477c-844a-c0b1e8ec4f02",
+          "steps": [271, 284]
+        },
+        {
+          "name": "Updating profile settings",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/259adb23-522e-4c8d-9591-b965f7a5110a",
+          "steps": [271, 285, 286, 287]
+        },
+        {
+          "name": "Creating a playlist (from a song)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/28a016ac-137a-4f3a-a2fc-d8a0bfdba9ce",
+          "steps": [288, 289, 290, 291]
+        },
+        {
+          "name": "Searching events by city",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2b8c6998-80d3-4b93-a79c-b4278a5d1700",
+          "steps": [292, 293, 294, 295]
+        },
+        {
+          "name": "Filtering library",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2ecd1f17-5a9b-406b-9d8c-2fdb9282261d",
+          "steps": [246, 247, 296]
+        },
+        {
+          "name": "Enabling repeat",
+          "description": "Source: Mobbin, https://mobbin.com/flows/30f22b5d-5268-4b10-b6d4-8b9e84330624",
+          "steps": [297, 298, 299]
+        },
+        {
+          "name": "Podcast detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/32671c6f-af31-4037-94dd-639c3d16300f",
+          "steps": [300, 301, 302, 303, 304, 305]
+        },
+        {
+          "name": "Logging in",
+          "type": "logging-in",
+          "description": "Source: Mobbin, https://mobbin.com/flows/78c9ced8-bbfa-49b1-a727-9b2d338edddd",
+          "steps": [306, 307, 308, 309, 310, 311, 312, 313, 314, 315]
+        },
+        {
+          "name": "Logging in",
+          "type": "logging-in",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8f9e4335-dfa3-4a95-a6af-f261cd092d73",
+          "steps": [316, 317, 318, 319]
+        },
+        {
+          "name": "Podcast detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5b69c4cd-1090-495e-9cf8-a026f6c1722d",
+          "steps": [320, 321, 322, 323]
+        },
+        {
+          "name": "For Podcasters",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7a73c358-adb6-4edb-8b8b-302407793341",
+          "steps": [324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335]
+        },
+        {
+          "name": "Audiobook detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b9baa28a-40a6-4933-ab88-6ec8b6522063",
+          "steps": [336, 337, 338, 339, 340, 341]
+        },
+        {
+          "name": "Rate audiobook",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a239d297-78da-433c-8c6e-3f8bab1e066a",
+          "steps": [338, 342]
+        },
+        {
+          "name": "Browse audiobooks",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9ea85e98-8af7-4305-a4d3-2fc67cff2cb5",
+          "steps": [343, 344, 345, 346, 347]
+        },
+        {
+          "name": "Saving to library (audiobook)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5bcb265e-84f8-4c05-ade1-b6bac11e7fe8",
+          "steps": [338, 348]
+        },
+        {
+          "name": "Showing all (category)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fca72352-c61d-4170-b83b-fe8ccdd97eab",
+          "steps": [345, 336, 349]
+        },
+        {
+          "name": "Playing sample",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b6a5cf86-28e5-4ee9-a5cb-e838d95c1723",
+          "steps": [338, 350]
+        },
+        {
+          "name": "Signing up for newsletter",
+          "description": "Source: Mobbin, https://mobbin.com/flows/96872c61-b00a-45ba-991e-8c181c3f2625",
+          "steps": [351, 352, 353]
+        },
+        {
+          "name": "Signing up for investor alerts",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ab928ed9-96a8-4625-8a25-32859b94f68f",
+          "steps": [354, 355, 356, 357]
+        },
+        {
+          "name": "Onboarding",
+          "type": "signing-up",
+          "description": "Source: Mobbin, https://mobbin.com/flows/07b1024f-d9c2-48f3-9b7e-effb5045770d",
+          "steps": [316, 358, 359, 360, 361, 362, 363, 364]
+        },
+        {
+          "name": "Onboarding",
+          "type": "signing-up",
+          "description": "Source: Mobbin, https://mobbin.com/flows/656c0344-7625-49ad-9158-b0a8dfd7427c",
+          "steps": [306, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376]
+        },
+        {
+          "name": "Premium",
+          "description": "Source: Mobbin, https://mobbin.com/flows/4e2be705-a1a5-4711-86f9-d4605e79c018",
+          "steps": [316, 377, 378, 379]
+        },
+        {
+          "name": "View artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f8b72380-cc8a-47a8-8149-affb67f06f26",
+          "steps": [288, 380, 381, 382, 383, 384]
+        },
+        {
+          "name": "View discography",
+          "description": "Source: Mobbin, https://mobbin.com/flows/390ce6fe-c813-41a7-97c5-a38adbdd8eb7",
+          "steps": [381, 385, 386, 387]
+        },
+        {
+          "name": "Artist detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e71fed43-b0b7-4514-94a1-8ac7dba7d901",
+          "steps": [388, 389, 390, 391, 392, 393, 394, 395, 396]
+        },
+        {
+          "name": "Discography",
+          "description": "Source: Mobbin, https://mobbin.com/flows/af7c3371-e0b4-4a21-9ac2-680442466dc2",
+          "steps": [392, 397, 398, 399]
+        },
+        {
+          "name": "About the artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/36245272-22a2-451b-9439-0060f0c1b345",
+          "steps": [395, 400, 401, 402]
+        },
+        {
+          "name": "Car Thing",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ecf60306-b696-408a-a9ca-b986684917f7",
+          "steps": [403, 404, 405, 406, 407, 408, 409]
+        },
+        {
+          "name": "Purchasing a product",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ba8e4b02-ef53-4270-94c2-47c7addd2e1a",
+          "steps": [410, 411, 412]
+        },
+        {
+          "name": "Product detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f641f68a-2f9a-455e-b81d-9a5c9a805526",
+          "steps": [396, 413, 410, 414]
+        },
+        {
+          "name": "Upgrading to Premium",
+          "type": "upgrading",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d9edb9d0-2d15-4bb9-93c2-6e0c7ca8c7c7",
+          "steps": [364, 379, 415, 416, 417, 418, 419, 420, 421, 422, 423]
+        },
+        {
+          "name": "Adjusting volume",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3371d40f-6ff3-469e-93bb-cc165461e04f",
+          "steps": [297, 424, 425]
+        },
+        {
+          "name": "Collapsing library view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/341d4bee-368f-492a-829f-04e0975ff4d1",
+          "steps": [246, 426, 427]
+        },
+        {
+          "name": "View song radio",
+          "description": "Source: Mobbin, https://mobbin.com/flows/34ee8172-bfa3-45dd-af4b-7c7264d51ff3",
+          "steps": [288, 428, 429]
+        },
+        {
+          "name": "Canceling Premium plan",
+          "description": "Source: Mobbin, https://mobbin.com/flows/386baa2f-40bd-4c83-8521-84ca8b668538",
+          "steps": [271, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440]
+        },
+        {
+          "name": "Switching languages ",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3a36ada4-d6b9-4aec-88a2-55ae843057ab",
+          "steps": [441, 442, 443, 444, 445]
+        },
+        {
+          "name": "Clearing queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3aa31526-4025-4f5f-96e0-35a2c1a1d4ee",
+          "steps": [446, 447, 448]
+        },
+        {
+          "name": "Adding playlist to profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/43342a83-a5ac-498e-a7db-afbabac13719",
+          "steps": [449, 280, 450]
+        },
+        {
+          "name": "Profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/448e19a3-9310-4d1a-b770-d29cb55ad82c",
+          "steps": [451, 452, 453, 454]
+        },
+        {
+          "name": "Adding to Liked Songs (quick)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/48181ea8-0155-46ac-8aa4-7c12c49304c5",
+          "steps": [455, 456, 457, 458]
+        },
+        {
+          "name": "Saving to interested events",
+          "description": "Source: Mobbin, https://mobbin.com/flows/481c3a23-4680-480f-9601-cb8d5033dd98",
+          "steps": [459, 460]
+        },
+        {
+          "name": "Adding playlist to folder",
+          "description": "Source: Mobbin, https://mobbin.com/flows/490b85fe-6f2b-4650-abaa-46ed8c0ebb29",
+          "steps": [461, 462, 463]
+        },
+        {
+          "name": "Merch detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/4cff76d9-979c-4efe-b8d3-3f4982f9ecce",
+          "steps": [464, 465, 466]
+        },
+        {
+          "name": "Showing credits",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5b83c7b9-fc50-4823-a25a-0347599bdbfe",
+          "steps": [288, 467]
+        },
+        {
+          "name": "Showing About artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5c2fd29e-646c-4caf-a43b-d849db9e1139",
+          "steps": [468, 469, 470, 471]
+        },
+        {
+          "name": "Following a podcast",
+          "description": "Source: Mobbin, https://mobbin.com/flows/60565a50-e26c-45bd-b24a-f428e6b78006",
+          "steps": [301, 472]
+        },
+        {
+          "name": "Following an artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/61991ed5-a857-4a13-b52b-009270f5040e",
+          "steps": [380, 473, 474]
+        },
+        {
+          "name": "Browse a music category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/65781cdc-d0b0-4dba-9b9d-a7ebbb187a57",
+          "steps": [344, 475, 476, 477]
+        },
+        {
+          "name": "Showing recommended",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6d4028c6-69da-4576-a84d-9d4dd393b348",
+          "steps": [258, 478, 479]
+        },
+        {
+          "name": "Renaming folder",
+          "description": "Source: Mobbin, https://mobbin.com/flows/730c5a21-869d-43f8-948e-ddf638e3021a",
+          "steps": [461, 480, 481, 482, 483]
+        },
+        {
+          "name": "Embedding playlist",
+          "type": "sharing",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7462370d-2bd7-4a97-a52f-ac2c2a2482b6",
+          "steps": [484, 259]
+        },
+        {
+          "name": "Editing a playlist detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/78211d7c-9c9a-441d-9c17-52ad578abc02",
+          "steps": [485, 486, 487, 488, 489, 490, 262]
+        },
+        {
+          "name": "View queue track",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7c403c44-e17a-4155-b790-59e14ee37752",
+          "steps": [491, 492, 493, 494]
+        },
+        {
+          "name": "Connect to a device",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7cec4a2c-58aa-41a2-84c8-02964af206d0",
+          "steps": [491, 495, 496]
+        },
+        {
+          "name": "View playlist radio",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7e6f2af4-8153-4536-abe0-3171a9bfc9ce",
+          "steps": [478, 244, 497]
+        },
+        {
+          "name": "Pausing an audio",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7f7461d6-5cdb-4e61-8933-0002409a6aa8",
+          "steps": [250, 491]
+        },
+        {
+          "name": "Editing profile",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/805ce174-d11b-4219-afe5-98b93d80aaed",
+          "steps": [452, 498, 499, 500, 501]
+        },
+        {
+          "name": "Logging out",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8115daac-ecfe-4fd4-aea3-dfab70894c29",
+          "steps": [451, 306]
+        },
+        {
+          "name": "Browse a sub-category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/822c3d26-bfc8-4f0e-85b9-2181ae0e1ebc",
+          "steps": [502, 503]
+        },
+        {
+          "name": "Expanding cover image",
+          "description": "Source: Mobbin, https://mobbin.com/flows/839cc697-7ca4-4c60-ac0d-fbc08c64329d",
+          "steps": [246, 504, 505, 506, 507]
+        },
+        {
+          "name": "Updating notification settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/84321dd2-19f7-4cac-9d9b-0c7047d27377",
+          "steps": [271, 508, 509, 510, 511]
+        },
+        {
+          "name": "Home",
+          "description": "Source: Mobbin, https://mobbin.com/flows/87cda9c2-c7e9-4d44-a4b1-5f3dc4238f1d",
+          "steps": [376, 512, 513, 514, 343, 515, 246, 451]
+        },
+        {
+          "name": "Event detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/88bb2f17-2842-476f-955f-5c339aa31f81",
+          "steps": [292, 516, 459, 517, 518]
+        },
+        {
+          "name": "Playing a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/89e587ea-e30b-41fa-b94f-e8f3660dba3b",
+          "steps": [519, 250]
+        },
+        {
+          "name": "Searching Spotify",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8d4861fb-3e56-462c-a57b-48f3973dda24",
+          "steps": [344, 520, 521, 522, 523]
+        },
+        {
+          "name": "Adding to queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8d9ec4e2-b5cc-4427-989f-2a6c2f553ebd",
+          "steps": [457, 288, 524]
+        },
+        {
+          "name": "Adding a playlist to library",
+          "description": "Source: Mobbin, https://mobbin.com/flows/92440667-1b6d-4806-b1e8-d5d5a30093d9",
+          "steps": [525, 449]
+        },
+        {
+          "name": "View a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/93699999-e565-4da0-9d3d-0f71da099e4c",
+          "steps": [513, 519, 526]
+        },
+        {
+          "name": "Playing an audio",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9459a04a-b2d9-48f2-a180-57b3ea608f1d",
+          "steps": [503, 527, 528, 297, 529, 530]
+        },
+        {
+          "name": "Saving a music playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/97416e38-22f7-4ac0-9d14-c644ed584e0f",
+          "steps": [476, 455, 531, 532]
+        },
+        {
+          "name": "Creating a new playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9cf3b5bf-9313-4930-95aa-9cd9b2efa5fd",
+          "steps": [244, 533]
+        },
+        {
+          "name": "Deleting a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9e4f56fc-cda9-4b31-9061-4badde72142e",
+          "steps": [533, 534, 535, 536]
+        },
+        {
+          "name": "Browsing all merch",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9fcf97e7-6ea3-415a-b651-aa9e5e83d44d",
+          "steps": [465, 537, 538, 539]
+        },
+        {
+          "name": "Filtering search results",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a38e8746-79a3-4fdf-b124-be463aed567b",
+          "steps": [520, 540, 541, 542, 543, 544, 545]
+        },
+        {
+          "name": "Recent searches",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a643e4c3-946c-4548-85cf-1e4f2904a93d",
+          "steps": [520, 546]
+        },
+        {
+          "name": "Excluding from your taste profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a718904c-212a-455f-bf4c-8b318f92d562",
+          "steps": [525, 547]
+        },
+        {
+          "name": "Creating a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a8f0da19-126d-48fc-af56-4860cd676946",
+          "steps": [246, 548, 549, 485]
+        },
+        {
+          "name": "Settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b448d912-a67d-40e6-87eb-5b2ade1311a8",
+          "steps": [451, 441]
+        },
+        {
+          "name": "Copying link to playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b475da79-8aa5-4970-9431-ce8c34345aba",
+          "steps": [525, 484, 550]
+        },
+        {
+          "name": "Removing a liked song",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b707c2b0-fe1a-4946-b64f-887f672adafe",
+          "steps": [551, 552]
+        },
+        {
+          "name": "Enabling shuffle",
+          "description": "Source: Mobbin, https://mobbin.com/flows/bd86a668-6f65-46ed-97bc-57eea56fb594",
+          "steps": [297, 553]
+        },
+        {
+          "name": "Moving a playlist to folder",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c36db0d7-a9c5-49cf-b5c0-01d01615a438",
+          "steps": [554, 555, 556, 557, 558]
+        },
+        {
+          "name": "Account",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c77e557d-0f2f-47ab-ba2c-671a51428a66",
+          "steps": [451, 559, 271, 560, 561]
+        },
+        {
+          "name": "Browse podcasts",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ce822344-df7a-416a-8f03-a974a52756fd",
+          "steps": [344, 562, 300]
+        },
+        {
+          "name": "Audio detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d0f562e6-eb14-4334-9555-12a76750cab3",
+          "steps": [504, 563, 464]
+        },
+        {
+          "name": "View album",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d2335c34-7160-473f-a991-348d0e4e2a8d",
+          "steps": [288, 564, 565, 566]
+        },
+        {
+          "name": "Creating a playlist folder",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d3347544-a8a4-4dba-b819-d5a6b37b2c6e",
+          "steps": [549, 567, 461]
+        },
+        {
+          "name": "Expanding audio view ",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d4cbcf42-f576-4903-a033-5bbb511d9a67",
+          "steps": [568, 569]
+        },
+        {
+          "name": "Changing password",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d7f9c8e1-f271-4b40-b361-7cc1d76b6fc3",
+          "steps": [271, 570, 571, 572]
+        },
+        {
+          "name": "Playing a podcast episode",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d8978b9b-e7a8-44a9-9a66-5a4c8cee2f0d",
+          "steps": [302, 573, 574]
+        },
+        {
+          "name": "Resetting password",
+          "type": "resetting-password",
+          "description": "Source: Mobbin, https://mobbin.com/flows/da60d047-9e7b-4c81-bf30-921dc2331734",
+          "steps": [310, 575, 576, 577, 578, 579, 580, 581]
+        },
+        {
+          "name": "Uploading playlist photo",
+          "description": "Source: Mobbin, https://mobbin.com/flows/da703c97-3022-4134-aa37-9fc839fad84d",
+          "steps": [486, 582, 487]
+        },
+        {
+          "name": "Sorting library by alphabetical order",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/df6f7ac4-907b-43d2-9b14-a9d8e4496466",
+          "steps": [277, 583, 584]
+        },
+        {
+          "name": "View Liked Songs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e4eb38dc-c0bc-4c77-8638-168bb0c93644",
+          "steps": [585, 551, 586]
+        },
+        {
+          "name": "Reporting a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e93a5e82-3480-4630-81ef-0f28e6a3561c",
+          "steps": [343, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597]
+        },
+        {
+          "name": "Browse live events",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ea16f9b0-b7f4-4987-b9a0-06e259341a45",
+          "steps": [344, 267, 292, 598]
+        },
+        {
+          "name": "Upgrading to Premium",
+          "type": "upgrading",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ea56a2fa-35a6-4b4f-8b72-964a643e90fb",
+          "steps": [376, 599, 600, 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 343]
+        },
+        {
+          "name": "Adding a playlist to queue",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ea804504-226c-4ccd-ae6d-c493ebc7c1fe",
+          "steps": [343, 525, 612, 446]
+        },
+        {
+          "name": "Switching to lyrics view (expanded)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ee9b9beb-de4d-4c2d-8484-06dbefde577d",
+          "steps": [569, 613, 614]
+        },
+        {
+          "name": "Closing account",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f384a8dc-bb32-42ac-91aa-0d85889366dc",
+          "steps": [561, 615, 616, 617, 618, 619, 620, 621]
+        },
+        {
+          "name": "Switching to grid view",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f4d81058-f2ae-4ed9-bf37-66e98a89befb",
+          "steps": [282, 622]
+        },
+        {
+          "name": "Saving a song to library",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f5ab88e0-8bc2-44c4-bb35-deb254dd0a67",
+          "steps": [568, 623, 585]
+        },
+        {
+          "name": "Browse a category (with sub-categories) ",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ff58dd2f-8c2e-4583-934c-42dfa664f1f9",
+          "steps": [344, 624, 502]
+        },
+        {
+          "name": "In Focus",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0063999e-9f62-4407-a772-708295836800",
+          "steps": [625, 626, 627, 628, 629, 630, 631]
+        },
+        {
+          "name": "News",
+          "description": "Source: Mobbin, https://mobbin.com/flows/01cae939-1f99-43ab-b043-28c9eff99a42",
+          "steps": [632, 633, 634, 635]
+        },
+        {
+          "name": "Adjusting playback controls",
+          "description": "Source: Mobbin, https://mobbin.com/flows/026461a6-a688-43aa-9caf-74788cf3a711",
+          "steps": [636, 637, 638, 639, 640]
+        },
+        {
+          "name": "Sharing a promo card",
+          "type": "sharing",
+          "description": "Source: Mobbin, https://mobbin.com/flows/064b80aa-0cde-4987-af40-23d44af6264b",
+          "steps": [641, 642]
+        },
+        {
+          "name": "Install app",
+          "description": "Source: Mobbin, https://mobbin.com/flows/07682ad2-59e0-4577-942f-90d17ede9d08",
+          "steps": [643, 644]
+        },
+        {
+          "name": "Tools",
+          "description": "Source: Mobbin, https://mobbin.com/flows/07ea0207-3568-43e1-bb64-161dbfb59643",
+          "steps": [645, 646, 647, 648]
+        },
+        {
+          "name": "Work From Anywhere",
+          "description": "Source: Mobbin, https://mobbin.com/flows/089043b1-bd6e-4ef2-b1f9-c4d28622ac45",
+          "steps": [649, 650, 651, 652, 653, 654, 655, 656]
+        },
+        {
+          "name": "Open Source",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0c681026-e591-4b2b-882e-e818c298e273",
+          "steps": [657, 658, 659, 660]
+        },
+        {
+          "name": "Searching Spotify",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/0e1afbaf-b122-4500-8bc4-6ece9df99aae",
+          "steps": [661, 662, 663, 664, 665, 666]
+        },
+        {
+          "name": "Team",
+          "description": "Source: Mobbin, https://mobbin.com/flows/14c087d2-1211-4bf4-99b1-1ec67ce8a5a5",
+          "steps": [645, 667, 668, 669, 670, 671]
+        },
+        {
+          "name": "Watching a video",
+          "description": "Source: Mobbin, https://mobbin.com/flows/18296b54-c40c-4ffb-8de9-c961be9890e1",
+          "steps": [672, 673]
+        },
+        {
+          "name": "Spotify Design",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1a4d1e7d-057b-439c-a837-79b37dffde4b",
+          "steps": [324, 645, 674, 675, 676, 677, 678, 679, 680, 681, 682]
+        },
+        {
+          "name": "Navigation menu (Spotify Advertising)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1a919e93-a228-44bb-9ef5-38e65f87e5c2",
+          "steps": [683, 684, 685, 686]
+        },
+        {
+          "name": "Mobile App",
+          "description": "Source: Mobbin, https://mobbin.com/flows/1ecd9b5d-f6ad-46a8-8e71-a9a6f25fd77f",
+          "steps": [403, 687, 688, 689, 690, 691, 692]
+        },
+        {
+          "name": "Deleting a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/207cc277-f5af-4b96-a719-cd7a7f9afdbe",
+          "steps": [693, 694, 695]
+        },
+        {
+          "name": "Article detail (Developer News)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/20f31206-9e84-4f0d-9d3b-c60998acc49c",
+          "steps": [696, 697, 698, 699]
+        },
+        {
+          "name": "Requesting data",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e0b9abee-801c-455e-b6bb-ec775bc8d9df",
+          "steps": [271, 700, 701, 702, 703, 704]
+        },
+        {
+          "name": "For Artists",
+          "description": "Source: Mobbin, https://mobbin.com/flows/539fba1c-a5d6-466e-a338-dc9765071a27",
+          "steps": [324, 705, 625, 706, 707, 708, 709, 710, 711, 712]
+        },
+        {
+          "name": "Help (Spotify for Artists)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fc5cce98-abf1-48dd-a3fa-9158ea3d6d6d",
+          "steps": [705, 713, 714]
+        },
+        {
+          "name": "Following an artist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d9d2b4b8-a7f8-4f3d-ad2a-17b8d56e7622",
+          "steps": [389, 715]
+        },
+        {
+          "name": "Similar artists",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5bf93129-596d-482f-917b-89736aefebb9",
+          "steps": [393, 716, 717]
+        },
+        {
+          "name": "Providers",
+          "description": "Source: Mobbin, https://mobbin.com/flows/96357c63-6dc8-49d1-9974-8f8eeb8ffb15",
+          "steps": [705, 718, 719, 720]
+        },
+        {
+          "name": "Events (Spotify for Artists)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/31ae1e3d-683c-40a4-8ba3-3d301094f883",
+          "steps": [625, 721, 722, 723]
+        },
+        {
+          "name": "Provider detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/797d9d38-2dda-4d5f-92b3-8e401e6dce5a",
+          "steps": [718, 724, 725, 726, 727, 728, 729]
+        },
+        {
+          "name": "Features",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5dbaca7a-d7de-4004-8a0e-699cf1d1c32e",
+          "steps": [705, 730, 731, 732, 733, 734, 735, 736, 737, 738, 739, 740, 741]
+        },
+        {
+          "name": "Spotify Advertising",
+          "description": "Source: Mobbin, https://mobbin.com/flows/98cc404c-c379-40dc-930b-768f8f81d49e",
+          "steps": [324, 683, 742, 743, 744, 745, 746, 747, 748]
+        },
+        {
+          "name": "Spotify Stars Program",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a3e052db-0a7c-4b6b-a1a2-5a5ba6d3d0ad",
+          "steps": [749, 750, 751, 752, 753, 754, 755]
+        },
+        {
+          "name": "Resources",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7e649653-5cba-4f0d-b558-5a888974be5d",
+          "steps": [756, 757, 758, 759, 760, 761]
+        },
+        {
+          "name": "View a receipt",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e41b083b-fe11-4974-8a04-98a4a0010f85",
+          "steps": [762, 763, 764]
+        },
+        {
+          "name": "Account overview",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6994b290-7cf3-451f-9bb6-3513c4e63975",
+          "steps": [661, 765, 766, 762, 767, 768]
+        },
+        {
+          "name": "Logging out",
+          "description": "Source: Mobbin, https://mobbin.com/flows/dd40062e-49d2-4c15-aa91-8b9efbe497ac",
+          "steps": [765, 316]
+        },
+        {
+          "name": "Event detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/daa2deb4-74a0-4308-b26f-9cfa83f24e86",
+          "steps": [396, 769, 770, 771]
+        },
+        {
+          "name": "Article detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c98e3174-f1ed-42ba-bc3d-6e6179bf2c0e",
+          "steps": [632, 772, 773, 774, 775]
+        },
+        {
+          "name": "Browse a support article",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c18bd0fa-e681-49aa-8b67-96ddfa13498c",
+          "steps": [776, 777, 778, 779, 780, 781]
+        },
+        {
+          "name": "Cancelling Premium",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a4db4ce7-87b3-41c5-9d44-62b34fcd9557",
+          "steps": [762, 782, 783, 784, 785, 786, 787, 788, 789, 790]
+        },
+        {
+          "name": "Browse a podcast category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3bc294b8-cc7c-48fd-a40a-4d0a89dd8a63",
+          "steps": [662, 791, 320, 792]
+        },
+        {
+          "name": "Podcasts (Spotify Engineering)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7630a111-1f06-44d2-a735-ce6806365366",
+          "steps": [657, 793, 794]
+        },
+        {
+          "name": "Podcasts",
+          "description": "Source: Mobbin, https://mobbin.com/flows/4082243c-6aaf-4a75-8e04-41d1e932ccd8",
+          "steps": [632, 795, 796, 797]
+        },
+        {
+          "name": "Searching Community",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b49b4498-f451-4ef6-9de7-8aae3348c08a",
+          "steps": [798, 799, 800, 801]
+        },
+        {
+          "name": "Searching Developers",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e6acd859-8503-4f31-a2cb-0b2ec56d3de1",
+          "steps": [802, 803, 804, 805]
+        },
+        {
+          "name": "Search results (users)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7498c62b-a6a8-43d7-bc2d-04a81e2dfa56",
+          "steps": [800, 806, 807]
+        },
+        {
+          "name": "Searching articles",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/46c1f413-323b-4680-b750-ad81dfd4cbaf",
+          "steps": [713, 808, 809]
+        },
+        {
+          "name": "Press Center",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c44a7e29-3aef-42ce-a8e4-8b3cda3b4a1c",
+          "steps": [810, 811, 812, 813]
+        },
+        {
+          "name": "Filtering search results (Community)",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6ffc5132-6671-41b4-bd0d-13f729b47a5e",
+          "steps": [800, 814, 815, 816, 817, 818, 819, 820]
+        },
+        {
+          "name": "Ideas",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fdfd7beb-c2ae-41ea-a06d-ecb84283ebf1",
+          "steps": [798, 821, 822, 823]
+        },
+        {
+          "name": "All Jobs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c34d45fe-3a78-44fd-86f4-7ec916cd7641",
+          "steps": [824, 825, 826, 827]
+        },
+        {
+          "name": "Help (Community)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7624a38d-a625-4486-a2e7-1443ce3bd115",
+          "steps": [798, 828, 829, 830, 831, 832, 833, 834, 835]
+        },
+        {
+          "name": "Financials",
+          "description": "Source: Mobbin, https://mobbin.com/flows/89b2e88c-b155-4603-868e-2254f09ecfad",
+          "steps": [836, 837, 838, 839, 840, 841]
+        },
+        {
+          "name": "FAQs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/86024df9-f33b-43c0-a811-1bebae341a2a",
+          "steps": [798, 749, 842, 843]
+        },
+        {
+          "name": "Navigation menu (Spotify Investors)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e1a3e9a5-34f1-4cf2-9d27-817e549747c2",
+          "steps": [844, 836, 845, 846, 756]
+        },
+        {
+          "name": "Events (Investors)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a2dc9b93-0cd2-4a95-b4b6-29a5c840772d",
+          "steps": [846, 847, 848, 849, 850, 851]
+        },
+        {
+          "name": "Jobs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d5b904c0-dbca-4bd8-93bb-6922bfaa4ce5",
+          "steps": [403, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863]
+        },
+        {
+          "name": "Chat",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b990bca3-47cf-4c1b-b8aa-833bc28814fd",
+          "steps": [798, 864, 865, 866, 867, 868]
+        },
+        {
+          "name": "Small business",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fe21637c-bbfe-41d5-a0c4-ca6b79178976",
+          "steps": [686, 869, 870, 871, 872]
+        },
+        {
+          "name": "Help article detail (Spotify for Artists)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ed3088a9-7e27-4148-a90c-93511f4a9b28",
+          "steps": [713, 873, 874, 875]
+        },
+        {
+          "name": "Spotify Investors",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d2a0094d-4680-4df6-b616-49b5be04f5f0",
+          "steps": [403, 844, 876, 877, 878, 879, 354]
+        },
+        {
+          "name": "Privacy Center",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e4ebc833-6bc9-4eca-8fe3-bf571ea0b1cc",
+          "steps": [403, 880, 881, 882, 883]
+        },
+        {
+          "name": "Developer Showcase",
+          "description": "Source: Mobbin, https://mobbin.com/flows/848fc1ea-bd6e-40b7-8e9b-ff18c6749be9",
+          "steps": [884, 885, 886, 887]
+        },
+        {
+          "name": "Community Forum",
+          "description": "Source: Mobbin, https://mobbin.com/flows/fbea259f-d51f-4b0a-b3f8-142c4ec0f43e",
+          "steps": [324, 798, 888, 889, 890, 891, 892]
+        },
+        {
+          "name": "Searching Spotify Support",
+          "type": "searching",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9855d7f7-4310-4ac1-bc91-2d53e6bd5ae7",
+          "steps": [776, 893, 894]
+        },
+        {
+          "name": "Docs",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c30b7097-f338-431a-84aa-42eef1a9d4e6",
+          "steps": [802, 895, 896, 897, 898]
+        },
+        {
+          "name": "Jobs (Spotify Engineering)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a939b257-398a-415d-a485-3d9701e57b35",
+          "steps": [657, 899, 900, 901, 902]
+        },
+        {
+          "name": "Press Inquiries",
+          "description": "Source: Mobbin, https://mobbin.com/flows/71eaa7b7-1a43-4fe1-8ac6-df2008f77696",
+          "steps": [811, 903, 904]
+        },
+        {
+          "name": "Governance",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2d45e467-c079-43e3-84c3-a068b0562346",
+          "steps": [845, 905, 906, 907, 908, 909, 910]
+        },
+        {
+          "name": "Browse a story category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e8eb9588-b5f8-438c-a0a4-5876e8e292cc",
+          "steps": [911, 912, 913, 914, 915]
+        },
+        {
+          "name": "Stories",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c834d2e9-b327-43e6-b7f8-04f071c39660",
+          "steps": [645, 911, 916, 917]
+        },
+        {
+          "name": "For Developers",
+          "description": "Source: Mobbin, https://mobbin.com/flows/33c2c932-ec44-45ab-a634-d3fa1b4f4c37",
+          "steps": [324, 802, 918, 884, 919, 920, 921, 922, 923]
+        },
+        {
+          "name": "Browse a chat category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2c238b4f-efd6-4fd1-beab-e063084870f1",
+          "steps": [864, 924, 925, 926]
+        },
+        {
+          "name": "Developer News",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2339969a-b8e2-4f27-b4d4-714caf4606d3",
+          "steps": [884, 927, 696, 928]
+        },
+        {
+          "name": "Spotify Engineering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d979e35d-986f-4cb1-a230-425d3a5dbb58",
+          "steps": [324, 657, 929, 930, 931]
+        },
+        {
+          "name": "Discover",
+          "description": "Source: Mobbin, https://mobbin.com/flows/34f9379a-738d-4aae-b4ba-f1e1b824a54a",
+          "steps": [802, 932, 933, 934]
+        },
+        {
+          "name": "Browse a doc category",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6895545a-9f2d-4208-8592-6e1f95efe79d",
+          "steps": [895, 935, 936, 937]
+        },
+        {
+          "name": "Locations",
+          "description": "Source: Mobbin, https://mobbin.com/flows/52306765-576b-4570-97a2-c75b0a1a0c74",
+          "steps": [852, 824, 938, 939, 940, 941, 942, 943, 944]
+        },
+        {
+          "name": "How We Hire",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e8104c82-692e-4577-ac12-f52ea59acc10",
+          "steps": [824, 945, 946, 947, 948]
+        },
+        {
+          "name": "Filtering jobs",
+          "type": "filtering",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7d77f632-bf63-47dc-93cd-93096d86b0d4",
+          "steps": [825, 949, 950, 951, 952, 953, 954, 955, 956]
+        },
+        {
+          "name": "Noteable",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8f1a3332-7a56-41e5-8fea-4b72e23bf959",
+          "steps": [324, 957, 958, 959, 960, 961, 962, 963, 964, 965, 966]
+        },
+        {
+          "name": "Web Player",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e28011e7-214a-430f-ad30-d93fffdaf177",
+          "steps": [316, 403]
+        },
+        {
+          "name": "Adding songs to a playlist",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6c5cb109-3ef1-43db-861c-a17441b3cdf1",
+          "steps": [967, 968, 969, 970, 693]
+        },
+        {
+          "name": "Privacy settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/d10bddca-6702-4295-834e-792dd0ad7569",
+          "steps": [762, 971, 972, 973]
+        },
+        {
+          "name": "Terms of Use",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5ea50cf7-24da-49fe-b60d-2507c74d87f2",
+          "steps": [403, 974, 975, 976]
+        },
+        {
+          "name": "Help Center (Spotify Advertising)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e4bfe1bd-859b-4a7a-a0eb-3ea359dc5d13",
+          "steps": [686, 977, 978, 979]
+        },
+        {
+          "name": "Privacy Policy",
+          "description": "Source: Mobbin, https://mobbin.com/flows/59af2371-3cdc-45a8-9508-c03856c5b30b",
+          "steps": [403, 980, 981, 982]
+        },
+        {
+          "name": "Spotify Support",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3449daf8-7860-495f-a6f0-df59bef7885b",
+          "steps": [316, 776, 983, 984]
+        },
+        {
+          "name": "Diversity, Equity & Impact",
+          "description": "Source: Mobbin, https://mobbin.com/flows/67bd3574-df9a-4584-8b97-b322d3973d2a",
+          "steps": [824, 985, 986, 987, 988, 989, 990, 991, 992, 993]
+        },
+        {
+          "name": "Students",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c127e404-e292-4257-88cd-691386ca351f",
+          "steps": [824, 994, 672, 995, 996, 997, 998, 999]
+        },
+        {
+          "name": "Home",
+          "description": "Source: Mobbin, https://mobbin.com/flows/5b2429db-435f-42bb-9adf-17725b735e0e",
+          "steps": [364, 1000, 1001]
+        },
+        {
+          "name": "For the Record",
+          "description": "Source: Mobbin, https://mobbin.com/flows/454773b5-1115-43ad-ac35-1134ad85a6a9",
+          "steps": [403, 632, 1002, 351, 1003, 1004, 1005, 1006, 324]
+        },
+        {
+          "name": "Lyrics",
+          "description": "Source: Mobbin, https://mobbin.com/flows/7d9cf79b-b3da-4fc2-8842-fb9099529543",
+          "steps": [636, 1007]
+        },
+        {
+          "name": "News (Noteable)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/831a851e-326d-48a8-abff-cce4251fedf3",
+          "steps": [958, 1008, 1009, 1010, 1011]
+        },
+        {
+          "name": "Download",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e7e36198-bc73-48df-89b9-fba06f5eb196",
+          "steps": [316, 1012, 1013]
+        },
+        {
+          "name": "Changing password",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ce06d124-eb13-4e56-92cd-fe8ee727c954",
+          "steps": [762, 1014, 1015, 1016]
+        },
+        {
+          "name": "Resetting password",
+          "type": "resetting-password",
+          "description": "Source: Mobbin, https://mobbin.com/flows/3de72053-e785-4c36-b464-db3c408f1cec",
+          "steps": [317, 1017, 1018, 1019, 1020, 1021, 1022]
+        },
+        {
+          "name": "Redeeming a code",
+          "description": "Source: Mobbin, https://mobbin.com/flows/59729191-05f5-43ac-be58-c5a01fa1dc7d",
+          "steps": [762, 1023, 1024, 1025]
+        },
+        {
+          "name": "Blog post (Spotify Engineering)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/972f6c08-9e2f-4437-b4da-7fa137d922ce",
+          "steps": [657, 1026, 1027, 1028, 1029]
+        },
+        {
+          "name": "Overview",
+          "description": "Source: Mobbin, https://mobbin.com/flows/95bf1c40-485a-4902-abcc-483f3ebdb59b",
+          "steps": [685, 1030, 1031, 1032, 1033, 1034, 1035, 1036]
+        },
+        {
+          "name": "News & insights",
+          "description": "Source: Mobbin, https://mobbin.com/flows/94ebf67d-9e31-4611-86d4-72931b55bad9",
+          "steps": [686, 1037, 1038, 1039, 1040, 1041, 1042]
+        },
+        {
+          "name": "Help article detail (Spotify Advertising)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/51feb0d5-6f4a-484f-8cb9-20c8c312d3d6",
+          "steps": [978, 1043, 1044]
+        },
+        {
+          "name": "How it works",
+          "description": "Source: Mobbin, https://mobbin.com/flows/6fd5e13f-f110-4946-aaf1-3a936ce52192",
+          "steps": [684, 1045, 1046, 1047, 1048, 1049, 1050]
+        },
+        {
+          "name": "Being Here",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f9c55453-9f79-4c9d-bbd2-044b9d01b3cb",
+          "steps": [824, 649, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059]
+        },
+        {
+          "name": "About Spotify",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8370191e-2743-4c00-beee-cd8d70d53317",
+          "steps": [632, 810, 1060, 1061, 1062]
+        },
+        {
+          "name": "Loud & Clear",
+          "description": "Source: Mobbin, https://mobbin.com/flows/defeec54-a19b-4c78-8c6c-d3bf459999d4",
+          "steps": [
+            625, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072, 1073, 1074, 1075, 1076
+          ]
+        },
+        {
+          "name": "About (Spotify Engineering)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/be03b9d1-408b-479f-aa90-f13a7c8bdbc6",
+          "steps": [657, 1077, 1078, 1079, 1080]
+        },
+        {
+          "name": "About us",
+          "description": "Source: Mobbin, https://mobbin.com/flows/2ac0ca64-18d1-45d2-9045-ada2e1c8591a",
+          "steps": [403, 1081, 1082]
+        },
+        {
+          "name": "Position detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a82d9c5a-5f36-4209-ba81-9f36e1058f53",
+          "steps": [826, 1083, 1084, 1085, 1086]
+        },
+        {
+          "name": "Copying position link",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b7ca98db-77c5-44ff-a8f3-52d984e0de98",
+          "steps": [1086, 1087]
+        },
+        {
+          "name": "Copying track link",
+          "description": "Source: Mobbin, https://mobbin.com/flows/c792349e-6441-49d5-8d2d-f8ffba12a8d1",
+          "steps": [388, 1088, 1089]
+        },
+        {
+          "name": "Embedding a track",
+          "type": "sharing",
+          "description": "Source: Mobbin, https://mobbin.com/flows/962d2f54-d3ff-4a1f-8ef6-dc0254a97289",
+          "steps": [1088, 1090, 1091, 1092, 1093, 1094]
+        },
+        {
+          "name": "Article detail (Spotify for Artists)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ca8d2bd0-8bab-4822-83df-c7b8297c8ff7",
+          "steps": [1095, 1096, 1097, 1098, 1099]
+        },
+        {
+          "name": "Playlist detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/f9722231-194b-4847-9357-5d368fe6d08f",
+          "steps": [364, 1100, 1101, 1102, 1103]
+        },
+        {
+          "name": "Blog post (Community)",
+          "description": "Source: Mobbin, https://mobbin.com/flows/e9be230f-6a10-4001-9eeb-e4911a5836f6",
+          "steps": [868, 1104, 1105, 1106, 1107]
+        },
+        {
+          "name": "Climate Action",
+          "description": "Source: Mobbin, https://mobbin.com/flows/469d123c-befc-4ba4-875b-0a74d5728560",
+          "steps": [985, 1108, 1109, 1110, 1111, 1112, 1113]
+        },
+        {
+          "name": "Creating a promo card",
+          "description": "Source: Mobbin, https://mobbin.com/flows/8d2a6348-3e9c-423f-b310-38055b99ae44",
+          "steps": [1114, 1115, 1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 641]
+        },
+        {
+          "name": "Promo Cards",
+          "description": "Source: Mobbin, https://mobbin.com/flows/45a39466-dad9-4262-b224-18ffc673678a",
+          "steps": [625, 1114]
+        },
+        {
+          "name": "Profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/27b956e0-ba0e-4592-a3f3-342df370ee4d",
+          "steps": [765, 1124, 1125]
+        },
+        {
+          "name": "Changing profile photo",
+          "type": "editing-profile",
+          "description": "Source: Mobbin, https://mobbin.com/flows/949821d2-c1bf-4366-a47d-2b5b0f66aa81",
+          "steps": [1125, 1126, 1127]
+        },
+        {
+          "name": "Updating notification settings",
+          "description": "Source: Mobbin, https://mobbin.com/flows/31f77d69-effa-4e45-b310-0624fe422a09",
+          "steps": [762, 1128, 1129, 1130]
+        },
+        {
+          "name": "Data detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/ffa37f3b-c12c-47eb-af05-4f3a0d64a4fc",
+          "steps": [1066, 1131, 1132]
+        },
+        {
+          "name": "Reporting content",
+          "description": "Source: Mobbin, https://mobbin.com/flows/b294ca78-be25-4f17-8a8b-d9827664c94d",
+          "steps": [1101, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1141]
+        },
+        {
+          "name": "Video detail",
+          "description": "Source: Mobbin, https://mobbin.com/flows/9fd1afab-ef21-48a2-ac47-226cec86280d",
+          "steps": [1142, 1143, 1144, 1145, 1146]
+        },
+        {
+          "name": "Videos",
+          "description": "Source: Mobbin, https://mobbin.com/flows/a51e443c-1a0d-4149-8d6d-b0d8430ae901",
+          "steps": [625, 1147, 1142, 1148]
+        },
+        {
+          "name": "Playing a track",
+          "description": "Source: Mobbin, https://mobbin.com/flows/853db766-050c-4f50-9632-248d43672e51",
+          "steps": [1100, 636, 1149]
+        }
+      ]
+    },
+    {
+      "name": "Vercel",
+      "websiteUrl": "https://vercel.com",
+      "tagline": "Develop. Preview. Ship.",
+      "screens": 12,
+      "flows": [
+        {
+          "name": "Signing up",
+          "type": "signing-up",
+          "steps": [0, 1]
+        },
+        {
+          "name": "Logging in",
+          "type": "logging-in",
+          "steps": [2, 3]
+        },
+        {
+          "name": "Creating a project",
+          "steps": [4, 5]
+        },
+        {
+          "name": "Sharing a deployment",
+          "type": "sharing",
+          "steps": [6, 7]
+        },
+        {
+          "name": "Inviting a teammate",
+          "steps": [8, 9]
+        },
+        {
+          "name": "Upgrading plan",
+          "type": "upgrading",
+          "steps": [10, 11]
+        }
+      ]
+    },
+    {
+      "name": "Linear",
+      "websiteUrl": "https://linear.app",
+      "tagline": "Plan and build products",
+      "screens": 10,
+      "flows": [
+        {
+          "name": "Signing up",
+          "type": "signing-up",
+          "steps": [0, 1]
+        },
+        {
+          "name": "Creating an issue",
+          "type": "creating",
+          "steps": [2, 3]
+        },
+        {
+          "name": "Inviting a teammate",
+          "steps": [4, 5]
+        },
+        {
+          "name": "Filtering issues",
+          "type": "filtering",
+          "steps": [6, 7]
+        },
+        {
+          "name": "Pricing",
+          "steps": [8, 9]
+        }
+      ]
+    },
+    {
+      "name": "Stripe",
+      "websiteUrl": "https://stripe.com",
+      "tagline": "Financial infrastructure for the internet",
+      "screens": 10,
+      "flows": [
+        {
+          "name": "Signing up",
+          "type": "signing-up",
+          "steps": [0, 1]
+        },
+        {
+          "name": "Downloading an invoice",
+          "steps": [2, 3]
+        },
+        {
+          "name": "Canceling a subscription",
+          "steps": [4, 5]
+        },
+        {
+          "name": "Creating a payment link",
+          "type": "creating",
+          "steps": [6, 7]
+        },
+        {
+          "name": "Sharing a payment link",
+          "type": "sharing",
+          "steps": [8, 9]
+        }
+      ]
+    },
+    {
+      "name": "Fixture Tunes",
+      "websiteUrl": "https://tunes.example",
+      "tagline": "A music streaming fixture app",
+      "screens": 8,
+      "flows": [
+        {
+          "name": "Creating a playlist",
+          "type": "creating",
+          "steps": [0, 1]
+        },
+        {
+          "name": "Adding a song to a playlist",
+          "steps": [2, 3]
+        },
+        {
+          "name": "Liking a song",
+          "steps": [4, 5]
+        },
+        {
+          "name": "Downloading an episode",
+          "steps": [6, 7]
+        }
+      ]
+    }
+  ]
+}

@@ -17,13 +17,14 @@
  *   control.mjs agent --prompt <text> [--client <claude|codex>] [--timeout <seconds>]   one session
  *                                              of that real agent with only those two servers;
  *                                              its transcript goes to test-results/verify/
+ *   control.mjs seed <fixture>                 publish fixtures/<fixture>.json through the CLI
  *   control.mjs list                           every run on this machine and whether it is alive
  *   control.mjs teardown                       stop the server, delete state, keep the evidence
  *
  * Commands other than launch and list take --run <id>, or $SC_VERIFY_RUN, or the only run there is.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   appendFileSync,
   copyFileSync,
@@ -1416,6 +1417,7 @@ async function commandDrive(flags, positional) {
     adminKey: run.adminKey,
     d1Counter: Boolean(run.d1Counter),
     stamp,
+    out,
 
     async newPage({ viewport = { width: 1440, height: 900 } } = {}) {
       const context = await browser.newContext({ viewport });
@@ -1774,6 +1776,103 @@ async function commandDrive(flags, positional) {
 }
 
 // -------------------------------------------------------------------------------------------------
+// seed
+// -------------------------------------------------------------------------------------------------
+
+function deterministicImage(sharp, key) {
+  const colors = createHash("sha256").update(key).digest();
+  const [width, height, bands] = [480, 300, 10];
+  const pixels = Buffer.alloc(width * height * 3);
+  const bandBytes = (height / bands) * width * 3;
+  for (let band = 0; band < bands; band += 1) {
+    const color = colors.subarray(band * 3, band * 3 + 3);
+    pixels.fill(color, band * bandBytes, (band + 1) * bandBytes);
+  }
+  return sharp(pixels, { raw: { width, height, channels: 3 } })
+    .png()
+    .toBuffer();
+}
+
+async function writeFixtureManifests(name, dir) {
+  const path = join(SKILL_DIR, "fixtures", `${name}.json`);
+  if (!/^[a-z0-9-]+$/u.test(name) || !existsSync(path)) throw new Error(`No fixture ${path}`);
+  const sharp = mcpRequire("sharp");
+  const manifests = [];
+  for (const { screens: count, flows, ...app } of JSON.parse(readFileSync(path, "utf8")).apps) {
+    const slug = app.name.toLowerCase().replace(/[^a-z0-9]+/gu, "-");
+    mkdirSync(join(dir, slug, "source"), { recursive: true });
+    const screens = [];
+    for (let index = 0; index < count; index += 1) {
+      const file = `source/s${index}.png`;
+      writeFileSync(
+        join(dir, slug, file),
+        await deterministicImage(sharp, `${name}/${slug}/${index}`),
+      );
+      screens.push({ localId: `s${index}`, source: { file }, patterns: [], elements: [] });
+    }
+    const manifest = join(dir, slug, "manifest.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        version: 1,
+        id: `${name}-${slug}`,
+        app,
+        screens,
+        flows: flows.map(({ steps, ...flow }, index) => ({
+          localId: `f${index}`,
+          ...flow,
+          steps: steps.map((step) => ({ screen: `s${step}` })),
+        })),
+      }),
+    );
+    manifests.push({ app: app.name, manifest });
+  }
+  return manifests;
+}
+
+async function commandSeed(flags, [name]) {
+  if (!name) throw new Error("Usage: control.mjs seed <fixture>, such as spotify-shape");
+  const run = requireHealthy(resolveRun(flags));
+  const started = Date.now();
+  const dir = join(runDir(run.id), `seed-${name}`);
+  const oldestFirst = await writeFixtureManifests(name, dir);
+  buildLocalMcp(run);
+  const cli = join(mcpBuildDir(run.id), "cli.js");
+  const apps = [];
+  for (const { app, manifest } of oldestFirst) {
+    log(`[${run.id}] publishing ${app}`);
+    let report;
+    try {
+      report = JSON.parse(
+        execFileSync(process.execPath, [cli, "manifest", "publish", manifest], {
+          env: { ...localMcpEnv(run), SCREEN_COMMONS_API_KEY: run.adminKey },
+          encoding: "utf8",
+          maxBuffer: 256 * 1024 * 1024,
+          stdio: ["ignore", "pipe", "pipe"],
+        }),
+      );
+    } catch (error) {
+      throw new Error(`Publishing ${app} failed: ${(error.stderr || error.message).slice(-2000)}`);
+    }
+    const unpublished = [...report.screens, ...report.flows].filter(
+      (item) => item.status !== "published",
+    );
+    if (unpublished.length > 0) {
+      throw new Error(
+        `${unpublished.length} ${app} items aren't published: ${JSON.stringify(unpublished.slice(0, 3))}`,
+      );
+    }
+    apps.push({
+      app,
+      slug: report.app.slug,
+      flows: report.flows.length,
+      screens: report.screens.length,
+    });
+  }
+  output({ fixture: name, apps, seconds: Math.round((Date.now() - started) / 1000) });
+}
+
+// -------------------------------------------------------------------------------------------------
 // teardown
 // -------------------------------------------------------------------------------------------------
 
@@ -1862,6 +1961,7 @@ const commands = {
   mcp: () => commandMcp(flags, positional),
   "mcp-config": async () => commandMcpConfig(flags),
   agent: () => commandAgent(flags),
+  seed: () => commandSeed(flags, positional),
   list: async () =>
     output(
       runIds().map((id) => {
@@ -1885,7 +1985,7 @@ if (commands[command]) {
   });
 } else {
   log(
-    "Usage: control.mjs <launch|doctor|drive|sql|r2|mcp|mcp-config|agent|list|teardown> [--run <id>]; see ../SKILL.md",
+    "Usage: control.mjs <launch|doctor|drive|sql|r2|mcp|mcp-config|agent|seed|list|teardown> [--run <id>]; see ../SKILL.md",
   );
   process.exitCode = 1;
 }
