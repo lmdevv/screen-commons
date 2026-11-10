@@ -666,3 +666,36 @@ describe("9. retrying a flow creation with the same id doesn't duplicate it", ()
     expect((await adminApi.getFlow(input.id)).name).toBe("Original");
   });
 });
+
+describe("10. a database failure returns a generic error with no SQL", () => {
+  const LEAK = /Failed query|params:|\bfrom\s+"?app"?\b|\bat [\w$.<>]+ \(/iu;
+  const REQUEST_ID = /request id ([0-9a-f-]{36})/u;
+
+  it("hides the query from the page, its SSR payload and the API", async () => {
+    await d1(`ALTER TABLE app RENAME TO app_broken`);
+    try {
+      const page = await fetch(baseUrl());
+      const html = await page.text();
+      const payload = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gu)]
+        .map((match) => match[1])
+        .join("\n");
+      expect(page.status).toBe(500);
+      expect(html).not.toMatch(LEAK);
+      expect(html).toMatch(REQUEST_ID);
+      expect(payload).toMatch(REQUEST_ID);
+
+      const api = await fetch(`${baseUrl()}/api/v1/apps`, {
+        headers: { authorization: `Bearer ${adminKey}` },
+      });
+      const text = await api.text();
+      expect(api.status).toBe(500);
+      expect(text).not.toMatch(LEAK);
+      const { error } = JSON.parse(text) as { error: { code: string; message: string } };
+      expect(error.code).toBe("internal");
+      expect(error.message).toMatch(REQUEST_ID);
+    } finally {
+      await d1(`ALTER TABLE app_broken RENAME TO app`);
+    }
+    expect((await fetch(baseUrl())).status).toBe(200);
+  });
+});
