@@ -52,6 +52,9 @@ const REMOTE_BASE64_NOTE = `Send { type, base64 } only as a last resort: it take
 
 const REMOTE_PATH_REFUSAL = `image { path } only works on the local screen-commons-mcp server or the screen-commons CLI, because this remote server can't read your files. Use either of those for a file on disk, or { url } for an image already at a URL this server can reach. ${REMOTE_BASE64_NOTE}`;
 
+const SEARCH_MATCH_NOTE =
+  "The query can be a whole question. When it names an app, only that app's results return. The first line and `match` say which app and words matched, or that the catalog has no app by the name asked about.";
+
 const uploadDescription = (sources: string) =>
   `Upload one PNG, JPEG or WebP screenshot to the catalog under an app (created if missing). ${sources} Identical bytes in one app return the same screen. The result has its id, url and status: admin uploads are published, member uploads stay pending until reviewed.`;
 
@@ -59,8 +62,7 @@ export const catalogTools = {
   search_screens: tool({
     name: "search_screens",
     title: "Search screens",
-    description:
-      "Search published UI screens by free text and/or taxonomy filters. Returns screen ids, app, patterns and thumbnail URLs. Use get_screen to see an image.",
+    description: `Search published UI screens by free text and/or taxonomy filters. Returns screen ids, app, patterns and thumbnail URLs, best match first. Use get_screen to see an image. ${SEARCH_MATCH_NOTE}`,
     input: z.object({
       query: z.string().max(200).optional().describe("Free text, e.g. 'pricing table with toggle'"),
       platform: platformSchema.optional(),
@@ -75,7 +77,7 @@ export const catalogTools = {
   search_flows: tool({
     name: "search_flows",
     title: "Search flows",
-    description: "Search ordered multi-screen user flows (onboarding, checkout, signing up…).",
+    description: `Search ordered multi-screen user flows (onboarding, checkout, signing up…), best match first. ${SEARCH_MATCH_NOTE}`,
     input: z.object({
       query: z.string().max(200).optional(),
       platform: platformSchema.optional(),

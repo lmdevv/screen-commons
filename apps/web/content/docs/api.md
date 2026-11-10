@@ -277,11 +277,32 @@ curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
       "createdAt": "2026-10-07T03:59:53.952Z"
     }
   ],
-  "nextCursor": null
+  "nextCursor": null,
+  "match": {
+    "mode": "none",
+    "app": null,
+    "appNotFound": null,
+    "matchedTerms": [],
+    "unmatchedTerms": []
+  }
 }
 ```
 
 `saved` is `true` when the screen is in any of your collections. `source` is `upload`, `extension`, `mcp` or `seed`.
+
+#### Search with q
+
+With `q`, screens rank by how well they match, and `sort` has no effect. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating". When the question names an app in the catalog, only that app's screens return. Flow search works the same way.
+
+`match` says how the query was read:
+
+| Field            | Description                                                                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`           | `strict`: every item contains every word. `relaxed`: fewer than 3 items did, so items that contain some of the words follow, most words first. `none`: nothing to search for, so the default order. |
+| `app`            | Slug of the app the query names, or `null`.                                                                                                                                                         |
+| `appNotFound`    | An app the query names that the catalog doesn't have, as typed, or `null`. The items then come from other apps.                                                                                     |
+| `matchedTerms`   | Query words that some item contains.                                                                                                                                                                |
+| `unmatchedTerms` | Query words that no item contains.                                                                                                                                                                  |
 
 ### Get a screen
 
@@ -469,7 +490,7 @@ GET /api/v1/flows
 | `cursor`   | string | Pagination cursor.                    |
 | `limit`    | number | 1–100, default 30.                    |
 
-Flows are listed newest first.
+Flows are listed newest first. With `q`, they rank by how well they match, as [screen search](#list-screens) describes.
 
 ```json
 {
@@ -501,7 +522,14 @@ Flows are listed newest first.
       "createdAt": "2026-10-07T03:59:53.952Z"
     }
   ],
-  "nextCursor": null
+  "nextCursor": null,
+  "match": {
+    "mode": "none",
+    "app": null,
+    "appNotFound": null,
+    "matchedTerms": [],
+    "unmatchedTerms": []
+  }
 }
 ```
 

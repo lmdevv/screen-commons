@@ -51,7 +51,7 @@ export default async function apiAccess(h) {
     query: "pricing",
   });
   assert.equal(call.isError, false);
-  assert.ok(JSON.parse(call.text).items.length >= 1);
+  assert.ok(call.structured.items.length >= 1);
 
   await page.getByRole("button", { name: `Revoke ${name}` }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Revoke key" }).click();

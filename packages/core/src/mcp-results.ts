@@ -7,8 +7,11 @@ import type {
   FlowSummary,
   Screen,
   ScreenDetail,
+  SearchMatch,
+  SearchPage,
 } from "./index";
 import { LIMITS } from "./limits";
+import { MIN_STRICT_RESULTS } from "./search-query";
 import { base64ToBytes, readImageHeader } from "./utils";
 
 /**
@@ -60,6 +63,51 @@ export function compactContribution(origin: string, item: Contribution) {
     ...(item.kind === "screen" ? compactScreen(origin, item) : compactFlow(origin, item)),
     reviewReason: item.reviewReason,
     createdAt: item.createdAt,
+  };
+}
+
+export function screenSearchResult(origin: string, page: SearchPage<Screen>) {
+  return {
+    match: page.match,
+    items: page.items.map((screen) => compactScreen(origin, screen)),
+    nextCursor: page.nextCursor,
+  };
+}
+
+export function flowSearchResult(origin: string, page: SearchPage<FlowSummary>) {
+  return {
+    match: page.match,
+    items: page.items.map((flow) => compactFlow(origin, flow)),
+    nextCursor: page.nextCursor,
+  };
+}
+
+export function describeMatch(match: SearchMatch): string {
+  const quoted = (terms: string[]) => terms.map((term) => `"${term}"`).join(", ");
+  return [
+    match.appNotFound &&
+      `The catalog has no app named "${match.appNotFound}", so these results come from other apps.`,
+    match.app && `Only results from the app "${match.app}", which the query names.`,
+    match.mode === "strict" &&
+      match.matchedTerms.length > 0 &&
+      `Every result contains ${quoted(match.matchedTerms)}.`,
+    match.mode === "relaxed" &&
+      `Fewer than ${MIN_STRICT_RESULTS} results contain every search term, so results that contain some of them follow.`,
+    match.mode === "none" && "No search terms, so results are in the default order.",
+    match.unmatchedTerms.length > 0 && `No result contains ${quoted(match.unmatchedTerms)}.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** A server from before `match` sends none, and then the result has no match line. */
+export function searchToolResult(result: { match?: SearchMatch }) {
+  return {
+    content: [
+      ...(result.match ? [{ type: "text" as const, text: describeMatch(result.match) }] : []),
+      { type: "text" as const, text: JSON.stringify(result) },
+    ],
+    structuredContent: result,
   };
 }
 

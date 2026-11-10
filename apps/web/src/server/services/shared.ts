@@ -71,18 +71,22 @@ export function encodeCursor(sort: string, key: number, id: string): string {
   return base64UrlEncode(new TextEncoder().encode(JSON.stringify([sort, key, id])));
 }
 
-export function decodeCursor(cursor: string, sort: string): { key: number; id: string } {
+export function decodeCursor<Sort extends string>(
+  cursor: string,
+  sort: Sort | readonly Sort[],
+): { sort: Sort; key: number; id: string } {
+  const sorts: readonly string[] = typeof sort === "string" ? [sort] : sort;
   try {
     const binary = base64UrlDecode(cursor);
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (
       Array.isArray(value) &&
-      value[0] === sort &&
+      sorts.includes(value[0]) &&
       typeof value[1] === "number" &&
       typeof value[2] === "string"
     ) {
-      return { key: value[1], id: value[2] };
+      return { sort: value[0] as Sort, key: value[1], id: value[2] };
     }
   } catch {
     // fall through

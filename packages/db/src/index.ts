@@ -35,6 +35,17 @@ export function jsonArrayContains(column: SQLWrapper, value: string): SQL {
   return sql`EXISTS (SELECT 1 FROM json_each(${column}) WHERE value = ${value})`;
 }
 
+/** `"pricing"* "tab"*`, or joined with OR. Terms shorter than `minPrefix` match whole words. */
+export function ftsMatch(
+  terms: readonly string[],
+  operator: "AND" | "OR" = "AND",
+  minPrefix = 1,
+): string {
+  return terms
+    .map((term) => `"${term.replaceAll('"', '""')}"${term.length < minPrefix ? "" : "*"}`)
+    .join(operator === "AND" ? " " : " OR ");
+}
+
 /**
  * Turn free text into a safe FTS5 MATCH expression with prefix matching on every term:
  * `pricing tab` → `"pricing"* "tab"*` (implicit AND). Returns null when nothing is searchable.
@@ -47,6 +58,5 @@ export function ftsQuery(text: string): string | null {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
     .slice(0, 12);
-  if (terms.length === 0) return null;
-  return terms.map((term) => `"${term}"*`).join(" ");
+  return terms.length > 0 ? ftsMatch(terms) : null;
 }

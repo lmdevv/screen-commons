@@ -239,6 +239,13 @@ export async function startMockApi(): Promise<MockApi> {
         return json(200, {
           items: [screen("scr_1"), screen("scr_2")],
           nextCursor: url.searchParams.get("q") === "more" ? "c1" : null,
+          match: {
+            mode: "strict",
+            app: null,
+            appNotFound: null,
+            matchedTerms: url.searchParams.getAll("q"),
+            unmatchedTerms: [],
+          },
         });
       }
       const screenMatch = /^\/screens\/([^/]+)$/u.exec(path);

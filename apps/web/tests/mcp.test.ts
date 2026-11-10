@@ -1,4 +1,9 @@
-import { catalogTools, readImageHeader, type CaptureBatchResult } from "@screen-commons/core";
+import {
+  catalogTools,
+  readImageHeader,
+  type CaptureBatchResult,
+  type SearchMatch,
+} from "@screen-commons/core";
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng } from "./images";
@@ -9,6 +14,12 @@ let token: string;
 let admin: Session;
 let batch: CaptureBatchResult;
 let nextId = 1;
+
+interface SearchToolData {
+  match: SearchMatch;
+  items: { id: string; title?: string; thumbUrl?: string }[];
+  nextCursor: string | null;
+}
 
 interface RpcResponse {
   jsonrpc: "2.0";
@@ -104,15 +115,43 @@ describe("remote MCP (/mcp)", () => {
 
   it("search_screens finds screens by text and filters", async () => {
     const result = await call("search_screens", { query: "payment", app: batch.app.slug });
-    const data = JSON.parse(result.content![0]!.text!);
-    expect(data.items.map((item: { id: string }) => item.id)).toEqual([batch.screens[1]!.id]);
-    expect(data.items[0].thumbUrl).toMatch(new RegExp(`^${baseUrl()}/media/thumb/`, "u"));
+    const data = result.structuredContent as SearchToolData;
+    expect(data.items.map((item) => item.id)).toEqual([batch.screens[1]!.id]);
+    expect(data.items[0]!.thumbUrl).toMatch(new RegExp(`^${baseUrl()}/media/thumb/`, "u"));
+    expect(result.content!.map((item) => item.text)).toEqual([
+      'Every result contains "payment".',
+      JSON.stringify(data),
+    ]);
 
-    const filtered = JSON.parse(
-      (await call("search_screens", { pattern: "checkout", element: "table", app: batch.app.slug }))
-        .content![0]!.text!,
+    const filtered = (
+      await call("search_screens", { pattern: "checkout", element: "table", app: batch.app.slug })
+    ).structuredContent as SearchToolData;
+    expect(filtered.items.map((item) => item.title)).toEqual(["Cart overview"]);
+  });
+
+  it("search_flows answers a question with the app it names, or the app it lacks", async () => {
+    const named = await call("search_flows", {
+      query: `How does Mcp Demo ${suffix} let users checkout?`,
+    });
+    const data = named.structuredContent as SearchToolData;
+    expect(data.items.map((item) => item.id)).toEqual([batch.flow!.id]);
+    expect(data.match).toMatchObject({ mode: "strict", app: batch.app.slug });
+    expect(named.content![0]!.text).toBe(
+      `Only results from the app "${batch.app.slug}", which the query names. Every result contains "checkout".`,
     );
-    expect(filtered.items.map((item: { title: string }) => item.title)).toEqual(["Cart overview"]);
+
+    const missing = await call("search_flows", {
+      query: `How does Nope${suffix} let users checkout?`,
+    });
+    expect((missing.structuredContent as SearchToolData).match).toMatchObject({
+      appNotFound: `Nope${suffix}`,
+    });
+    expect(missing.content![0]!.text).toMatch(
+      new RegExp(
+        `^The catalog has no app named "Nope${suffix}", so these results come from other apps\\.`,
+        "u",
+      ),
+    );
   });
 
   it("get_screen returns metadata and the image", async () => {
@@ -152,10 +191,9 @@ describe("remote MCP (/mcp)", () => {
     );
     expect(apps.items.map((item: { id: string }) => item.id)).toEqual([batch.app.id]);
 
-    const flows = JSON.parse(
-      (await call("search_flows", { type: "checkout", app: batch.app.slug })).content![0]!.text!,
-    );
-    expect(flows.items.map((item: { id: string }) => item.id)).toEqual([batch.flow!.id]);
+    const flows = (await call("search_flows", { type: "checkout", app: batch.app.slug }))
+      .structuredContent as SearchToolData;
+    expect(flows.items.map((item) => item.id)).toEqual([batch.flow!.id]);
 
     const taxonomy = JSON.parse((await call("get_taxonomy", {})).content![0]!.text!);
     expect(taxonomy.elements.length).toBeGreaterThan(10);

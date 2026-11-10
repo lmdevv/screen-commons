@@ -617,6 +617,111 @@ describe("flows", () => {
   });
 });
 
+describe("ranked search", () => {
+  const riffs = `Riffs ${suffix}`;
+  const playlistFlows = [
+    "Creating a playlist from a song",
+    "Creating a playlist",
+    "Deleting a playlist",
+    "Creating a playlist folder",
+    "Playlist",
+    "Following an artist",
+  ];
+  let riffsSlug: string;
+
+  beforeAll(async () => {
+    const upload = (name: string) =>
+      adminApi.captures({
+        app: { name },
+        source: "seed",
+        screens: [captureScreen(), captureScreen()],
+      });
+    const riffsBatch = await upload(riffs);
+    riffsSlug = riffsBatch.app.slug;
+    for (const name of playlistFlows) {
+      await adminApi.createFlow({
+        appId: riffsBatch.app.id,
+        name,
+        steps: riffsBatch.screens.map((item) => ({ screenId: item.id })),
+      });
+    }
+    const decoy = await upload(`Decoy ${suffix}`);
+    await adminApi.createFlow({
+      appId: decoy.app.id,
+      name: "Creating a playlist",
+      steps: decoy.screens.map((item) => ({ screenId: item.id })),
+    });
+  });
+
+  it("ranks the flows of the app a question names", async () => {
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${riffs} let users create a playlist?` });
+    expect(page.items.map((item) => item.name)).toEqual([
+      "Creating a playlist",
+      "Creating a playlist folder",
+      "Creating a playlist from a song",
+    ]);
+    expect(page.items.every((item) => item.app.slug === riffsSlug)).toBe(true);
+    expect(page.match).toEqual({
+      mode: "strict",
+      app: riffsSlug,
+      appNotFound: null,
+      matchedTerms: ["create", "playlist"],
+      unmatchedTerms: [],
+    });
+  });
+
+  it("fills a short strict result with partial matches, most terms first", async () => {
+    const page = await member.client().listFlows({ q: `${riffs} delete playlists` });
+    expect(page.items[0]!.name).toBe("Deleting a playlist");
+    expect(page.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["Playlist", "Creating a playlist"]),
+    );
+    expect(page.items.map((item) => item.name)).not.toContain("Following an artist");
+    expect(page.match).toMatchObject({ mode: "relaxed", app: riffsSlug });
+  });
+
+  it("reports an app the catalog lacks and still answers from other apps", async () => {
+    const missing = `Qx${suffix}`;
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${missing} let users create a playlist?` });
+    expect(page.match).toEqual({
+      mode: "relaxed",
+      app: null,
+      appNotFound: missing,
+      matchedTerms: ["create", "playlist"],
+      unmatchedTerms: [missing.toLowerCase()],
+    });
+    expect(page.items.map((item) => item.name)).toContain("Creating a playlist");
+  });
+
+  it("pages a ranked search without repeating or skipping a flow", async () => {
+    const client = member.client();
+    const whole = await client.listFlows({ q: "playlist", app: riffsSlug, limit: 20 });
+    expect(whole.items).toHaveLength(5);
+    const paged: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await client.listFlows({ q: "playlist", app: riffsSlug, limit: 2, cursor });
+      expect(page.match.mode).toBe("strict");
+      paged.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(paged).toEqual(whole.items.map((item) => item.id));
+  });
+
+  it("keeps the latest order when there is nothing to rank by", async () => {
+    const latest = await member.client().listFlows({ app: riffsSlug });
+    expect(latest.items).toHaveLength(playlistFlows.length);
+    expect(latest.match.mode).toBe("none");
+    const named = await member.client().listFlows({ q: `show me ${riffs} flows` });
+    expect(named.items.map((item) => item.id)).toEqual(latest.items.map((item) => item.id));
+    expect(named.match).toMatchObject({ mode: "none", app: riffsSlug });
+  });
+});
+
 describe("visibility + review", () => {
   it("keeps member uploads pending until an admin approves them", async () => {
     const meta = {

@@ -11,19 +11,20 @@ import {
   base64ToBytes,
   compactApp,
   compactContribution,
-  compactFlow,
-  compactScreen,
   createdFlowResult,
   deletedResult,
   downloadImage,
   exceedsSourcePixels,
   flowDetailResult,
   flowImageSteps,
+  flowSearchResult,
   imageTypeNote,
   isLocalOrigin,
   localCatalogTools,
   readImageHeader,
   screenDetailResult,
+  screenSearchResult,
+  searchToolResult,
   sniffImage,
   toolErrorText,
   uploadResult,
@@ -182,10 +183,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    return json({
-      items: page.items.map((screen) => compactScreen(origin, screen)),
-      nextCursor: page.nextCursor,
-    });
+    return searchToolResult(screenSearchResult(origin, page));
   });
 
   register("search_flows", async (args) => {
@@ -198,10 +196,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    return json({
-      items: page.items.map((flow) => compactFlow(origin, flow)),
-      nextCursor: page.nextCursor,
-    });
+    return searchToolResult(flowSearchResult(origin, page));
   });
 
   register("list_apps", async (args) => {

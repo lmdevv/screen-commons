@@ -95,7 +95,7 @@ export default async function mcpLocal(h) {
   };
 
   const search = await same("search_screens", "search_screens", { query: "billed yearly" });
-  const found = JSON.parse(search.text);
+  const found = search.structured;
   assert.ok(found.items.length >= 3, "text inside screenshots is searchable");
   assert.ok(found.items[0].url.startsWith(`${h.base}/screens/`), "links are absolute");
   assert.ok(found.items[0].thumbUrl.startsWith(`${h.base}/media/`), "links are absolute");
@@ -107,7 +107,8 @@ export default async function mcpLocal(h) {
   const empty = await same("search_screens with no match", "search_screens", {
     query: "zzzznothingmatches",
   });
-  assert.deepEqual(JSON.parse(empty.text), { items: [], nextCursor: null });
+  assert.deepEqual(empty.structured.items, []);
+  assert.equal(empty.structured.nextCursor, null);
 
   const screen = await same("get_screen", "get_screen", { id: found.items[0].id });
   assert.equal(screen.images.length, 1);
@@ -123,9 +124,9 @@ export default async function mcpLocal(h) {
   const app = JSON.parse((await same("get_app", "get_app", { slug })).text);
   assert.ok(app.screenCount >= 2);
 
-  const flows = JSON.parse(
-    (await same("search_flows", "search_flows", { type: "signing-up", platform: "web" })).text,
-  );
+  const flows = (
+    await same("search_flows", "search_flows", { type: "signing-up", platform: "web" })
+  ).structured;
   const flow = await same("get_flow with images", "get_flow", {
     id: flows.items[0].id,
     includeImages: true,

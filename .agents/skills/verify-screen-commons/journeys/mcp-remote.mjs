@@ -100,35 +100,31 @@ export default async function mcpRemote(h) {
   const byText = await h.call(admin, "search_screens by screenshot text", "search_screens", {
     query: "billed yearly",
   });
-  const found = JSON.parse(byText.text);
+  const found = byText.structured;
   assert.ok(found.items.length >= 3, "text inside screenshots is searchable");
   assert.match(found.items[0].url, new RegExp(`^${h.base}/screens/`, "u"));
   assert.match(found.items[0].thumbUrl, new RegExp(`^${h.base}/media/`, "u"));
 
-  const filtered = JSON.parse(
-    (
-      await h.call(admin, "search_screens by pattern", "search_screens", {
-        pattern: "pricing",
-        platform: "web",
-        limit: 30,
-      })
-    ).text,
-  );
+  const filtered = (
+    await h.call(admin, "search_screens by pattern", "search_screens", {
+      pattern: "pricing",
+      platform: "web",
+      limit: 30,
+    })
+  ).structured;
   assert.ok(filtered.items.length >= 9);
   assert.ok(filtered.items.every((screen) => screen.patterns.includes("pricing")));
 
-  const firstPage = JSON.parse(
-    (await h.call(admin, "search_screens first page", "search_screens", { limit: 2 })).text,
-  );
+  const firstPage = (
+    await h.call(admin, "search_screens first page", "search_screens", { limit: 2 })
+  ).structured;
   assert.ok(firstPage.nextCursor, "more than one page");
-  const secondPage = JSON.parse(
-    (
-      await h.call(admin, "search_screens next page", "search_screens", {
-        limit: 2,
-        cursor: firstPage.nextCursor,
-      })
-    ).text,
-  );
+  const secondPage = (
+    await h.call(admin, "search_screens next page", "search_screens", {
+      limit: 2,
+      cursor: firstPage.nextCursor,
+    })
+  ).structured;
   assert.equal(secondPage.items.length, 2, "the cursor returns the next page");
   const pageIds = new Set(firstPage.items.map((screen) => screen.id));
   assert.ok(
@@ -154,14 +150,12 @@ export default async function mcpRemote(h) {
   assert.equal(missing.isError, true);
   assert.match(missing.text, /^not_found/u);
 
-  const flows = JSON.parse(
-    (
-      await h.call(admin, "search_flows by type", "search_flows", {
-        type: "signing-up",
-        platform: "web",
-      })
-    ).text,
-  );
+  const flows = (
+    await h.call(admin, "search_flows by type", "search_flows", {
+      type: "signing-up",
+      platform: "web",
+    })
+  ).structured;
   assert.ok(flows.items.length >= 1);
   const flowDetail = await h.call(admin, "get_flow with images", "get_flow", {
     id: flows.items[0].id,
@@ -459,7 +453,7 @@ export default async function mcpRemote(h) {
   const inSearch = async (client, label) => {
     const result = await h.call(client, label, "search_screens", { query: appName, limit: 30 });
     assert.equal(result.isError, false, result.text);
-    return JSON.parse(result.text).items.some((screen) => screen.id === pending.screen.id);
+    return result.structured.items.some((screen) => screen.id === pending.screen.id);
   };
   assert.equal(await inSearch(memberClient, "the member's search finds it"), true);
   assert.equal(await inSearch(otherClient, "another member's search skips it"), false);

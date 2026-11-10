@@ -256,9 +256,9 @@ export interface ApiResponses {
   taxonomy: Taxonomy;
   listApps: Page<AppSummary>;
   getApp: AppDetail;
-  listScreens: Page<Screen>;
+  listScreens: SearchPage<Screen>;
   getScreen: ScreenDetail;
-  listFlows: Page<FlowSummary>;
+  listFlows: SearchPage<FlowSummary>;
   getFlow: FlowDetail;
   listContributions: Page<Contribution>;
   search: SearchResult;
