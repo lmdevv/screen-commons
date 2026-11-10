@@ -10,7 +10,7 @@ src/server/
   auth.ts          Better Auth (email+password, GitHub when env set; first user → admin via DB trigger)
   keys.ts          API keys: sc_ + 32 random bytes, SHA-256 at rest, throttled last_used_at
   principal.ts     getPrincipal(request): bearer key OR session cookie (same-origin only)
-  errors.ts        ServiceError(code, message) + zod → bad_request mapping
+  errors.ts        ServiceError(code, message) + zod → bad_request; anything else → internal, logged under a request id
   ids.ts           time-ordered ids, sha256Hex, base64url
   services/        plain async functions returning exact @screen-commons/core API shapes
     catalog.ts     listApps, getApp, listScreens, getScreen, listFlows, getFlow, search, getTaxonomy
@@ -102,7 +102,9 @@ src/server/
 
 Call them as `fn({ data })` (or `fn()` when there's no input). All require a signed-in session
 except `getCurrentUser` / `getAuthOptions`. Errors: not signed in → throws a router `redirect` to
-`/sign-in`; missing or hidden item → throws `notFound()`; anything else → `Error(message)`.
+`/sign-in`; missing or hidden item → throws `notFound()`; anything else → `Error(message)`. The
+global middleware in `src/start.ts` turns any error that isn't a `ServiceError` into the generic
+`internal` message with its request id, so SQL never reaches the page or its SSR payload.
 Types come from `@screen-commons/core`. Query option factories for all reads live in
 `src/lib/queries.ts` (`queries.apps(...)`, `queries.screensInfinite(...)`, …).
 
