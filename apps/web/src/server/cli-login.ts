@@ -9,7 +9,7 @@ import {
   type CliLoginView,
 } from "@screen-commons/core";
 import { apiKey, verification, type ApiKeyKind, type Db } from "@screen-commons/db";
-import { and, eq, gt, lt, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "./env";
 import { ServiceError, forbidden, parseInput } from "./errors";
@@ -18,6 +18,7 @@ import type { Principal } from "./principal";
 
 const TTL_MS = 10 * 60_000;
 const POLL_INTERVAL_SECONDS = 2;
+const SWEEP_LIMIT = 50;
 const CODE_ALPHABET = "BCDFGHJKLMNPQRSTVWXZ";
 const UNBIASED_BYTES = 256 - (256 % CODE_ALPHABET.length);
 
@@ -79,8 +80,13 @@ export async function startCliLogin(input: unknown, origin: string): Promise<Cli
   const expiresAt = new Date(now.getTime() + TTL_MS);
   const request: LoginRequest = { state: "pending", hash, prefix, device, keyId: newId() };
   const db = getDb();
+  const expired = db
+    .select({ id: verification.id })
+    .from(verification)
+    .where(lt(verification.expiresAt, now))
+    .limit(SWEEP_LIMIT);
   await db.batch([
-    db.delete(verification).where(lt(verification.expiresAt, now)),
+    db.delete(verification).where(inArray(verification.id, expired)),
     db.insert(verification).values({
       id: newId(),
       identifier: identifier(code),
