@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomInt } from "node:crypto";
 import { promisify } from "node:util";
 
 import { createScreenCommonsClient, type CaptureBatchInput } from "@screen-commons/core";
@@ -90,6 +91,14 @@ export const keyClient = (apiKey: string, options: { images?: "fail" | "missing"
 export const b64 = (buffer: Buffer) => buffer.toString("base64");
 
 let seed = 1;
+// Seeds restart in every test file. The offset keeps thumbnails unique across files, so one
+// file's screens never keep another file's discarded thumbnail in storage.
+const thumbnailColors = randomInt(2 ** 24);
+function thumbnailColor() {
+  const color = (thumbnailColors + seed) % 2 ** 24;
+  return [color & 0xff, (color >> 8) & 0xff, color >> 16, 255];
+}
+
 /** One capture-batch screen with a real PNG (unique pixels) and a real WebP thumbnail. */
 export function captureScreen(
   overrides: Partial<CaptureBatchInput["screens"][number]> = {},
@@ -99,7 +108,7 @@ export function captureScreen(
   const height = 200;
   return {
     image: { type: "image/png", base64: b64(makePng(width, height, seed)) },
-    thumbnail: { type: "image/webp", base64: b64(makeWebp(160, 100, [seed % 255, 40, 80, 255])) },
+    thumbnail: { type: "image/webp", base64: b64(makeWebp(160, 100, thumbnailColor())) },
     width,
     height,
     patterns: [],
