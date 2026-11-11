@@ -85,4 +85,15 @@ describe("ScreenTile", () => {
     expect(onSaveToggle).toHaveBeenCalledWith(webScreen, true);
     expect(save.closest("button")?.parentElement?.closest("button")).toBeNull();
   });
+
+  it("keeps a flow step's thumbnail in a grid unless the thumbnail crops the step", () => {
+    const step = (width: number, height: number) => (
+      <ScreenTile screen={{ ...webScreen, width, height }} fullSrc="/full.webp" />
+    );
+    const landscape = render(step(1440, 900)).container.querySelector("img");
+    expect(landscape?.getAttribute("src")).toBe("/thumb.webp");
+    expect(landscape?.hasAttribute("srcset")).toBe(false);
+    const cropped = render(step(1920, 1320)).container.querySelector("img");
+    expect(cropped?.getAttribute("src")).toBe("/full.webp");
+  });
 });

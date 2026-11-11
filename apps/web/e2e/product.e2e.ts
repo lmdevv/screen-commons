@@ -17,7 +17,12 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 
-import playwright, { type Browser, type BrowserContext, type Page } from "playwright-core";
+import playwright, {
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "playwright-core";
 
 import { isLocalBase, purgeE2EData } from "./local-data.ts";
 
@@ -37,7 +42,14 @@ const WRITES = isLocalBase(BASE)
   ? {}
   : { skip: "writes data; cleanup needs a local dev server (see the file comment)" };
 const FLOW_NAME = `Signing up ${STAMP}`;
-const STEPS = ["Sign up", "Verify email", "Welcome"];
+/** The first step is Spotify-shaped, with a now-playing bar in its bottom 10%; the last is tall. */
+const SHOTS = [
+  { label: "Sign up", width: 1920, height: 1320 },
+  { label: "Verify email", width: 1440, height: 900 },
+  { label: "Welcome", width: 1440, height: 4800 },
+];
+const STEPS = SHOTS.map((shot) => shot.label);
+const PLAYER_BAR = [30, 215, 96] as const;
 
 let browser: Browser;
 const problems: string[] = [];
@@ -63,17 +75,20 @@ async function signIn(page: Page, email: string, password: string, redirect = "/
   await page.waitForURL((url) => url.pathname === redirect.split("?")[0]);
 }
 
-/** Realistic 1440×900 PNG screenshots, rendered by the browser itself. */
+/** Realistic PNG screenshots in the sizes of `SHOTS`, rendered by the browser itself. */
 async function makeScreenshots(): Promise<{ name: string; mimeType: string; buffer: Buffer }[]> {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext();
   const page = await context.newPage();
   const files = [];
-  for (const [index, label] of STEPS.entries()) {
-    await page.setContent(`<body style="margin:0;font:16px system-ui;background:#fafafa">
-      <header style="height:64px;display:flex;align-items:center;padding:0 48px;background:#fff;border-bottom:1px solid #eee"><b>E2E Product</b></header>
-      <main style="display:grid;place-items:center;height:836px"><div style="width:420px;padding:40px;background:#fff;border:1px solid #eee;border-radius:16px">
+  for (const [index, { label, width, height }] of SHOTS.entries()) {
+    await page.setViewportSize({ width, height });
+    const bar = index === 0 ? Math.round(height / 10) : 0;
+    await page.setContent(`<body style="margin:0;height:100vh;display:flex;flex-direction:column;font:16px system-ui;background:#fafafa">
+      <header style="height:64px;flex:none;display:flex;align-items:center;padding:0 48px;background:#fff;border-bottom:1px solid #eee"><b>E2E Product</b></header>
+      <main style="flex:1;display:grid;place-items:center"><div style="width:420px;padding:40px;background:#fff;border:1px solid #eee;border-radius:16px">
       <h1 style="margin:0 0 24px">${label}</h1><div style="height:44px;border:1px solid #ddd;border-radius:10px;margin-bottom:16px"></div>
-      <div style="height:46px;border-radius:10px;background:hsl(${index * 110} 70% 45%)"></div></div></main></body>`);
+      <div style="height:46px;border-radius:10px;background:hsl(${index * 110} 70% 45%)"></div></div></main>
+      <footer style="height:${bar}px;flex:none;background:rgb(${PLAYER_BAR.join(" ")})"></footer></body>`);
     files.push({
       name: `e2e-${label.toLowerCase().replace(/\s+/gu, "-")}.png`,
       mimeType: "image/png",
@@ -82,6 +97,35 @@ async function makeScreenshots(): Promise<{ name: string; mimeType: string; buff
   }
   await context.close();
   return files;
+}
+
+/** Share of an image's rows that are mostly the player bar's colour, as the browser drew it. */
+async function playerBarShare(scratch: Page, image: Locator): Promise<number> {
+  await image.evaluate((img: HTMLImageElement) => img.decode());
+  const png = (await image.screenshot()).toString("base64");
+  return scratch.evaluate(
+    async ({ png, color }) => {
+      const bitmap = await createImageBitmap(
+        await (await fetch(`data:image/png;base64,${png}`)).blob(),
+      );
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext("2d")!;
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      let rows = 0;
+      for (let y = 0; y < bitmap.height; y += 1) {
+        let hits = 0;
+        for (let x = 0; x < bitmap.width; x += 1) {
+          const at = (y * bitmap.width + x) * 4;
+          if (color.every((value, channel) => Math.abs(data[at + channel]! - value) < 40))
+            hits += 1;
+        }
+        if (hits > bitmap.width / 2) rows += 1;
+      }
+      return rows / bitmap.height;
+    },
+    { png, color: [...PLAYER_BAR] },
+  );
 }
 
 before(async () => {
@@ -246,6 +290,52 @@ describe("contribute → review", WRITES, () => {
     await page.goto(`${BASE}/apps/${appSlug}?tab=flows`);
     await page.getByRole("heading", { name: APP_NAME }).first().waitFor();
     await page.getByText(FLOW_NAME).first().waitFor();
+  });
+
+  test("shows the bottom 10 percent of a landscape step", async () => {
+    const page = admin.pages()[0]!;
+    await page.goto(`${BASE}/flows/${flowId}`, { waitUntil: "networkidle" });
+    const strip = page.getByRole("list", { name: `${FLOW_NAME} steps` });
+    const flow = await (await admin.request.get(`${BASE}/api/v1/flows/${flowId}`)).json();
+    const scratch = await admin.newPage();
+    const images = {
+      strip: strip.getByRole("button", { name: /^Open step 1/u }).locator("img"),
+      grid: page.locator(`main [data-screen-id="${flow.steps[0].screen.id}"] img`),
+    };
+    for (const [surface, image] of Object.entries(images)) {
+      await image.scrollIntoViewIfNeeded();
+      const share = await playerBarShare(scratch, image);
+      assert.ok(
+        share > 0.08,
+        `${surface} shows the player bar (${(share * 100).toFixed(1)}% of rows)`,
+      );
+    }
+    await scratch.close();
+  });
+
+  test("keeps a tall step scrollable", async () => {
+    const page = admin.pages()[0]!;
+    await page.goto(`${BASE}/flows/${flowId}`, { waitUntil: "networkidle" });
+    await page
+      .getByRole("list", { name: `${FLOW_NAME} steps` })
+      .getByRole("button", { name: /^Open step 3/u })
+      .click();
+    const shot = page
+      .getByRole("dialog")
+      .filter({ has: page.getByRole("complementary") })
+      .getByRole("img", { name: new RegExp(APP_NAME, "u") });
+    await shot.evaluate((img: HTMLImageElement) => img.decode());
+    const before = (await shot.boundingBox())!;
+    await shot.hover();
+    await page.mouse.wheel(0, 1500);
+    await page.waitForFunction(
+      ([name, top]) =>
+        [...document.querySelectorAll<HTMLImageElement>('[role="dialog"] img')].some(
+          (img) => img.alt.includes(name) && img.getBoundingClientRect().top < top - 1000,
+        ),
+      [APP_NAME, before.y] as const,
+    );
+    await page.keyboard.press("Escape");
   });
 });
 

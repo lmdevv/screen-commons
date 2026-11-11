@@ -19,8 +19,8 @@ styling one-offs in the app.
    links in running text. Primary actions are **black pills** (white in dark mode).
 3. **Calm density.** Few borders (hairlines only), almost no shadows (one soft elevation for
    floating surfaces), generous gaps between tiles, tight headings.
-4. **Fast by construction.** Thumbnails only in grids, explicit `width`/`height`, lazy images,
-   uniform frames → zero layout shift. No JS for things CSS can do.
+4. **Fast by construction.** Thumbnails only in grids (flow steps excepted, see Frames), explicit
+   `width`/`height`, lazy images, uniform frames → zero layout shift. No JS for things CSS can do.
 5. **Motion explains, never decorates.** 120–180 ms, ease-out, opacity/transform only.
    `prefers-reduced-motion` disables movement globally.
 6. **Accessible by default.** Every interactive element is a real button/link with a visible
@@ -167,6 +167,13 @@ disable transitions for one frame.
 
 Frames: web 16:10, phones 9:19.5, always top-anchored. Short/wide captures are shown whole
 (letterboxed at the top), tall ones are cropped at the bottom (`lib/screen.ts → screenFrame`).
+Flow steps (`FlowStrip`, a flow's step grid) are shown whole instead, letterboxed on the
+surface behind them, so a landscape capture keeps its bottom bar. A step taller than its
+thumbnail's crop loads its full image. In the strip, other steps offer the full image in
+`srcset` for a slot wider than the thumbnail, such as the 960px step at 1x or any step at 2x; the
+grid keeps their thumbnails, since lazy loading fetches tiles below the fold. Only page captures,
+which whole would be under half the frame's width, keep the top crop, from the thumbnail alone
+(`lib/screen.ts → stepSource`).
 
 ---
 
@@ -222,7 +229,7 @@ entities; components never fetch.
 | `CategoryChips`                                                | `items`, `value` (`null` = All), `onValueChange`, `leading`  | Scroll row with fade edges + arrows.                                                                                                                                                    |
 | `ScreenGrid`, `ScreenGridItem`, `ScreenGridSkeleton`           | `platform` or `columns`                                      | See recipes above.                                                                                                                                                                      |
 | `ScreenTile`                                                   | `screen: ScreenTileData` (⊂ `Screen`)                        | `linkRender`/`onOpen`, `showApp` (cross-app grids), `onSaveToggle`, `selectable/selected/onSelectedChange`, `priority` (first row), `variant` tile·bare, `badge`, `caption`.            |
-| `ScreenImage`                                                  | `src,width,height,platform,alt`                              | Low-level framed screenshot (`layout` frame·natural).                                                                                                                                   |
+| `ScreenImage`                                                  | `src,width,height,platform,alt`                              | Low-level framed screenshot (`layout` frame·natural; `fullSrc`, `fullSrcSet` for a flow step).                                                                                          |
 | `AppLogo`                                                      | `app` (`name`, `logoUrl?`, `accentColor?`)                   | xs 20 · sm 28 · md 36 · lg 48 · xl 80.                                                                                                                                                  |
 | `AppCard`                                                      | `app: AppCardData` (⊂ `AppSummary`)                          | Tile with `previews[0]`, logo/name/tagline; `saved` + `onSaveToggle`; `badge`.                                                                                                          |
 | `AppHeader`                                                    | `app` (⊂ `AppSummary`/`AppDetail`)                           | `back`, `actions`, `meta`, `renderCategory`.                                                                                                                                            |
