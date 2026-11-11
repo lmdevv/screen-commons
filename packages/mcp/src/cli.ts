@@ -931,7 +931,8 @@ const COMMANDS: Tree = {
         screenDetailResult(origin, await client().getScreen(positionals[0]!)),
     },
     update: {
-      summary: "Edit a screen you contributed. Repeated flags replace the whole list",
+      summary:
+        "Edit a screen you contributed, or any screen as an admin. Repeated flags replace the whole list",
       args: ["id"],
       flags: {
         title: { help: "New title" },
@@ -1064,7 +1065,8 @@ const COMMANDS: Tree = {
       },
     },
     update: {
-      summary: "Edit a flow you contributed. --step replaces all of its steps",
+      summary:
+        "Edit a flow you contributed, or any flow as an admin. --step replaces all of its steps",
       args: ["id"],
       flags: {
         name: { help: "New name" },

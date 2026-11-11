@@ -20,7 +20,7 @@ import { z } from "zod";
 
 import { getDb } from "../env";
 import { badRequest, forbidden, notFound, parseInput } from "../errors";
-import type { Principal } from "../principal";
+import { isAdmin, type Principal } from "../principal";
 import { getScreen, getFlow } from "./catalog";
 import { dropScreenFromFlows } from "./review";
 import {
@@ -32,7 +32,12 @@ import {
   visibleSql,
 } from "./shared";
 
-async function requireOwner(principal: Principal, kind: "screen" | "flow", id: string) {
+async function requireChangeable(
+  principal: Principal,
+  kind: "screen" | "flow",
+  id: string,
+  change: "update" | "delete",
+) {
   kind = parseInput(z.enum(["screen", "flow"]), kind);
   const table = kind === "screen" ? screen : flow;
   const [row] = await getDb()
@@ -41,28 +46,32 @@ async function requireOwner(principal: Principal, kind: "screen" | "flow", id: s
     .where(and(eq(table.id, id), visibleSql(table, principal, "detail")))
     .limit(1);
   if (!row) throw notFound(kind === "screen" ? "Screen" : "Flow");
-  if (row.contributorId !== principal.user.id)
-    throw forbidden("Only the contributor can change this contribution");
-  return row;
+  if (row.contributorId === principal.user.id) return row;
+  if (change === "update" && isAdmin(principal)) return row;
+  throw forbidden(
+    change === "update"
+      ? "Only the contributor or an admin can edit this contribution"
+      : "Only the contributor can delete this contribution",
+  );
 }
 
 export async function updateScreen(principal: Principal, id: string, input: unknown) {
-  await requireOwner(principal, "screen", id);
+  await requireChangeable(principal, "screen", id, "update");
   const patch = parseInput(updateScreenInputSchema, input);
   await getDb()
     .update(screen)
-    .set({ ...patch, updatedAt: new Date() })
+    .set({ ...patch, updatedBy: principal.user.id, updatedAt: new Date() })
     .where(eq(screen.id, id));
   return getScreen(principal, id);
 }
 
 export async function updateFlow(principal: Principal, id: string, input: unknown) {
-  const row = await requireOwner(principal, "flow", id);
+  const row = await requireChangeable(principal, "flow", id, "update");
   const patch = parseInput(updateFlowInputSchema, input);
   if (!patch.steps) {
     await getDb()
       .update(flow)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({ ...patch, updatedBy: principal.user.id, updatedAt: new Date() })
       .where(eq(flow.id, id));
     return getFlow(principal, id, { countView: false });
   }
@@ -88,6 +97,7 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
         type: patch.type,
         description: patch.description,
         stepCount: ids.length,
+        updatedBy: principal.user.id,
         updatedAt: new Date(),
         ...(row.status === "published" && found.some((s) => s.status !== "published")
           ? { status: "pending" as const }
@@ -114,7 +124,7 @@ export async function deleteContribution(
   kind: "screen" | "flow",
   id: string,
 ) {
-  await requireOwner(principal, kind, id);
+  await requireChangeable(principal, kind, id, "delete");
   const db = getDb();
   const table = kind === "screen" ? screen : flow;
   const writes: BatchItem<"sqlite">[] = kind === "screen" ? dropScreenFromFlows(id) : [];

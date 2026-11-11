@@ -177,7 +177,7 @@ export const catalogTools = {
     name: "update_screen",
     title: "Update screen",
     description:
-      "Edit the title, patterns, elements, tags or text of a screen you contributed. Text is the words visible in the screenshot, and search matches it. Omitted fields stay as they are.",
+      "Edit the title, patterns, elements, tags or text of a screen you contributed, or of any screen if you are an admin. Text is the words visible in the screenshot, and search matches it. Omitted fields stay as they are.",
     input: updateScreenInputSchema.extend({ id: z.string().min(1) }),
     readOnly: false,
   }),
@@ -205,7 +205,7 @@ export const catalogTools = {
     name: "update_flow",
     title: "Update flow",
     description:
-      "Edit a flow you contributed: its name, type, description or steps. Steps replace the whole ordered list. Omitted fields stay as they are.",
+      "Edit a flow you contributed, or any flow if you are an admin: its name, type, description or steps. Steps replace the whole ordered list. Omitted fields stay as they are.",
     input: updateFlowInputSchema.extend({ id: z.string().min(1) }),
     readOnly: false,
   }),
