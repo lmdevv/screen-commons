@@ -9,7 +9,8 @@
     "screen-commons-mcp": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "type": "module",
   "exports": {

@@ -36,6 +36,7 @@ cpSync(dist, join(out, "dist"), {
   recursive: true,
   filter: (path) => !path.endsWith(".map"),
 });
+cpSync(join(packageDir, "skills"), join(out, "skills"), { recursive: true });
 cpSync(join(packageDir, "README.md"), join(out, "README.md"));
 cpSync(resolve(packageDir, "../../LICENSE"), join(out, "LICENSE"));
 writeFileSync(
@@ -53,7 +54,7 @@ writeFileSync(
       },
       type: "module",
       bin: { "screen-commons": "dist/cli.js", "screen-commons-mcp": "dist/index.js" },
-      files: ["dist"],
+      files: ["dist", "skills"],
       engines: { node: ">=20.18.1" },
       dependencies,
     },

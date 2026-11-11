@@ -81,7 +81,12 @@ async function main() {
   );
 }
 
-main().catch((error: unknown) => {
-  log(`fatal: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
-  process.exit(1);
-});
+const serverFlagsOnly = !process.argv[2] || process.argv[2].startsWith("-");
+if (!serverFlagsOnly) {
+  await import("./cli");
+} else {
+  main().catch((error: unknown) => {
+    log(`fatal: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+    process.exit(1);
+  });
+}
