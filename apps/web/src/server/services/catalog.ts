@@ -147,7 +147,7 @@ const RANKED = {
     fts: "flow_fts",
     ftsId: "flow_id",
     appColumns: ["app_name"],
-    weights: { flow_id: 0, name: 10, description: 0, type: 3, app_name: 0 },
+    weights: { flow_id: 0, name: 10, description: 0, type: 3, app_name: 0, steps: 5 },
   },
 };
 

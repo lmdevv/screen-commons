@@ -901,6 +901,94 @@ describe("ranked search", () => {
   });
 });
 
+describe("step search", () => {
+  const word = (stem: string) => `${stem}${suffix}`;
+  let appId: string;
+  let screens: CaptureBatchResult["screens"];
+  let flowId: string;
+
+  const found = async (q: string) =>
+    (await member.client().listFlows({ q, limit: 20 })).items.map((item) => item.id);
+
+  beforeAll(async () => {
+    ({
+      app: { id: appId },
+      screens,
+    } = await adminApi.captures({
+      app: { name: `Steps ${suffix}` },
+      source: "seed",
+      screens: [
+        captureScreen({ title: `Library ${word("vista")}` }),
+        captureScreen({ title: `Playlist ${word("canopy")}` }),
+        captureScreen({ title: `Share ${word("lagoon")}` }),
+      ],
+    }));
+    ({
+      flow: { id: flowId },
+    } = await adminApi.createFlow({
+      appId,
+      name: "Saving a mix",
+      steps: [
+        { screenId: screens[0]!.id, label: `Tap the ${word("plusknob")} button` },
+        { screenId: screens[1]!.id },
+      ],
+    }));
+  });
+
+  it("finds a flow by a step label or a step screen title", async () => {
+    expect(await found(word("plusknob"))).toEqual([flowId]);
+    expect(await found(`tap ${word("plusknob")}`)).toEqual([flowId]);
+    expect(await found(word("canopy"))).toEqual([flowId]);
+    expect(await found(word("lagoon"))).toEqual([]);
+  });
+
+  it("ranks a flow named by the words above one whose steps hold them", async () => {
+    const { flow: named } = await adminApi.createFlow({
+      appId,
+      name: `Opening ${word("vista")}`,
+      steps: [{ screenId: screens[2]!.id }, { screenId: screens[1]!.id }],
+    });
+    expect(await found(word("vista"))).toEqual([named.id, flowId]);
+  });
+
+  it("reindexes after a step edit", async () => {
+    await adminApi.updateFlow(flowId, {
+      steps: [
+        { screenId: screens[0]!.id, label: `Press ${word("dialknob")}` },
+        { screenId: screens[2]!.id },
+      ],
+    });
+    expect(await found(word("dialknob"))).toEqual([flowId]);
+    expect(await found(word("lagoon"))).toContain(flowId);
+    expect(await found(word("plusknob"))).toEqual([]);
+    expect(await found(word("canopy"))).not.toContain(flowId);
+
+    await adminApi.updateScreen(screens[2]!.id, { title: `Share ${word("harbor")}` });
+    expect(await found(word("harbor"))).toContain(flowId);
+    expect(await found(word("lagoon"))).toEqual([]);
+  });
+
+  it("drops a removed step from the index", async () => {
+    await adminApi.updateFlow(flowId, {
+      steps: screens.map((item) => ({ screenId: item.id })),
+    });
+    expect(await found(word("dialknob"))).toEqual([]);
+    expect(await found(word("canopy"))).toContain(flowId);
+
+    await adminApi.deleteScreen(screens[1]!.id);
+    expect(await found(word("canopy"))).toEqual([]);
+    expect(await found(word("vista"))).toContain(flowId);
+  });
+
+  it("keeps one search row per flow", async () => {
+    const [counts] = (await d1(
+      "SELECT (SELECT count(*) FROM flow) AS flows, (SELECT count(*) FROM flow_fts) AS indexed, (SELECT count(*) FROM flow f JOIN flow_fts ON flow_fts.rowid = f.rowid AND flow_fts.flow_id = f.id) AS keyed",
+    )) as { flows: number; indexed: number; keyed: number }[];
+    expect(counts!.indexed).toBe(counts!.flows);
+    expect(counts!.keyed).toBe(counts!.flows);
+  });
+});
+
 describe("visibility + review", () => {
   it("keeps member uploads pending until an admin approves them", async () => {
     const meta = {
