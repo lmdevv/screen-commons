@@ -206,7 +206,7 @@ Both servers return the same results: JSON text, plus image content for `get_scr
 
 To move a flow in, upload each screen, then call `create_flow` with the returned ids and an `id` you chose. Every call is safe to repeat, and uploads can run in parallel: uploading identical bytes to one app returns the same screen, and the same flow `id` returns the same flow. A flow can repeat a screen. An `internal` error says the change may or may not have been saved, and repeating the call is safe unless it's `create_flow` without an `id`. Upload results give each screen's `id`, `url` and `status`: an admin's upload is `published`, and a member's stays `pending` until an admin approves it.
 
-Only the contributor can edit or delete a screen or flow. Anyone else, including an admin, gets `forbidden` if they can see it and `not_found` if they can't. Admins moderate in `/review`.
+The contributor can edit or delete their own screens and flows. An admin can also correct the metadata (titles, text, patterns, flow details and steps) of anyone's screen or flow, but only the contributor can delete it. Anyone else gets `forbidden` if they can see the item and `not_found` if they can't. Admins moderate in `/review`.
 
 Choose `image` by where the file is:
 
