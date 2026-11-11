@@ -602,9 +602,15 @@ export default async function mcpRemote(h) {
     const refusal = await h.call(otherClient, `another member can't ${tool} hidden`, tool, args);
     assert.equal(refusal.isError, true);
     assert.equal(refusal.text, `not_found: ${kind === "screen" ? "Screen" : "Flow"} not found`);
-    const byAdmin = await h.call(admin, `an admin can't ${tool} another's`, tool, args);
-    assert.equal(byAdmin.isError, true);
-    assert.match(byAdmin.text, /^forbidden: Only the contributor/u);
+    if (tool.startsWith("update")) {
+      const byAdmin = await h.call(admin, `an admin can ${tool} another's`, tool, args);
+      assert.equal(byAdmin.isError, false, byAdmin.text);
+      assert.equal(JSON.parse(byAdmin.text).status, "pending");
+    } else {
+      const byAdmin = await h.call(admin, `an admin can't ${tool} another's`, tool, args);
+      assert.equal(byAdmin.isError, true);
+      assert.match(byAdmin.text, /^forbidden: Only the contributor can delete/u);
+    }
   }
   for (const [tool, id] of [
     ["update_screen", first.screen.id],
