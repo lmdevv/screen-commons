@@ -5,9 +5,9 @@ description: Fill in missing screen titles, screen text, flow types and step lab
 
 # Screen Commons enrich
 
-Search finds screens by their title and visible text, and flows by name, type and step labels. This skill fills those fields from what each screenshot shows.
+Search finds screens by their title and visible text, and flows by their name and type. This skill fills those fields, and step labels, from what each screenshot shows.
 
-`screen-commons` below is the CLI in the `screen-commons-mcp` npm package. If `command -v screen-commons` prints nothing, run `npx -y -p screen-commons-mcp screen-commons` wherever this skill says `screen-commons`. Every command prints JSON on stdout. A failure prints one `code: message` line on stderr.
+`screen-commons` is the CLI in the `screen-commons-mcp` npm package. If the shell says `screen-commons: command not found`, write `npx -y -p screen-commons-mcp screen-commons` in its place from then on. Commands print JSON on stdout. A failure prints one `code: message` line on stderr.
 
 ## Workflow
 
@@ -23,23 +23,28 @@ Search finds screens by their title and visible text, and flows by name, type an
 
 ### 1. Preflight
 
-Run `screen-commons whoami`. On `missing_api_key` or `unauthorized`, tell the user to run `screen-commons login --url <instance>` and stop. An `admin` can edit any screen or flow. A `member` can edit only their own, which `screen-commons contributions list` lists.
+Run `screen-commons whoami`. On `missing_api_key` or `unauthorized`, tell the user to run the `screen-commons login --url <instance>` command the message names, and stop. `screen-commons doctor` explains anything else.
+
+The `role` decides what you can edit. An `admin` can edit any screen or flow. A `member` can edit only their own.
 
 ### 2. Pick the items
 
-Work one app at a time, flow by flow:
+Work one app at a time, flow by flow. An admin lists an app's flows. A member lists their own:
 
 ```bash
 screen-commons flows search --app <slug> --limit 100
+screen-commons contributions list --kind flow --limit 100
 ```
 
-Pass `nextCursor` back as `--cursor` for the next page. Flows with `type: null` need a type. Then write a bundle of each flow, which downloads its step images and lists its labels and titles:
+Pass `nextCursor` back as `--cursor` for the next page. A flow with `type: null` needs a type. Write a bundle of each flow you pick. It downloads the step images and lists each step's label and title:
 
 ```bash
-screen-commons flows bundle <flow-id> --out enrich/<app-slug>/flows/<flow-id>
+screen-commons flows bundle <flow-id> --out enrich/<app-slug>/flows/<flow-id> && cat enrich/<app-slug>/flows/<flow-id>/REFERENCES.md
 ```
 
 A step with no label, or a screen with no title, needs one. `screen-commons screens get <id>` shows a screen's `text`.
+
+For screens outside any flow, `screen-commons screens search --app <slug> --limit 100` lists them, and `screen-commons screens bundle <id> <id>... --out enrich/<app-slug>/screens` downloads their images.
 
 ### 3. Look and write a batch of 25
 
@@ -71,7 +76,7 @@ Leave a field out when the image doesn't settle it. Write up to 25 items to `enr
 node <this skill's folder>/scripts/enrich-batch.mjs enrich/<app-slug>/batch-<NN>.json
 ```
 
-It reads each item and prints its `changes`, each with `from` and `to`, and writes nothing. Read every change. Drop or fix any that replaces good metadata with worse, then run the dry run again. When the user asked to approve changes, show them the changes and wait.
+It reads each item and prints its `changes`, each with `from` and `to`, and writes nothing. Read every change. Drop or fix any change that replaces good metadata with worse, then dry-run again. When the user asked to approve changes, show them the changes and wait.
 
 ### 5. Apply
 
@@ -81,21 +86,23 @@ node <this skill's folder>/scripts/enrich-batch.mjs enrich/<app-slug>/batch-<NN>
 
 It reads each item again and writes only its changes, one item every 300 ms.
 
-- `saved` or `unchanged` for every item, exit 0: go on.
-- `stopped` is set: the key was refused, or the instance is out of capacity (`unavailable`, `rate_limited`). Stop the run and report it. Later, the same command continues where it stopped, because saved items come back `unchanged`.
+- Every item `saved` or `unchanged`, exit 0: go on.
+- `stopped` is set: the key was refused, or the instance is out of capacity (`unavailable`, `rate_limited`). Stop and report it. Later, the same command continues where it stopped, because saved items come back `unchanged`.
 - `failed`: fix the item in the batch file and apply again. `forbidden` means your key may not edit that item, so drop it from the batch.
 - `saved-differently`: the server stored something else. Compare `now` with the batch.
 
 ### 6. Check search
 
-For one changed screen per batch, search a distinctive word from its new text or title, and confirm it comes back:
+For one changed screen per batch, search a distinctive word from its new text or title, and confirm that the screen comes back:
 
 ```bash
 screen-commons screens search "Blend" --app <slug>
 ```
 
-For a flow, search words from a new label with `screen-commons flows search "<words>" --app <slug>`.
+For a flow whose type you set, `screen-commons flows search --app <slug> --type <type>` lists it.
+
+<!-- TODO(SC-05): check a new step label with `flows search "<label words>" --app <slug>` once flow search indexes step labels. -->
 
 ### 7. Next batch
 
-Continue with the next 25 items. Keep each batch file and its report: together they record every change.
+Go on with the next 25 items. Keep each batch file and its report. Together they record every change.
