@@ -297,7 +297,7 @@ With `q`, screens rank by how well they match. `q` can be a whole question, such
 
 When the question uses the name or slug of an app in the catalog, in any case, only that app's screens return. Capitals never make a word an app name. When the name is the first or last word, follows "does", "in", "on", "for" or "my", or comes before "'s", "app", "flows" or "screens", as in `Linear cycles view` or `How does Spotify let users create a playlist?`, it holds even when none of that app's screens match the other words, and `match` says so. A name between other words, as in `how do I resend an invite`, gives way to every app when that app has no matching screen.
 
-A name the catalog doesn't have is reported as `appNotFound` only when the question asks about it with a capital, as in "does Netflix let", "Netflix's", or "in Netflix" or "on Netflix" at the end, and no screen contains the word. In a question without capitals, only "does netflix let" counts. A lowercase word in a question with capitals, such as notifications in `Turn on notifications`, and a platform such as Android or Mac are never one.
+A name the catalog doesn't have is reported as `appNotFound` only when the question asks about it with a capital, as in "does Netflix let", "Netflix's", or "in Netflix" or "on Netflix" at the end, and no screen contains the word. In a question without capitals, only "does netflix" followed by a verb such as let, allow, handle, have, support, implement or show counts. A lowercase word in a question with capitals, such as notifications in `Turn on notifications`, and a platform such as Android or Mac are never one.
 
 `match` says how the query was read:
 
