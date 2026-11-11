@@ -281,6 +281,7 @@ curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
   "match": {
     "mode": "none",
     "app": null,
+    "appWithoutResults": null,
     "appNotFound": null,
     "matchedTerms": [],
     "unmatchedTerms": []
@@ -292,17 +293,20 @@ curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
 
 #### Search with q
 
-With `q`, screens rank by how well they match, and `sort` has no effect. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating". When the question names an app in the catalog, only that app's screens return. Flow search works the same way.
+With `q`, screens rank by how well they match. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating" and `story` finds "Stories". A `q` with no other word, such as `how does it work`, returns no screens. `sort` applies only when `q` names an app and nothing else, such as `Spotify`, which lists that app's screens in `sort` order. Flow search works the same way.
+
+When the question names an app in the catalog, only that app's screens return. A name counts when the question marks it as one, as in "does Spotify let", "in Notion", "of Spotify", "Spotify's" or a capitalized "Spotify" in the middle of a sentence, or when it is a name of several words, such as "Fixture Tunes". A name that is only the first or last word, as in `linear progress bar`, also filters, but when none of that app's screens match the other words, every app is searched instead and the name is read as an ordinary word. A word between other words, as in `how do I resend an invite`, never filters, even when an app has that name.
 
 `match` says how the query was read:
 
-| Field            | Description                                                                                                                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mode`           | `strict`: every item contains every word. `relaxed`: fewer than 3 items did, so items that contain some of the words follow, most words first. `none`: nothing to search for, so the default order. |
-| `app`            | Slug of the app the query names, or `null`.                                                                                                                                                         |
-| `appNotFound`    | An app the query names that the catalog doesn't have, as typed, or `null`. The items then come from other apps.                                                                                     |
-| `matchedTerms`   | Query words that some item contains.                                                                                                                                                                |
-| `unmatchedTerms` | Query words that no item contains.                                                                                                                                                                  |
+| Field               | Description                                                                                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`              | `strict`: every item contains every word. `relaxed`: fewer than 3 items did, so items that contain some of the words follow, most words first. `none`: no `q`, or a `q` that only names an app, so the default order. `unsearchable`: `q` has no word to search for, so no items. |
+| `app`               | Slug of the app the query names, or `null`.                                                                                                                                                                                                                                       |
+| `appWithoutResults` | Slug of the app the query names by its first or last word when none of its items match, or `null`. The items then come from every app.                                                                                                                                            |
+| `appNotFound`       | An app the query names that the catalog doesn't have, as typed, or `null`. The items then come from other apps.                                                                                                                                                                   |
+| `matchedTerms`      | Query words that some item contains.                                                                                                                                                                                                                                              |
+| `unmatchedTerms`    | Query words that no item contains.                                                                                                                                                                                                                                                |
 
 ### Get a screen
 
@@ -526,6 +530,7 @@ Flows are listed newest first. With `q`, they rank by how well they match, as [s
   "match": {
     "mode": "none",
     "app": null,
+    "appWithoutResults": null,
     "appNotFound": null,
     "matchedTerms": [],
     "unmatchedTerms": []

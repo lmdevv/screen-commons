@@ -103,10 +103,11 @@ API responses are `private, no-store`. Grids load thumbnails only; full images l
 
 Search uses SQLite FTS5 in D1. Triggers on `app`, `screen` and `flow` keep the indexes in sync on every write path, including manual SQL.
 
-- Screens are indexed by title, app name, patterns, elements, tags, source URL and visible text (sent by the client as `text`, from the DOM or OCR).
-- Queries are tokenized, lowercased and accent-folded, and every term is a prefix match.
-- All terms must match. If the viewer would see no results, terms are OR-ed instead.
-- Taxonomy labels are matched separately, so `call to action` also finds screens tagged with the `cta` element.
+- Screens are indexed by title, app name, patterns, elements, tags, source URL and visible text (sent by the client as `text`, from the DOM or OCR). Flows are indexed by name, description, type and app name.
+- Screen and flow lists (`search_screens`, `search_flows`, `GET /screens` and `GET /flows` with `q`) plan the query first, in `packages/core/src/search-query.ts`. It drops question words, stems each other word to a prefix that matches its forms, and finds the spans that may name an app, each with a cue such as "does X let", "in X", a capitalized word, or the first or last word.
+- A span that exactly matches a visible app's name or host label filters to that app. A cue that marks a name strongly and matches no app is reported as `appNotFound` when no result contains its words outside app names. A filter from a bare first or last word gives way to a search of every app when that app has no matching items.
+- Results rank by `bm25` with the flow name or screen title weighted 10, taxonomy 3, screen text 1, and app names and URLs 0. Every term must match first. Under 3 results, items with some of the terms follow, most terms first. Each page reports `match` and pages by a (rank, id) cursor that keeps the first page's mode.
+- The grouped `GET /search` still prefix-matches every term with AND, then OR when the viewer would see no results. Taxonomy labels are matched separately, so `call to action` also finds screens tagged with the `cta` element.
 
 ## Auth
 
