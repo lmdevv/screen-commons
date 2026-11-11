@@ -5,7 +5,7 @@ description: Fill in missing screen titles, screen text, flow types and step lab
 
 # Screen Commons enrich
 
-Search finds screens by their title and visible text, and flows by their name and type. This skill fills those fields, and step labels, from what each screenshot shows.
+Search finds screens by their title and visible text, and flows by their name, type, step labels and step screen titles. This skill fills those fields from what each screenshot shows.
 
 `screen-commons` is the CLI in the `screen-commons-mcp` npm package. If the shell says `screen-commons: command not found`, write `npx -y -p screen-commons-mcp screen-commons` in its place from then on. Commands print JSON on stdout. A failure prints one `code: message` line on stderr.
 
@@ -99,9 +99,11 @@ For one changed screen per batch, search a distinctive word from its new text or
 screen-commons screens search "Blend" --app <slug>
 ```
 
-For a flow whose type you set, `screen-commons flows search --app <slug> --type <type>` lists it.
+For a flow whose type you set, `screen-commons flows search --app <slug> --type <type>` lists it. For a flow whose step labels you set, search a distinctive word from a new label, and confirm that the flow comes back:
 
-<!-- TODO(SC-05): check a new step label with `flows search "<label words>" --app <slug>` once flow search indexes step labels. -->
+```bash
+screen-commons flows search "Name the playlist" --app <slug>
+```
 
 ### 7. Next batch
 
