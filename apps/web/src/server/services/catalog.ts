@@ -214,7 +214,10 @@ async function readQuery(
                   ),
             ),
           )
-          .orderBy(fewestExtraWordsFirst)
+          .orderBy(
+            sql`${inJsonArray(app.slug, slugs)} OR ${inJsonArray(sql`lower(${app.name})`, names)} DESC`,
+            fewestExtraWordsFirst,
+          )
           .limit(MAX_NAMED_APPS);
   return resolveQuery(plan, apps, Boolean(appFilterValue));
 }

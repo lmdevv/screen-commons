@@ -863,6 +863,32 @@ describe("ranked search", () => {
     expect(page.match).toMatchObject({ app: null, appNotFound: prefixed });
   });
 
+  it("finds a named app behind more than fifty shorter names that share a word", async () => {
+    const shared = `Crowd${suffix}`;
+    for (let index = 1; index <= 51; index += 1) {
+      await adminApi.captures({
+        app: { name: `${shared} ${index}` },
+        source: "seed",
+        screens: [captureScreen()],
+      });
+    }
+    const named = await adminApi.captures({
+      app: { name: `Grand ${shared}` },
+      source: "seed",
+      screens: [captureScreen(), captureScreen()],
+    });
+    await adminApi.createFlow({
+      appId: named.app.id,
+      name: "Creating a playlist",
+      steps: named.screens.map((item) => ({ screenId: item.id })),
+    });
+    const page = await member
+      .client()
+      .listFlows({ q: `How does Grand ${shared} let users create a playlist?` });
+    expect(page.match).toMatchObject({ app: named.app.slug, appNotFound: null });
+    expect(page.items.map((item) => item.name)).toEqual(["Creating a playlist"]);
+  }, 120_000);
+
   it("returns nothing for a query with no word to search for", async () => {
     for (const list of [
       member.client().listFlows({ q: "how does it work" }),
