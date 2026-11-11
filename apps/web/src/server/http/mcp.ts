@@ -51,10 +51,12 @@ function createHandlers(principal: Principal, origin: string) {
     search_screens: async ({ query, ...rest }) =>
       searchToolResult(
         screenSearchResult(origin, await services.listScreens(principal, { ...rest, q: query })),
+        "screen",
       ),
     search_flows: async ({ query, ...rest }) =>
       searchToolResult(
         flowSearchResult(origin, await services.listFlows(principal, { ...rest, q: query })),
+        "flow",
       ),
     list_apps: async ({ query, ...rest }) => {
       const page = await services.listApps(principal, { ...rest, q: query });

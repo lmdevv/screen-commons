@@ -82,14 +82,18 @@ export function flowSearchResult(origin: string, page: SearchPage<FlowSummary>) 
   };
 }
 
-export function describeMatch(match: SearchMatch): string {
+export function describeMatch(match: SearchMatch, noun: "screen" | "flow"): string {
   const quoted = (terms: string[]) => terms.map((term) => `"${term}"`).join(", ");
+  const appEmpty =
+    match.app !== null && match.matchedTerms.length === 0 && match.unmatchedTerms.length > 0;
   return [
     match.appNotFound &&
       `The catalog has no app named "${match.appNotFound}", so these results come from other apps.`,
-    match.app && `Only results from the app "${match.app}", which the query names.`,
+    appEmpty
+      ? `The app "${match.app}" has no ${noun} matching ${quoted(match.unmatchedTerms)}.`
+      : match.app && `Only results from the app "${match.app}", which the query names.`,
     match.appWithoutResults &&
-      `The app "${match.appWithoutResults}" has no items that match the rest of the query, so these results come from every app and read "${match.appWithoutResults}" as an ordinary word.`,
+      `The app "${match.appWithoutResults}" has no ${noun} matching the rest of the query, so these results come from every app.`,
     match.mode === "strict" &&
       match.matchedTerms.length > 0 &&
       `Every result contains ${quoted(match.matchedTerms)}.`,
@@ -99,17 +103,19 @@ export function describeMatch(match: SearchMatch): string {
     match.mode === "none" && "No search terms, so results are in the default order.",
     match.mode === "unsearchable" &&
       "The query has no word to search for, only words such as how, does and app, so there are no results. Name a feature, such as create playlist.",
-    match.unmatchedTerms.length > 0 && `No result contains ${quoted(match.unmatchedTerms)}.`,
+    !appEmpty &&
+      match.unmatchedTerms.length > 0 &&
+      `No result contains ${quoted(match.unmatchedTerms)}.`,
   ]
     .filter(Boolean)
     .join(" ");
 }
 
 /** A server from before `match` sends none, and then the result has no match line. */
-export function searchToolResult(result: { match?: SearchMatch }) {
+export function searchToolResult(result: { match?: SearchMatch }, noun: "screen" | "flow") {
   return {
     content: [
-      ...(result.match ? [{ type: "text" as const, text: describeMatch(result.match) }] : []),
+      ...(result.match ? [{ type: "text" as const, text: describeMatch(result.match, noun) }] : []),
       { type: "text" as const, text: JSON.stringify(result) },
     ],
     structuredContent: result,

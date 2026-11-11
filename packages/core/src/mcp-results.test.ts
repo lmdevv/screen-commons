@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "./limits";
-import { flowImageSteps, toolErrorText } from "./mcp-results";
+import { describeMatch, flowImageSteps, toolErrorText } from "./mcp-results";
 import type { FlowDetail } from "./index";
 
 describe("flowImageSteps", () => {
@@ -30,5 +30,30 @@ describe("toolErrorText", () => {
     expect(text).toMatch(/^internal: Something went wrong\. The change may or may not/u);
     expect(text).toContain("Retrying is safe");
     expect(text).toContain("create_flow without an id");
+  });
+});
+
+describe("describeMatch", () => {
+  const match = {
+    mode: "relaxed" as const,
+    app: null,
+    appWithoutResults: null,
+    appNotFound: null,
+    matchedTerms: [],
+    unmatchedTerms: [],
+  };
+
+  it("says when the app the query names has nothing that matches", () => {
+    expect(
+      describeMatch({ ...match, app: "linear", unmatchedTerms: ["progress", "bar"] }, "flow"),
+    ).toBe('The app "linear" has no flow matching "progress", "bar".');
+  });
+
+  it("says when every app answers for an app named in passing", () => {
+    expect(
+      describeMatch({ ...match, appWithoutResults: "resend", matchedTerms: ["invite"] }, "screen"),
+    ).toBe(
+      'The app "resend" has no screen matching the rest of the query, so these results come from every app. Fewer than 3 results contain every search term, so results that contain some of them follow.',
+    );
   });
 });

@@ -5,7 +5,6 @@ import {
   MIN_STRICT_RESULTS,
   PATTERNS,
   TAXONOMY,
-  appLookupTerms,
   appNameKeys,
   listAppsQuerySchema,
   listFlowsQuerySchema,
@@ -13,6 +12,7 @@ import {
   planSearchQuery,
   resolveQuery,
   searchMatch,
+  stemPrefixes,
   searchQuerySchema,
   type AppDetail,
   type AppSummary,
@@ -25,7 +25,6 @@ import {
   type ScreenDetail,
   type SearchPage,
   type SearchResult,
-  type SearchScope,
   type SearchTerm,
   type Taxonomy,
 } from "@screen-commons/core";
@@ -158,36 +157,11 @@ type RankedSurface = (typeof RANKED)[keyof typeof RANKED];
 /** Shorter stems match whole words, since a one- or two-letter prefix matches most of the index. */
 const MIN_PREFIX = 3;
 
-type RankMode = "strict" | "relaxed";
-
-interface RankStep {
-  cursor: string;
-  mode: RankMode;
-  scope: SearchScope;
-}
-
-const MIN_NAMED_APP_RESULTS = 1;
-
-const RANK_STEPS: readonly RankStep[] = [
-  { cursor: "strict", mode: "strict", scope: "app" },
-  { cursor: "relaxed", mode: "relaxed", scope: "app" },
-  { cursor: "strict-any-app", mode: "strict", scope: "anyApp" },
-  { cursor: "relaxed-any-app", mode: "relaxed", scope: "anyApp" },
-];
+const RANK_MODES = ["strict", "relaxed"] as const;
+type RankMode = (typeof RANK_MODES)[number];
 
 type QueryApp = NamedApp & { id: string };
 type Search = ResolvedQuery<QueryApp>;
-
-const scopeTerms = (search: Search, scope: SearchScope) =>
-  (scope === "anyApp" && search.anyAppTerms) || search.terms;
-
-function rankSteps(search: Search): RankStep[] {
-  return RANK_STEPS.filter(
-    (step) =>
-      (step.scope === "app" || search.anyAppTerms !== null) &&
-      scopeTerms(search, step.scope).length > (step.mode === "relaxed" ? 1 : 0),
-  );
-}
 
 function namedAppFilter(column: typeof screen.appId | typeof flow.appId, search: Search) {
   return search.apps.length > 0
@@ -198,9 +172,16 @@ function namedAppFilter(column: typeof screen.appId | typeof flow.appId, search:
     : undefined;
 }
 
-const NO_QUERY: Search = { candidates: [], apps: [], terms: [], anyAppTerms: null, missing: [] };
+const NO_QUERY: Search = { apps: [], holdsWithoutResults: false, terms: [], missingApps: [] };
 
-/** An explicit `app` filter wins: the query can only name that app, and reports no missing one. */
+const ftsTerm = (term: SearchTerm) =>
+  term.wholeWord
+    ? { prefixes: [], words: [term.word] }
+    : { prefixes: stemPrefixes(term.stem), words: [] };
+
+const keepNamedAppRowsIfAny = (rows: SQL) =>
+  sql`SELECT * FROM (SELECT *, max(in_app) OVER () AS app_hit FROM (${rows})) WHERE in_app = app_hit`;
+
 async function readQuery(
   viewer: Viewer,
   q: string | undefined,
@@ -208,34 +189,29 @@ async function readQuery(
 ): Promise<Search> {
   if (!q) return NO_QUERY;
   const plan = planSearchQuery(q);
-  const lookup = appLookupTerms(plan);
+  const { names, slugs } = appNameKeys(plan);
   const apps =
-    lookup.length === 0
+    names.length === 0
       ? []
       : await getDb()
-          .select({ id: app.id, slug: app.slug, name: app.name, host: app.host })
+          .select({ id: app.id, slug: app.slug, name: app.name })
           .from(app)
           .where(
             and(
               visibleSql(app, viewer, "list"),
               appFilterValue
                 ? or(eq(app.slug, appFilterValue), eq(app.id, appFilterValue))
-                : ftsFilter(
-                    app.id,
-                    "app_fts",
-                    `{name host} : (${lookup.map((term) => `"${term}"`).join(" OR ")})`,
+                : or(
+                    inJsonArray(app.slug, slugs),
+                    ftsFilter(
+                      app.id,
+                      "app_fts",
+                      `{name} : (${names.map((name) => `"${name}"`).join(" OR ")})`,
+                    ),
                   ),
             ),
-          )
-          .orderBy(
-            sql`lower(${app.name}) IN (SELECT value FROM json_each(${JSON.stringify(appNameKeys(plan))})) DESC`,
-            sql`${app.platform} = 'web' DESC`,
-            asc(app.createdAt),
-            asc(app.id),
-          )
-          .limit(50);
-  const resolved = resolveQuery(plan, apps);
-  return appFilterValue ? { ...resolved, anyAppTerms: null, missing: [] } : resolved;
+          );
+  return resolveQuery(plan, apps, Boolean(appFilterValue));
 }
 
 const unsearchable = (q: string | undefined, search: Search) =>
@@ -244,54 +220,52 @@ const unsearchable = (q: string | undefined, search: Search) =>
 const UNSEARCHABLE_PAGE = {
   items: [],
   nextCursor: null,
-  match: searchMatch(NO_QUERY, "unsearchable", new Set()),
+  match: searchMatch(NO_QUERY, "unsearchable", new Set(), false),
 };
 
 function rankedPage(
   surface: RankedSurface,
   conditions: SQL,
-  terms: SearchTerm[],
+  search: Search,
   mode: RankMode,
   after: { key: number; id: string } | undefined,
   limit: number,
 ): SQL {
+  const { terms } = search;
   const fts = sql.raw(surface.fts);
   const weights = sql.raw(Object.values(surface.weights).join(", "));
   const match = (subset: SearchTerm[], operator: "AND" | "OR") =>
-    ftsMatch(
-      subset.map((term) => ({
-        prefixes: term.prefixes,
-        words: term.words,
-        exceptColumns: term.matchesAppColumns ? [] : surface.appColumns,
-      })),
-      operator,
-      MIN_PREFIX,
-    );
+    ftsMatch(subset.map(ftsTerm), operator, {
+      minPrefix: MIN_PREFIX,
+      exceptColumns: surface.appColumns,
+    });
+  const inApp = namedAppFilter(surface.table.appId, search);
+  const namedAppIfAny = mode === "relaxed" && !search.holdsWithoutResults && search.apps.length > 0;
   const flags = (mode === "relaxed" ? terms : []).map((term, index) => ({
     column: sql.raw(`m${index}`),
     match: match([term], "AND"),
     bit: 2 ** index,
   }));
-  const scored = sql`SELECT ${surface.table.id} AS id, -bm25(${fts}, ${weights}) AS score${sql.join(
+  const scored = sql`SELECT ${surface.table.id} AS id, -bm25(${fts}, ${weights}) AS score, ${inApp ?? sql`0`} AS in_app${sql.join(
     flags.map(
       ({ column, match: flag }) =>
         sql`, ${fts}.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ${flag}) AS ${column}`,
     ),
-  )} FROM ${fts} JOIN ${surface.table} ON ${surface.table.id} = ${fts}.${sql.raw(surface.ftsId)} WHERE ${fts} MATCH ${match(terms, mode === "strict" ? "AND" : "OR")} AND ${conditions}`;
+  )} FROM ${fts} JOIN ${surface.table} ON ${surface.table.id} = ${fts}.${sql.raw(surface.ftsId)} WHERE ${fts} MATCH ${match(terms, mode === "strict" ? "AND" : "OR")} AND ${and(conditions, namedAppIfAny ? undefined : inApp)}`;
+  const scoped = namedAppIfAny ? keepNamedAppRowsIfAny(scored) : scored;
   const termsInRow = sql.join(
     flags.map(({ column }) => column),
     sql` + `,
   );
   const scoreBelowOne = sql`score / (1 + score)`;
-  /** Taken before the cursor filter, so every page reports the same match. */
   const termsInAnyRow = sql.join(
     flags.map(({ column, bit }) => sql`max(${column}) OVER () * ${bit}`),
     sql` + `,
   );
   const keyed =
     mode === "strict"
-      ? sql`SELECT id, score AS key, ${2 ** terms.length - 1} AS mask FROM (${scored})`
-      : sql`SELECT id, ${termsInRow} + ${scoreBelowOne} AS key, ${termsInAnyRow} AS mask FROM (${scored})`;
+      ? sql`SELECT id, in_app, score AS key, ${2 ** terms.length - 1} AS mask FROM (${scoped})`
+      : sql`SELECT id, in_app, ${termsInRow} + ${scoreBelowOne} AS key, ${termsInAnyRow} AS mask FROM (${scoped})`;
   return sql`SELECT * FROM (${keyed}) ${after ? sql`WHERE key < ${after.key} OR (key = ${after.key} AND id < ${after.id})` : sql``} ORDER BY key DESC, id DESC LIMIT ${limit}`;
 }
 
@@ -299,11 +273,17 @@ interface RankedRow<Row> {
   row: Row;
   key: number;
   mask: number;
+  inApp: number;
 }
 
 function selectRanked<Table extends typeof screen | typeof flow>(table: Table, page: SQL) {
   return getDb()
-    .select({ row: table, key: sql<number>`ranked.key`, mask: sql<number>`ranked.mask` })
+    .select({
+      row: table,
+      key: sql<number>`ranked.key`,
+      mask: sql<number>`ranked.mask`,
+      inApp: sql<number>`ranked.in_app`,
+    })
     .from(table)
     .innerJoin(sql`(${page}) AS ranked`, sql`ranked.id = ${table.id}`)
     .orderBy(sql`ranked.key DESC`, desc(table.id));
@@ -317,52 +297,32 @@ async function rankedSearch<Row extends { id: string }>(
   limit: number,
   select: (page: SQL) => Promise<RankedRow<Row>[]>,
 ): Promise<SearchPage<Row>> {
-  const run = (step: RankStep, after: { key: number; id: string } | undefined, size: number) =>
-    select(
-      rankedPage(
-        surface,
-        and(
-          conditions,
-          step.scope === "app" ? namedAppFilter(surface.table.appId, search) : undefined,
-        )!,
-        scopeTerms(search, step.scope),
-        step.mode,
-        after,
-        size,
-      ),
-    );
-  const after = cursor
-    ? decodeCursor(
-        cursor,
-        RANK_STEPS.map((each) => each.cursor),
-      )
-    : undefined;
-  const steps = after ? RANK_STEPS.filter((each) => each.cursor === after.sort) : rankSteps(search);
+  const run = (mode: RankMode, after: { key: number; id: string } | undefined, size: number) =>
+    select(rankedPage(surface, conditions, search, mode, after, size));
+  const after = cursor ? decodeCursor(cursor, RANK_MODES) : undefined;
   const firstSize = Math.max(limit + 1, MIN_STRICT_RESULTS);
-  let step = steps[0]!;
-  let rows = await run(step, after, after ? limit + 1 : firstSize);
-  for (const next of steps.slice(1)) {
-    if (rows.length >= (next.scope === step.scope ? MIN_STRICT_RESULTS : MIN_NAMED_APP_RESULTS)) {
-      break;
-    }
-    step = next;
-    rows = await run(step, undefined, firstSize);
+  let mode: RankMode = after?.sort ?? "strict";
+  let rows = await run(mode, after, after ? limit + 1 : firstSize);
+  const relaxable =
+    search.terms.length > 1 || (search.apps.length > 0 && !search.holdsWithoutResults);
+  if (!after && rows.length < MIN_STRICT_RESULTS && relaxable) {
+    mode = "relaxed";
+    rows = await run(mode, undefined, firstSize);
   }
-  const terms = scopeTerms(search, step.scope);
   const mask = rows[0]?.mask ?? 0;
-  const page = toPage(rows, limit, ({ row, key }) => encodeCursor(step.cursor, key, row.id));
+  const page = toPage(rows, limit, ({ row, key }) => encodeCursor(mode, key, row.id));
   return {
     items: page.rows.map(({ row }) => row),
     nextCursor: page.nextCursor,
     match: searchMatch(
       search,
-      step.mode,
+      mode,
       new Set(
-        terms.flatMap((term, index) =>
+        search.terms.flatMap((term, index) =>
           Math.floor(mask / 2 ** index) % 2 === 1 ? [term.stem] : [],
         ),
       ),
-      step.scope,
+      search.holdsWithoutResults || rows[0]?.inApp === 1,
     ),
   };
 }
@@ -557,7 +517,7 @@ export async function listScreens(
       page.rows.map(({ row }) => row),
     ),
     nextCursor: page.nextCursor,
-    match: searchMatch(search, "none", new Set()),
+    match: searchMatch(search, "none", new Set(), true),
   };
 }
 
@@ -674,7 +634,7 @@ export async function listFlows(
   return {
     items: await flowSummaries(viewer, page.rows),
     nextCursor: page.nextCursor,
-    match: searchMatch(search, "none", new Set()),
+    match: searchMatch(search, "none", new Set(), true),
   };
 }
 

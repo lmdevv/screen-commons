@@ -37,25 +37,28 @@ export function jsonArrayContains(column: SQLWrapper, value: string): SQL {
 
 export interface FtsTerm {
   prefixes: readonly string[];
-  words?: readonly string[];
-  exceptColumns?: readonly string[];
+  words: readonly string[];
 }
 
-/**
- * `("pricing"*) AND ("story"* OR "storie"*)`, or joined with OR, with `-{col} : (…)` for a term
- * that skips columns.
- */
-export function ftsMatch(terms: readonly FtsTerm[], operator: "AND" | "OR", minPrefix = 1): string {
+export function ftsMatch(
+  terms: readonly FtsTerm[],
+  operator: "AND" | "OR",
+  {
+    minPrefix = 1,
+    exceptColumns = [],
+  }: { minPrefix?: number; exceptColumns?: readonly string[] } = {},
+): string {
   const quote = (text: string) => `"${text.replaceAll('"', '""')}"`;
-  return terms
-    .map(({ prefixes, words = [], exceptColumns = [] }) => {
+  const match = terms
+    .map(({ prefixes, words }) => {
       const any = [
         ...prefixes.map((prefix) => `${quote(prefix)}${prefix.length < minPrefix ? "" : "*"}`),
         ...words.map(quote),
       ].join(" OR ");
-      return `${exceptColumns.length > 0 ? `-{${exceptColumns.join(" ")}} : ` : ""}(${any})`;
+      return `(${any})`;
     })
     .join(` ${operator} `);
+  return exceptColumns.length > 0 ? `-{${exceptColumns.join(" ")}} : (${match})` : match;
 }
 
 /**

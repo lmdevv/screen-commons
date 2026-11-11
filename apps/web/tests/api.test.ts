@@ -741,9 +741,27 @@ describe("ranked search", () => {
     expect(named.match).toMatchObject({ mode: "none", app: riffsSlug });
   });
 
-  it("searches every app when the app a query names has no matching items", async () => {
+  it("keeps an app named first or last when it has no match, and says so", async () => {
+    const page = await member.client().listFlows({ q: `${word} progress bar` });
+    expect(page.items).toEqual([]);
+    expect(page.match).toEqual({
+      mode: "relaxed",
+      app: wordSlug,
+      appWithoutResults: null,
+      appNotFound: null,
+      matchedTerms: [],
+      unmatchedTerms: ["progress", "bar"],
+    });
+  });
+
+  it("searches every app when an app named in passing has no match", async () => {
     const client = member.client();
-    const page = await client.listFlows({ q: `${word} progress bar`, limit: 1 });
+    const invite = await client.listFlows({ q: `how do I ${word.toLowerCase()} an invite` });
+    expect(invite.items.map((item) => item.name)).toContain("Inviting a teammate");
+    expect(invite.match).toMatchObject({ app: null, appWithoutResults: wordSlug });
+
+    const q = `show me a ${word.toLowerCase()} progress bar`;
+    const page = await client.listFlows({ q, limit: 1 });
     expect(page.items.map((item) => item.name)).toEqual(["Progress bar"]);
     expect(page.match).toMatchObject({
       mode: "relaxed",
@@ -751,19 +769,43 @@ describe("ranked search", () => {
       appWithoutResults: wordSlug,
       matchedTerms: ["progress", "bar"],
     });
-    const next = await client.listFlows({
-      q: `${word} progress bar`,
-      limit: 1,
-      cursor: page.nextCursor!,
-    });
+    const next = await client.listFlows({ q, limit: 1, cursor: page.nextCursor! });
     expect(next.items.map((item) => item.id)).not.toContain(page.items[0]!.id);
-    expect(next.match).toMatchObject({ appWithoutResults: wordSlug });
+    expect(next.match).toEqual(page.match);
   });
 
-  it("reads an app name between other words as an ordinary word", async () => {
-    const page = await member.client().listFlows({ q: `how do I ${word.toLowerCase()} an invite` });
-    expect(page.match).toMatchObject({ app: null, appWithoutResults: null });
-    expect(page.items.map((item) => item.name)).toContain("Inviting a teammate");
+  it("keeps an app named in passing when it has a match", async () => {
+    const page = await member.client().listFlows({ q: `create a ${riffs} playlist` });
+    expect(page.items.every((item) => item.app.slug === riffsSlug)).toBe(true);
+    expect(page.match).toMatchObject({ mode: "strict", app: riffsSlug, appWithoutResults: null });
+  });
+
+  it("never reads an app, or a missing one, from capitals", async () => {
+    const client = member.client();
+    const title = await client.listFlows({ q: "How to Create a Playlist" });
+    expect(title.items[0]!.name).toBe("Creating a playlist");
+    expect(title.match).toMatchObject({ mode: "strict", app: null, appNotFound: null });
+    const named = await client.listFlows({ q: `${riffs} Playlist Folder` });
+    expect(named.items[0]!.name).toBe("Creating a playlist folder");
+    expect(named.match).toMatchObject({ app: riffsSlug, appNotFound: null });
+  });
+
+  it("reads a word the catalog contains, or a UI word, as no missing app", async () => {
+    const client = member.client();
+    const ring = await client.listFlows({ q: "progress on Ring" });
+    expect(ring.items[0]!.name).toBe("Progress ring");
+    expect(ring.match).toMatchObject({ appNotFound: null, matchedTerms: ["progress", "ring"] });
+    for (const q of ["tooltip on hover", "show error on submit", "zoom in on map"]) {
+      expect((await client.listFlows({ q })).match.appNotFound, q).toBeNull();
+    }
+  });
+
+  it("reports the app a question asks about over a name it uses in passing", async () => {
+    const asked = `Qz${suffix}`;
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${asked} handle ${word.toLowerCase()} playlists?` });
+    expect(page.match).toMatchObject({ app: null, appWithoutResults: null, appNotFound: asked });
   });
 
   it("finds a plural from the singular and the other way round", async () => {

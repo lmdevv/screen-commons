@@ -183,7 +183,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    return searchToolResult(screenSearchResult(origin, page));
+    return searchToolResult(screenSearchResult(origin, page), "screen");
   });
 
   register("search_flows", async (args) => {
@@ -196,7 +196,7 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
       limit: args.limit,
       cursor: args.cursor,
     });
-    return searchToolResult(flowSearchResult(origin, page));
+    return searchToolResult(flowSearchResult(origin, page), "flow");
   });
 
   register("list_apps", async (args) => {
