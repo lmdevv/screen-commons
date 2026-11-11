@@ -199,7 +199,13 @@ export const screen = sqliteTable(
     index("screen_image_key_idx").on(table.imageKey),
     index("screen_thumb_key_idx").on(table.thumbKey),
     index("screen_display_version_idx").on(table.displayVersion),
-    index("screen_contributor_idx").on(table.contributorId),
+    index("screen_contributor_created_idx").on(table.contributorId, table.createdAt, table.id),
+    index("screen_contributor_status_created_idx").on(
+      table.contributorId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
 
@@ -225,7 +231,13 @@ export const flow = sqliteTable(
   (table) => [
     index("flow_status_created_idx").on(table.status, table.createdAt),
     index("flow_app_idx").on(table.appId),
-    index("flow_contributor_idx").on(table.contributorId),
+    index("flow_contributor_created_idx").on(table.contributorId, table.createdAt, table.id),
+    index("flow_contributor_status_created_idx").on(
+      table.contributorId,
+      table.status,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
 

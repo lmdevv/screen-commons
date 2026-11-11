@@ -274,8 +274,15 @@ export async function flowSummaries(viewer: Viewer, rows: FlowRow[]): Promise<Fl
       total: sql<number>`count(*) OVER (PARTITION BY ${flowStep.flowId})`.as("total"),
     })
     .from(flowStep)
-    .innerJoin(screen, eq(screen.id, flowStep.screenId))
-    .where(and(inJsonArray(flowStep.flowId, ids), visibleSql(screen, viewer, "detail")))
+    // CROSS JOIN pins flow_step as SQLite's outer loop; an inner join walked every visible screen.
+    .crossJoin(screen)
+    .where(
+      and(
+        eq(screen.id, flowStep.screenId),
+        inJsonArray(flowStep.flowId, ids),
+        visibleSql(screen, viewer, "detail"),
+      ),
+    )
     .as("visible_steps");
   const [apps, saved, previews] = await Promise.all([
     appsById(rows.map((row) => row.appId)),

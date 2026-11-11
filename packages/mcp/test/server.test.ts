@@ -199,7 +199,7 @@ describe("catalog tools", () => {
     const missing = await connect({ apiKey: undefined });
     const noKey = await call(missing.client, "search_screens", {});
     expect(noKey.isError).toBe(true);
-    expect(textOf(noKey)).toContain("SCREEN_COMMONS_API_KEY is not set");
+    expect(textOf(noKey)).toMatch(/^unauthorized: SCREEN_COMMONS_API_KEY is not set/);
     // taxonomy still works from the bundled contract
     expect(JSON.parse(textOf(await call(missing.client, "get_taxonomy")))).toEqual(TAXONOMY);
 
@@ -375,6 +375,47 @@ describe("catalog tools", () => {
     });
     const refused = await call(client, "delete_flow", { id: "forbidden" });
     expect(textOf(refused)).toBe("forbidden: Only the contributor");
+  });
+
+  it("list_my_contributions passes its filters through and returns the shared result", async () => {
+    const { client } = await connect();
+    const before = api.contributionQueries.length;
+    const result = await call(client, "list_my_contributions", {
+      kind: "screen",
+      status: "rejected",
+      limit: 5,
+      cursor: "c1",
+    });
+    expect(api.contributionQueries[before]).toEqual({
+      kind: "screen",
+      status: "rejected",
+      limit: "5",
+      cursor: "c1",
+    });
+    expect(JSON.parse(textOf(result))).toEqual({
+      items: [
+        expect.objectContaining({
+          kind: "screen",
+          id: "scr_mine",
+          status: "rejected",
+          reviewReason: "Blurry capture",
+          url: `${api.url}/screens/scr_mine`,
+          createdAt: "2026-10-01T00:00:00.000Z",
+        }),
+        expect.objectContaining({
+          kind: "flow",
+          id: "flow_mine",
+          status: "pending",
+          reviewReason: null,
+          url: `${api.url}/flows/flow_mine`,
+        }),
+      ],
+      nextCursor: "c2",
+    });
+    const noKey = (await connect({ apiKey: undefined })).client;
+    const refused = await call(noKey, "list_my_contributions");
+    expect(refused.isError).toBe(true);
+    expect(textOf(refused)).toContain("SCREEN_COMMONS_API_KEY is not set");
   });
 
   it("create_flow passes its retry id and description through", async () => {

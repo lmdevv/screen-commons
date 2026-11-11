@@ -10,6 +10,7 @@ import {
   TAXONOMY,
   base64ToBytes,
   compactApp,
+  compactContribution,
   compactFlow,
   compactScreen,
   createdFlowResult,
@@ -60,7 +61,7 @@ const MAX_LOCAL_FILE_BYTES = 256 * 1024 * 1024;
 function requireKey(context: CatalogContext) {
   if (!context.apiKey) {
     throw new FriendlyError(
-      `SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env, e.g. "env": { "SCREEN_COMMONS_API_KEY": "sc_…" }.`,
+      `unauthorized: SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env, e.g. "env": { "SCREEN_COMMONS_API_KEY": "sc_…" }.`,
     );
   }
 }
@@ -256,6 +257,15 @@ export function registerCatalogTools(server: McpServer, context: CatalogContext)
     // Without a key, the bundled copy of the same contract.
     const taxonomy = context.apiKey ? await client.taxonomy().catch(() => TAXONOMY) : TAXONOMY;
     return json(taxonomy);
+  });
+
+  register("list_my_contributions", async (args) => {
+    requireKey(context);
+    const page = await client.listContributions(args);
+    return json({
+      items: page.items.map((item) => compactContribution(origin, item)),
+      nextCursor: page.nextCursor,
+    });
   });
 
   register("upload_screen", async (args) => {

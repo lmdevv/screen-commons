@@ -28,7 +28,7 @@ export function registerPublishTools(server: McpServer, context: PublishToolCont
       return {
         content: [
           text(
-            `SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env.`,
+            `unauthorized: SCREEN_COMMONS_API_KEY is not set. Create an API key at ${context.baseUrl}/settings (API keys) and add it to the screen-commons-mcp server env.`,
           ),
         ],
         isError: true,

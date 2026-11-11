@@ -8,6 +8,7 @@ import {
   createFlowInputSchema,
   type CaptureBatchInput,
   type CliLoginStatus,
+  type Contribution,
   type FlowDetail,
   type FlowSummary,
   type ReviewKind,
@@ -28,6 +29,7 @@ export interface MockApi {
   decisions: { kind: string; id: string; decision: string; reason?: string }[];
   login: { status: CliLoginStatus; hashes: string[]; revoked: string[] };
   mediaRequests: string[];
+  contributionQueries: Record<string, string>[];
   close: () => Promise<void>;
 }
 
@@ -112,6 +114,7 @@ export async function startMockApi(): Promise<MockApi> {
   });
   const login: MockApi["login"] = { status: "approved", hashes: [], revoked: [] };
   const mediaRequests: string[] = [];
+  const contributionQueries: Record<string, string>[] = [];
   let counter = 0;
 
   const server = createServer(async (request, response) => {
@@ -213,6 +216,24 @@ export async function startMockApi(): Promise<MockApi> {
         login.revoked.push(keyMatch[1]!);
         response.writeHead(204);
         return response.end();
+      }
+      if (request.method === "GET" && path === "/me/contributions") {
+        contributionQueries.push(Object.fromEntries(url.searchParams));
+        const items: Contribution[] = [
+          {
+            ...screen("scr_mine"),
+            status: "rejected",
+            kind: "screen",
+            reviewReason: "Blurry capture",
+          },
+          {
+            ...flowSummary("flow_mine"),
+            createdAt: "2026-09-30T00:00:00.000Z",
+            kind: "flow",
+            reviewReason: null,
+          },
+        ];
+        return json(200, { items, nextCursor: "c2" });
       }
       if (request.method === "GET" && path === "/screens") {
         return json(200, {
@@ -321,6 +342,7 @@ export async function startMockApi(): Promise<MockApi> {
     decisions,
     login,
     mediaRequests,
+    contributionQueries,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

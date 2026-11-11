@@ -8,6 +8,7 @@ import {
   flowTypeSchema,
   patternSchema,
   platformSchema,
+  statusSchema,
   type AppDetail,
   type AppSummary,
   type ApiKey,
@@ -93,6 +94,22 @@ export const listFlowsQuerySchema = z.object({
   limit,
 });
 export type ListFlowsQuery = z.input<typeof listFlowsQuerySchema>;
+
+export const listContributionsQuerySchema = z.object({
+  kind: z.enum(["screen", "flow"]).optional(),
+  status: statusSchema.optional(),
+  cursor,
+  limit,
+});
+export type ListContributionsQuery = z.input<typeof listContributionsQuerySchema>;
+
+/**
+ * One of the caller's own screens or flows.
+ * `reviewReason` is the admin's note from the last review.
+ */
+export type Contribution =
+  | (Screen & { kind: "screen"; reviewReason: string | null })
+  | (FlowSummary & { kind: "flow"; reviewReason: string | null });
 
 export const searchQuerySchema = z.object({
   q: z.string().trim().min(1).max(200),
@@ -220,6 +237,7 @@ export interface ApiResponses {
   getScreen: ScreenDetail;
   listFlows: Page<FlowSummary>;
   getFlow: FlowDetail;
+  listContributions: Page<Contribution>;
   search: SearchResult;
   createScreen: { screen: Screen };
   captures: CaptureBatchResult;
