@@ -35,15 +35,27 @@ export function jsonArrayContains(column: SQLWrapper, value: string): SQL {
   return sql`EXISTS (SELECT 1 FROM json_each(${column}) WHERE value = ${value})`;
 }
 
-/** `"pricing"* "tab"*`, or joined with OR. Terms shorter than `minPrefix` match whole words. */
-export function ftsMatch(
-  terms: readonly string[],
-  operator: "AND" | "OR" = "AND",
-  minPrefix = 1,
-): string {
+export interface FtsTerm {
+  prefixes: readonly string[];
+  words?: readonly string[];
+  exceptColumns?: readonly string[];
+}
+
+/**
+ * `("pricing"*) AND ("story"* OR "storie"*)`, or joined with OR, with `-{col} : (…)` for a term
+ * that skips columns.
+ */
+export function ftsMatch(terms: readonly FtsTerm[], operator: "AND" | "OR", minPrefix = 1): string {
+  const quote = (text: string) => `"${text.replaceAll('"', '""')}"`;
   return terms
-    .map((term) => `"${term.replaceAll('"', '""')}"${term.length < minPrefix ? "" : "*"}`)
-    .join(operator === "AND" ? " " : " OR ");
+    .map(({ prefixes, words = [], exceptColumns = [] }) => {
+      const any = [
+        ...prefixes.map((prefix) => `${quote(prefix)}${prefix.length < minPrefix ? "" : "*"}`),
+        ...words.map(quote),
+      ].join(" OR ");
+      return `${exceptColumns.length > 0 ? `-{${exceptColumns.join(" ")}} : ` : ""}(${any})`;
+    })
+    .join(` ${operator} `);
 }
 
 /**
@@ -58,5 +70,6 @@ export function ftsQuery(text: string): string | null {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
     .slice(0, 12);
-  return terms.length > 0 ? ftsMatch(terms) : null;
+  if (terms.length === 0) return null;
+  return terms.map((term) => `"${term}"*`).join(" ");
 }

@@ -34,14 +34,17 @@ export interface Page<T> {
 /**
  * How a screen or flow search read its query. `strict`: every item contains every term.
  * `relaxed`: fewer than `MIN_STRICT_RESULTS` items did, so items that contain some of the terms
- * follow them, most terms first. `none`: nothing to search for, so items keep the default order.
+ * follow them, most terms first. `none`: no query, so items keep the default order.
+ * `unsearchable`: the query has only words search skips, such as "how does it work", so no items.
  */
-export type SearchMode = "strict" | "relaxed" | "none";
+export type SearchMode = "strict" | "relaxed" | "none" | "unsearchable";
 
 export interface SearchMatch {
   mode: SearchMode;
-  /** Slug of the first app the query names. Items come only from apps with that name or host. */
+  /** Slug of the app the query names. Items come only from apps with that name or host. */
   app: string | null;
+  /** Slug of the app the query names when none of its items match. Items come from every app. */
+  appWithoutResults: string | null;
   /** An app the query names that the catalog doesn't have, as typed. Items come from other apps. */
   appNotFound: string | null;
   /** Query words that some item contains. */

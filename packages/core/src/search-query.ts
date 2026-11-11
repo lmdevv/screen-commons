@@ -3,7 +3,7 @@ import type { SearchMatch, SearchMode } from "./api";
 export const MIN_STRICT_RESULTS = 3;
 
 const MAX_TERMS = 8;
-const MAX_LOOKUP_WORDS = 32;
+const MAX_LOOKUP_TERMS = 32;
 const MAX_APP_NAME_WORDS = 4;
 
 const STOPWORDS = new Set(
@@ -35,13 +35,37 @@ const AFTER_APP = new Set([
   "support",
   "supports",
 ]);
-const BEFORE_LAST_APP = new Set(["in", "on", "inside", "within"]);
+const PREPOSITION_CUES = new Map<string, AppCue>([
+  ["in", "located"],
+  ["on", "located"],
+  ["inside", "located"],
+  ["within", "located"],
+  ["of", "trailing"],
+  ["for", "trailing"],
+  ["from", "trailing"],
+  ["using", "trailing"],
+  ["via", "trailing"],
+]);
+
+export const APP_CUES = {
+  asked: { tier: 0, reportsMissing: true, wholeSpanOnly: false, holdsWithoutResults: true },
+  capitalized: { tier: 1, reportsMissing: true, wholeSpanOnly: false, holdsWithoutResults: true },
+  located: { tier: 1, reportsMissing: true, wholeSpanOnly: false, holdsWithoutResults: true },
+  trailing: { tier: 1, reportsMissing: false, wholeSpanOnly: false, holdsWithoutResults: true },
+  possessive: { tier: 1, reportsMissing: false, wholeSpanOnly: false, holdsWithoutResults: true },
+  phrase: { tier: 1, reportsMissing: false, wholeSpanOnly: true, holdsWithoutResults: true },
+  edge: { tier: 2, reportsMissing: false, wholeSpanOnly: false, holdsWithoutResults: false },
+} as const satisfies Record<
+  string,
+  { tier: number; reportsMissing: boolean; wholeSpanOnly: boolean; holdsWithoutResults: boolean }
+>;
+
+export type AppCue = keyof typeof APP_CUES;
 
 export interface QueryWord {
   /** As typed, without diacritics: `Playlists`. */
   typed: string;
   text: string;
-  /** The prefix searched for, or null for a stopword: `playlist`. */
   stem: string | null;
 }
 
@@ -50,15 +74,21 @@ export interface WordSpan {
   end: number;
 }
 
+export interface AppCandidate extends WordSpan {
+  cue: AppCue;
+}
+
 export interface SearchQueryPlan {
   words: QueryWord[];
-  /** Spans that read as an app name, from capitalization and phrasing such as "does X let". */
-  appCandidates: WordSpan[];
+  appCandidates: AppCandidate[];
 }
 
 export interface SearchTerm {
   word: string;
   stem: string;
+  prefixes: string[];
+  words: string[];
+  matchesAppColumns: boolean;
 }
 
 export interface NamedApp {
@@ -67,12 +97,22 @@ export interface NamedApp {
   host: string | null;
 }
 
+export type CandidateOutcome = "filter" | "outranked" | "missing" | "word";
+
+export interface ResolvedCandidate extends AppCandidate {
+  text: string;
+  outcome: CandidateOutcome;
+}
+
 export interface ResolvedQuery<App extends NamedApp> {
+  candidates: ResolvedCandidate[];
   apps: App[];
   terms: SearchTerm[];
-  /** Spans that may name an app the catalog lacks, with the stems of their terms. */
-  appCandidates: { text: string; stems: string[] }[];
+  anyAppTerms: SearchTerm[] | null;
+  missing: { text: string; stems: string[] }[];
 }
+
+export type SearchScope = "app" | "anyApp";
 
 /** Strip the first suffix that leaves 3 or more characters, so the stem matches every form. */
 export function stemWord(word: string): string {
@@ -88,6 +128,10 @@ export function stemWord(word: string): string {
     return stem;
   }
   return word;
+}
+
+export function stemPrefixes(stem: string): string[] {
+  return stem.length >= 4 && /[^aeiou]y$/u.test(stem) ? [stem, `${stem.slice(0, -1)}ie`] : [stem];
 }
 
 /** Mirrors the `unicode61 remove_diacritics 2` tokenizer of the `*_fts` tables. */
@@ -117,52 +161,85 @@ function hostLabel(host: string | null): string | null {
   return label === "example" ? null : label;
 }
 
-function findAppCandidates(words: QueryWord[]): WordSpan[] {
-  const spans: WordSpan[] = [];
-  const add = (start: number, end: number) => {
-    if (!spans.some((span) => span.start === start && span.end === end)) spans.push({ start, end });
-  };
-  const capitalized = (index: number) => /^\p{Lu}/u.test(words[index]?.typed ?? "");
-  for (let start = 1; start < words.length; start += 1) {
-    if (!capitalized(start) || words[start]!.typed === "I") continue;
+function findAppCandidates(words: QueryWord[]): AppCandidate[] {
+  const found: AppCandidate[] = [];
+  const add = (cue: AppCue, start: number, end: number) => found.push({ cue, start, end });
+  const text = words.map((word) => word.text);
+  const searchable = (index: number) => Boolean(words[index]?.stem);
+  const capitalized = (index: number) => searchable(index) && /^\p{Lu}/u.test(words[index]!.typed);
+  const hasLowercase = words.some((word) => /^\p{Ll}/u.test(word.typed));
+
+  for (let start = 1; hasLowercase && start < words.length; start += 1) {
+    if (!capitalized(start)) continue;
     let end = start + 1;
     while (capitalized(end)) end += 1;
-    add(start, end);
-    start = end - 1;
+    add("capitalized", start, Math.min(end, start + MAX_APP_NAME_WORDS));
+    start = end;
   }
-  const text = words.map((word) => word.text);
-  for (let index = 0; index < text.length; index += 1) {
-    if (BEFORE_APP.has(text[index]!) && !STOPWORDS.has(text[index + 1] ?? "a")) {
+  text.forEach((word, index) => {
+    if (BEFORE_APP.has(word) && searchable(index + 1)) {
       const length = [1, 2].find((n) => AFTER_APP.has(text[index + n + 1] ?? ""));
-      if (length) add(index + 1, index + 1 + length);
+      if (length) add("asked", index + 1, index + 1 + length);
     }
-    if (BEFORE_LAST_APP.has(text[index]!)) {
+    const located = PREPOSITION_CUES.get(word);
+    if (located) {
       const at = index + (text[index + 1] === "the" ? 2 : 1);
-      if (at === text.length - 1 || (at < text.length && text[at + 1] === "app")) add(at, at + 1);
+      const appWord = text.indexOf("app", at);
+      const beforeApp =
+        appWord > at &&
+        appWord - at <= MAX_APP_NAME_WORDS &&
+        words.slice(at, appWord).every((_, offset) => searchable(at + offset));
+      if (beforeApp) add(located, at, appWord);
+      else if (at === text.length - 1 && searchable(at)) add(located, at, at + 1);
     }
-  }
-  return spans;
+    if (text[index + 1] === "s" && searchable(index)) add("possessive", index, index + 1);
+    for (let end = index + 2; end <= Math.min(text.length, index + MAX_APP_NAME_WORDS); end += 1) {
+      if (searchable(index) && searchable(end - 1)) add("phrase", index, end);
+    }
+  });
+  if (searchable(0)) add("edge", 0, 1);
+  if (words.length > 1 && searchable(words.length - 1)) add("edge", words.length - 1, words.length);
+
+  const cue = (candidate: AppCandidate) => APP_CUES[candidate.cue];
+  return found
+    .sort(
+      (a, b) =>
+        cue(a).tier - cue(b).tier ||
+        a.start - b.start ||
+        b.end - a.end ||
+        Number(cue(b).reportsMissing) - Number(cue(a).reportsMissing),
+    )
+    .filter(
+      (candidate, index, all) =>
+        all.findIndex((other) => other.start === candidate.start && other.end === candidate.end) ===
+        index,
+    );
 }
 
 export function planSearchQuery(query: string): SearchQueryPlan {
   const words = splitWords(query).map((typed) => {
     const text = typed.toLowerCase();
-    return { typed, text, stem: STOPWORDS.has(text) ? null : stemWord(text) };
+    return {
+      typed,
+      text,
+      stem: STOPWORDS.has(text) || text.length < 2 ? null : stemWord(text),
+    };
   });
   return { words, appCandidates: findAppCandidates(words) };
 }
 
-const candidateWords = (plan: SearchQueryPlan) =>
-  plan.appCandidates.flatMap((span) => plan.words.slice(span.start, span.end));
+const spanText = (plan: SearchQueryPlan, span: WordSpan, field: "text" | "typed" = "text") =>
+  plan.words
+    .slice(span.start, span.end)
+    .map((word) => word[field])
+    .join(" ");
 
-export function appLookupWords(plan: SearchQueryPlan): string[] {
-  return [...new Set([...candidateWords(plan), ...plan.words].map((word) => word.text))].slice(
-    0,
-    MAX_LOOKUP_WORDS,
-  );
-}
-
-function* spansWithin({ start, end }: WordSpan): Generator<WordSpan> {
+function* namesWithin(candidate: AppCandidate): Generator<WordSpan> {
+  if (APP_CUES[candidate.cue].wholeSpanOnly) {
+    yield candidate;
+    return;
+  }
+  const { start, end } = candidate;
   for (let length = Math.min(MAX_APP_NAME_WORDS, end - start); length >= 1; length -= 1) {
     for (let first = start; first + length <= end; first += 1) {
       yield { start: first, end: first + length };
@@ -170,11 +247,29 @@ function* spansWithin({ start, end }: WordSpan): Generator<WordSpan> {
   }
 }
 
-/**
- * Runs inside a candidate span resolve first, so "resend" in "How do I resend an invite on
- * Spotify?" doesn't outrank "Spotify". Candidate words are the last terms dropped, so a long
- * question can still report a missing app.
- */
+export function appLookupTerms(plan: SearchQueryPlan): string[] {
+  const whole = (candidate: AppCandidate) => APP_CUES[candidate.cue].wholeSpanOnly;
+  return [
+    ...new Set([
+      ...plan.appCandidates
+        .filter((candidate) => !whole(candidate))
+        .flatMap((candidate) => plan.words.slice(candidate.start, candidate.end))
+        .map((word) => word.text),
+      ...plan.appCandidates.filter(whole).map((candidate) => spanText(plan, candidate)),
+    ]),
+  ].slice(0, MAX_LOOKUP_TERMS);
+}
+
+export function appNameKeys(plan: SearchQueryPlan): string[] {
+  return [
+    ...new Set(
+      plan.appCandidates.flatMap((candidate) =>
+        [...namesWithin(candidate)].map((span) => spanText(plan, span)),
+      ),
+    ),
+  ];
+}
+
 export function resolveQuery<App extends NamedApp>(
   plan: SearchQueryPlan,
   apps: readonly App[],
@@ -188,50 +283,91 @@ export function resolveQuery<App extends NamedApp>(
     add(byName, nameKey(app.name), app);
     add(byLabel, hostLabel(app.host), app);
   }
-  let named: { apps: App[]; span: WordSpan } | null = null;
-  for (const within of [...plan.appCandidates, { start: 0, end: plan.words.length }]) {
-    for (const span of spansWithin(within)) {
-      const key = plan.words
-        .slice(span.start, span.end)
-        .map((word) => word.text)
-        .join(" ");
+  const { appCandidates: candidates } = plan;
+  const named = candidates.map((candidate) => {
+    for (const span of namesWithin(candidate)) {
+      const key = spanText(plan, span);
       const found = byName.get(key) ?? byLabel.get(key);
-      if (found) {
-        named = { apps: found, span };
-        break;
-      }
+      if (found) return { span, apps: found };
     }
-    if (named) break;
-  }
-  const inNamed = (index: number) => named && index >= named.span.start && index < named.span.end;
-  const candidateStems = new Set(named ? [] : candidateWords(plan).map((word) => word.stem));
-  const terms: SearchTerm[] = [];
-  plan.words.forEach(({ text, stem }, index) => {
-    if (!stem || text.length < 2 || inNamed(index) || terms.some((term) => term.stem === stem)) {
-      return;
-    }
-    terms.push({ word: text, stem });
+    return null;
   });
-  const kept = new Set(
-    [
-      ...terms.filter((term) => candidateStems.has(term.stem)),
-      ...terms.filter((term) => !candidateStems.has(term.stem)),
-    ].slice(0, MAX_TERMS),
+  const tier = (index: number) => APP_CUES[candidates[index]!.cue].tier;
+  const reports = (index: number) => APP_CUES[candidates[index]!.cue].reportsMissing;
+  const first = named.findIndex(Boolean);
+  const outranked =
+    first >= 0 &&
+    candidates.some((_, index) => !named[index] && reports(index) && tier(index) < tier(first));
+  const chosen = first >= 0 && !outranked ? first : -1;
+  const outcomes = candidates.map((_, index): CandidateOutcome => {
+    if (index === chosen) return "filter";
+    if (named[index]) return "outranked";
+    return chosen < 0 && reports(index) ? "missing" : "word";
+  });
+
+  const filtered = named[chosen]?.span;
+  const within = (span: WordSpan | undefined, index: number) =>
+    span !== undefined && index >= span.start && index < span.end;
+  const missingStems = new Set(
+    candidates.flatMap((candidate, index) =>
+      outcomes[index] === "missing"
+        ? plan.words.slice(candidate.start, candidate.end).map((word) => word.stem)
+        : [],
+    ),
   );
-  const searched = terms.filter((term) => kept.has(term));
-  const stems = new Set(searched.map((term) => term.stem));
+  const searchTerms = (scope: SearchScope) => {
+    const terms: SearchTerm[] = [];
+    plan.words.forEach(({ text, stem }, index) => {
+      const appWord = within(filtered, index);
+      if (!stem || (appWord && scope === "app") || terms.some((term) => term.stem === stem)) {
+        return;
+      }
+      terms.push(
+        missingStems.has(stem)
+          ? {
+              word: text,
+              stem,
+              prefixes: [],
+              words: [...new Set([text, ...stemPrefixes(stem)])],
+              matchesAppColumns: false,
+            }
+          : {
+              word: text,
+              stem,
+              prefixes: stemPrefixes(stem),
+              words: [],
+              matchesAppColumns: !appWord,
+            },
+      );
+    });
+    const kept = new Set(
+      [
+        ...terms.filter((term) => !term.matchesAppColumns),
+        ...terms.filter((term) => term.matchesAppColumns),
+      ].slice(0, MAX_TERMS),
+    );
+    return terms.filter((term) => kept.has(term));
+  };
+  const terms = searchTerms("app");
+  const searched = new Set(terms.map((term) => term.stem));
+  const loose = chosen >= 0 && !APP_CUES[candidates[chosen]!.cue].holdsWithoutResults;
+
   return {
-    apps: named?.apps ?? [],
-    terms: searched,
-    appCandidates: named
-      ? []
-      : plan.appCandidates.flatMap((span) => {
-          const words = plan.words.slice(span.start, span.end);
-          const spanStems = words.flatMap(({ stem }) => (stem && stems.has(stem) ? [stem] : []));
-          return spanStems.length > 0
-            ? [{ text: words.map((word) => word.typed).join(" "), stems: spanStems }]
-            : [];
-        }),
+    candidates: candidates.map((candidate, index) => ({
+      ...candidate,
+      text: spanText(plan, candidate, "typed"),
+      outcome: outcomes[index]!,
+    })),
+    apps: named[chosen]?.apps ?? [],
+    terms,
+    anyAppTerms: loose ? searchTerms("anyApp") : null,
+    missing: candidates.flatMap((candidate, index) => {
+      if (outcomes[index] !== "missing") return [];
+      const stems = plan.words
+        .slice(candidate.start, candidate.end)
+        .flatMap(({ stem }) => (stem && searched.has(stem) ? [stem] : []));
+      return stems.length > 0 ? [{ text: spanText(plan, candidate, "typed"), stems }] : [];
+    }),
   };
 }
 
@@ -240,16 +376,19 @@ export function searchMatch(
   query: ResolvedQuery<NamedApp>,
   mode: SearchMode,
   matchedStems: ReadonlySet<string>,
+  scope: SearchScope = "app",
 ): SearchMatch {
-  const matched = query.terms.filter((term) => matchedStems.has(term.stem));
+  const terms = scope === "anyApp" ? (query.anyAppTerms ?? query.terms) : query.terms;
+  const named = query.apps[0]?.slug ?? null;
+  const matched = terms.filter((term) => matchedStems.has(term.stem));
   return {
     mode,
-    app: query.apps[0]?.slug ?? null,
+    app: scope === "app" ? named : null,
+    appWithoutResults: scope === "anyApp" ? named : null,
     appNotFound:
-      query.appCandidates.find((candidate) =>
-        candidate.stems.some((stem) => !matchedStems.has(stem)),
-      )?.text ?? null,
+      query.missing.find((candidate) => candidate.stems.some((stem) => !matchedStems.has(stem)))
+        ?.text ?? null,
     matchedTerms: matched.map((term) => term.word),
-    unmatchedTerms: query.terms.filter((term) => !matched.includes(term)).map((term) => term.word),
+    unmatchedTerms: terms.filter((term) => !matched.includes(term)).map((term) => term.word),
   };
 }

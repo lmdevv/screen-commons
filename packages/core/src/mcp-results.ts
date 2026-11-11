@@ -88,12 +88,17 @@ export function describeMatch(match: SearchMatch): string {
     match.appNotFound &&
       `The catalog has no app named "${match.appNotFound}", so these results come from other apps.`,
     match.app && `Only results from the app "${match.app}", which the query names.`,
+    match.appWithoutResults &&
+      `The app "${match.appWithoutResults}" has no items that match the rest of the query, so these results come from every app and read "${match.appWithoutResults}" as an ordinary word.`,
     match.mode === "strict" &&
       match.matchedTerms.length > 0 &&
       `Every result contains ${quoted(match.matchedTerms)}.`,
     match.mode === "relaxed" &&
+      match.matchedTerms.length > 0 &&
       `Fewer than ${MIN_STRICT_RESULTS} results contain every search term, so results that contain some of them follow.`,
     match.mode === "none" && "No search terms, so results are in the default order.",
+    match.mode === "unsearchable" &&
+      "The query has no word to search for, only words such as how, does and app, so there are no results. Name a feature, such as create playlist.",
     match.unmatchedTerms.length > 0 && `No result contains ${quoted(match.unmatchedTerms)}.`,
   ]
     .filter(Boolean)
