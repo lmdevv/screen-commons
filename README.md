@@ -84,7 +84,7 @@ Issues and pull requests are welcome.
 2. Keep changes focused, and add tests next to the code you touch.
 3. Run `pnpm check` and `pnpm test` before opening a pull request.
 
-When contributing screenshots to an instance, follow the [content policy](apps/web/content/docs/contributing.md#content-policy): public pages only, no personal data or secrets, and respect each site's terms.
+When contributing screenshots to an instance, follow the [content policy](apps/web/content/docs/contributing.md#content-policy): public pages or demo and test accounts, no personal data or secrets, and each site's terms.
 
 ## License
 
