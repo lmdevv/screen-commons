@@ -655,6 +655,9 @@ describe("ranked search", () => {
       "Progress bar",
       "Progress ring",
       "Inviting a teammate",
+      "Signing up",
+      "Logging out",
+      "Updating notification settings",
     ]) {
       await adminApi.createFlow({
         appId: decoy.app.id,
@@ -797,6 +800,44 @@ describe("ranked search", () => {
     expect(ring.match).toMatchObject({ appNotFound: null, matchedTerms: ["progress", "ring"] });
     for (const q of ["tooltip on hover", "show error on submit", "zoom in on map"]) {
       expect((await client.listFlows({ q })).match.appNotFound, q).toBeNull();
+    }
+  });
+
+  it("reads a lowercase word after for, in or on as no missing app, and matches its other forms", async () => {
+    for (const q of ["turn on notifications", "settings for notifications"]) {
+      const page = await member.client().listFlows({ q });
+      expect(
+        page.items.map((item) => item.name),
+        q,
+      ).toContain("Updating notification settings");
+      expect(page.match, q).toMatchObject({ appNotFound: null });
+      expect(page.match.matchedTerms, q).toContain("notifications");
+    }
+  });
+
+  it("reports a capitalized missing name that only starts a word some flow has", async () => {
+    const page = await member.client().listFlows({ q: "How does Notifi let users mute alerts?" });
+    expect(page.match).toMatchObject({ app: null, appNotFound: "Notifi" });
+    expect(page.items.map((item) => item.name)).toContain("Updating notification settings");
+  });
+
+  it("finds every spelling of signing up and logging out", async () => {
+    const client = member.client();
+    for (const q of [
+      `Decoy ${suffix} signup`,
+      `Decoy ${suffix} sign up`,
+      `Decoy ${suffix} register`,
+    ]) {
+      expect(
+        (await client.listFlows({ q })).items.map((item) => item.name),
+        q,
+      ).toEqual(["Signing up"]);
+    }
+    for (const q of [`Decoy ${suffix} logout`, `Decoy ${suffix} log out`]) {
+      expect(
+        (await client.listFlows({ q })).items.map((item) => item.name),
+        q,
+      ).toEqual(["Logging out"]);
     }
   });
 
