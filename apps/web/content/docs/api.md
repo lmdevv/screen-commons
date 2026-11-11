@@ -312,7 +312,7 @@ PATCH /api/v1/screens/{id}
 DELETE /api/v1/screens/{id}
 ```
 
-Only the screen's contributor can edit or delete it. Other users get `403`, or `404` if they can't see the screen.
+The screen's contributor can edit or delete it. An admin can also edit it, but only the contributor can delete it. Other users get `403`, or `404` if they can't see the screen.
 
 `PATCH` takes any of `title` (up to 160 characters, `null` clears it), `patterns`, `elements` and `tags`, with the same rules as an upload, and returns the updated screen. `DELETE` returns `204` and removes the screen from every flow and collection. Flow steps after it move up, and a published flow left with fewer than 2 steps goes back to `pending`.
 
@@ -577,7 +577,7 @@ PATCH /api/v1/flows/{id}
 DELETE /api/v1/flows/{id}
 ```
 
-Only the flow's contributor can edit or delete it. Other users get `403`, or `404` if they can't see the flow.
+The flow's contributor can edit or delete it. An admin can also edit it, but only the contributor can delete it. Other users get `403`, or `404` if they can't see the flow.
 
 `PATCH` takes any of the create fields except `appId` and `id`, and returns the updated `FlowDetail`. Pass `null` for `type` or `description` to clear them. `steps` replaces every step. A published flow goes back to `pending` if a new step isn't published. `DELETE` returns `204`. It keeps the flow's screens.
 
