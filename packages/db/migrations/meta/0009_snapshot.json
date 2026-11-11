@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7c65d236-cf73-49be-87ea-77b3ca66ab4c",
-  "prevId": "f07412e4-32e0-429a-89f1-eb82ae603051",
+  "id": "e0308018-6562-4ef1-9972-316dc4571e62",
+  "prevId": "64a9c3fa-21d6-4d03-b4af-d4fefc0be57f",
   "tables": {
     "account": {
       "name": "account",
@@ -160,6 +160,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'standard'"
         },
         "last_used_at": {
           "name": "last_used_at",
@@ -518,6 +526,52 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "contribution_edit": {
+      "name": "contribution_edit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "flow": {
       "name": "flow",
       "columns": {
@@ -566,13 +620,6 @@
         },
         "contributor_id": {
           "name": "contributor_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_by": {
-          "name": "updated_by",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -943,13 +990,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "review_reason": {
           "name": "review_reason",
           "type": "text",
@@ -1281,6 +1321,11 @@
         "verification_identifier_idx": {
           "name": "verification_identifier_idx",
           "columns": ["identifier"],
+          "isUnique": false
+        },
+        "verification_expires_at_idx": {
+          "name": "verification_expires_at_idx",
+          "columns": ["expires_at"],
           "isUnique": false
         }
       },

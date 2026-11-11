@@ -10,6 +10,7 @@ import {
   flow,
   flowStep,
   collectionItem,
+  contributionEdit,
   inJsonArray,
   type FlowRow,
   type ScreenRow,
@@ -55,13 +56,28 @@ async function requireChangeable(
   );
 }
 
+/** The audit row for an edit to someone else's contribution, which only an admin can make. */
+function editRecord(
+  principal: Principal,
+  kind: "screen" | "flow",
+  row: { id: string; contributorId: string | null },
+): BatchItem<"sqlite">[] {
+  if (row.contributorId === principal.user.id) return [];
+  return [
+    getDb().insert(contributionEdit).values({ kind, itemId: row.id, updatedBy: principal.user.id }),
+  ];
+}
+
 export async function updateScreen(principal: Principal, id: string, input: unknown) {
-  await requireChangeable(principal, "screen", id, "update");
+  const row = await requireChangeable(principal, "screen", id, "update");
   const patch = parseInput(updateScreenInputSchema, input);
-  await getDb()
-    .update(screen)
-    .set({ ...patch, updatedBy: principal.user.id, updatedAt: new Date() })
-    .where(eq(screen.id, id));
+  await getDb().batch([
+    getDb()
+      .update(screen)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(screen.id, id)),
+    ...editRecord(principal, "screen", row),
+  ]);
   return getScreen(principal, id);
 }
 
@@ -69,10 +85,13 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
   const row = await requireChangeable(principal, "flow", id, "update");
   const patch = parseInput(updateFlowInputSchema, input);
   if (!patch.steps) {
-    await getDb()
-      .update(flow)
-      .set({ ...patch, updatedBy: principal.user.id, updatedAt: new Date() })
-      .where(eq(flow.id, id));
+    await getDb().batch([
+      getDb()
+        .update(flow)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(flow.id, id)),
+      ...editRecord(principal, "flow", row),
+    ]);
     return getFlow(principal, id, { countView: false });
   }
   const ids = patch.steps.map((step) => step.screenId);
@@ -83,7 +102,9 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
       and(
         eq(screen.appId, row.appId),
         inJsonArray(screen.id, ids),
-        visibleSql(screen, principal, "detail"),
+        row.contributorId === principal.user.id
+          ? visibleSql(screen, principal, "detail")
+          : sql`(${screen.status} = 'published' OR ${screen.contributorId} = ${row.contributorId})`,
         sql`${screen.status} != 'rejected'`,
       ),
     );
@@ -97,7 +118,6 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
         type: patch.type,
         description: patch.description,
         stepCount: ids.length,
-        updatedBy: principal.user.id,
         updatedAt: new Date(),
         ...(row.status === "published" && found.some((s) => s.status !== "published")
           ? { status: "pending" as const }
@@ -115,6 +135,7 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
           label: step.label ?? null,
         }),
     ),
+    ...editRecord(principal, "flow", row),
   ]);
   return getFlow(principal, id, { countView: false });
 }

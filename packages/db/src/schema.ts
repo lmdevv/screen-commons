@@ -184,7 +184,6 @@ export const screen = sqliteTable(
     status: text("status").$type<Status>().default("pending").notNull(),
     source: text("source").$type<Source>().default("upload").notNull(),
     contributorId: text("contributor_id").references(() => user.id, { onDelete: "set null" }),
-    updatedBy: text("updated_by"),
     reviewReason: text("review_reason"),
     viewCount: integer("view_count").default(0).notNull(),
     saveCount: integer("save_count").default(0).notNull(),
@@ -222,7 +221,6 @@ export const flow = sqliteTable(
     description: text("description"),
     status: text("status").$type<Status>().default("pending").notNull(),
     contributorId: text("contributor_id").references(() => user.id, { onDelete: "set null" }),
-    updatedBy: text("updated_by"),
     reviewReason: text("review_reason"),
     stepCount: integer("step_count").default(0).notNull(),
     viewCount: integer("view_count").default(0).notNull(),
@@ -316,6 +314,15 @@ export const apiKey = sqliteTable(
   },
   (table) => [index("api_key_user_idx").on(table.userId)],
 );
+
+/** One row per edit someone other than the contributor made, which today means an admin's. */
+export const contributionEdit = sqliteTable("contribution_edit", {
+  id: integer("id").primaryKey(),
+  kind: text("kind").$type<"screen" | "flow">().notNull(),
+  itemId: text("item_id").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  createdAt: createdAt(),
+});
 
 /**
  * Singleton row claimed by the first user ever created (see migrations/0002_integrity.sql: an
