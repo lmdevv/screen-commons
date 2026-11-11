@@ -129,8 +129,8 @@ Auth: session cookie **or** `Authorization: Bearer sc_…`. JSON errors:
 | POST / DELETE        | `/api/v1/saves`            | `{ kind: "screen" \| "flow" \| "app", id, collectionId? }` save / unsave (DELETE uses query params)                 |
 | GET / POST           | `/api/v1/keys`             | session-only: list / create (`{ name }`, token returned once)                                                       |
 | DELETE               | `/api/v1/keys/$id`         | session-only: revoke                                                                                                |
-| GET                  | `/api/v1/review`           | admin: pending screens and flows                                                                                    |
-| POST                 | `/api/v1/review/$kind/$id` | admin: `{ decision: "approve" \| "reject" }`                                                                        |
+| GET                  | `/api/v1/review`           | admin: `?kind=screen\|flow&cursor&limit` one kind of pending item, oldest first, 50 a page at most                  |
+| GET / POST           | `/api/v1/review/$kind/$id` | admin: status without counting a view · `{ decision: "approve" \| "reject" }`, a no-op when already decided         |
 
 `/media/$key` serves R2 objects. `/mcp` is the remote MCP endpoint (Streamable HTTP, stateless,
 bearer API key).

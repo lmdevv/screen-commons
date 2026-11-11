@@ -7,6 +7,8 @@ import {
   type ListAppsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
+  type ReviewKind,
+  type ReviewQueueQuery,
   type SearchQuery,
 } from "./api";
 import type {
@@ -164,13 +166,14 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
     createKey: (name: string) => request<ApiResponses["createKey"]>("POST", "/keys", { name }),
     revokeKey: (id: string) => request<void>("DELETE", `/keys/${encodeURIComponent(id)}`),
 
-    reviewQueue: () => request<ApiResponses["reviewQueue"]>("GET", "/review"),
-    review: (
-      kind: "screen" | "flow",
-      id: string,
-      decision: "approve" | "reject",
-      reason?: string,
-    ) => request<void>("POST", `/review/${kind}/${encodeURIComponent(id)}`, { decision, reason }),
+    reviewQueue: <K extends ReviewKind>(query: ReviewQueueQuery & { kind: K }) =>
+      request<Extract<ApiResponses["reviewQueue"], { kind: K }>>("GET", `/review${toQuery(query)}`),
+    /** Admin only. Unlike `getScreen` and `getFlow`, reading it counts no view. */
+    reviewStatus: (kind: ReviewKind, id: string) =>
+      request<ApiResponses["reviewStatus"]>("GET", `/review/${kind}/${encodeURIComponent(id)}`),
+    /** Writes nothing when the item already has the decided status. */
+    review: (kind: ReviewKind, id: string, decision: "approve" | "reject", reason?: string) =>
+      request<void>("POST", `/review/${kind}/${encodeURIComponent(id)}`, { decision, reason }),
     backfillDisplay: (input: BackfillDisplayInput = {}) =>
       request<ApiResponses["backfillDisplay"]>("POST", "/admin/media/backfill", input),
   };

@@ -6,7 +6,7 @@ import {
 import { beforeAll, describe, expect, inject, it } from "vitest";
 
 import { makePng, makeWebp } from "./images";
-import { Session, b64, baseUrl, captureScreen, keyClient, uniqueSuffix } from "./helpers";
+import { Session, b64, baseUrl, captureScreen, d1, keyClient, uniqueSuffix } from "./helpers";
 
 const suffix = uniqueSuffix();
 
@@ -25,6 +25,19 @@ async function expectApiError(promise: Promise<unknown>, status: number, code?: 
   expect(error).toBeInstanceOf(ScreenCommonsApiError);
   expect((error as ScreenCommonsApiError).status).toBe(status);
   if (code) expect((error as ScreenCommonsApiError).code).toBe(code);
+}
+
+async function pendingIds(kind: "screen" | "flow", limit = 50): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await admin.client().reviewQueue({ kind, cursor, limit });
+    expect(page.kind).toBe(kind);
+    expect(page.items.length).toBeLessThanOrEqual(limit);
+    ids.push(...page.items.map((item) => item.id));
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+  return ids;
 }
 
 beforeAll(async () => {
@@ -448,16 +461,13 @@ describe("visibility + review", () => {
     ).toContain(screen.id);
 
     // only admins review
-    await expectApiError(member.client().reviewQueue(), 403);
+    await expectApiError(member.client().reviewQueue({ kind: "screen" }), 403);
     await expectApiError(member.client().review("screen", screen.id, "approve"), 403);
-    const queue = await admin.client().reviewQueue();
-    expect(queue.screens.map((item) => item.id)).toContain(screen.id);
+    expect(await pendingIds("screen")).toContain(screen.id);
 
     await admin.client().review("screen", screen.id, "approve");
     expect((await other.client().getScreen(screen.id)).status).toBe("published");
-    expect((await admin.client().reviewQueue()).screens.map((item) => item.id)).not.toContain(
-      screen.id,
-    );
+    expect(await pendingIds("screen")).not.toContain(screen.id);
   });
 
   it("hides a member's new app until approval, and rejected items stay hidden", async () => {
@@ -474,8 +484,7 @@ describe("visibility + review", () => {
     await expectApiError(other.client().getApp(result.app.slug), 404);
     expect((await member.client().getApp(result.app.slug)).status).toBe("pending");
 
-    const queue = await admin.client().reviewQueue();
-    expect(queue.flows.map((item) => item.id)).toContain(result.flow!.id);
+    expect(await pendingIds("flow")).toContain(result.flow!.id);
 
     // approving the flow publishes its screens and the app
     await admin.client().review("flow", result.flow!.id, "approve");
@@ -489,6 +498,65 @@ describe("visibility + review", () => {
     await admin.client().review("screen", rejected.screens[0]!.id, "reject", "Duplicate");
     await expectApiError(other.client().getScreen(rejected.screens[0]!.id), 404);
     expect((await member.client().getScreen(rejected.screens[0]!.id)).status).toBe("rejected");
+  });
+
+  it("pages one kind of the queue oldest first, with a keyset cursor", async () => {
+    const queued = await member.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      screens: Array.from({ length: 5 }, (_, index) => captureScreen({ title: `Queued ${index}` })),
+    });
+    const mine = queued.screens.map((item) => item.id);
+
+    const screens = await pendingIds("screen", 2);
+    expect(new Set(screens).size).toBe(screens.length);
+    expect(screens.filter((id) => mine.includes(id))).toEqual(mine);
+    expect(await pendingIds("flow", 2)).not.toContain(mine[0]);
+
+    const first = await admin.client().reviewQueue({ kind: "screen", limit: 1 });
+    expect(first.nextCursor).toEqual(expect.any(String));
+    await expectApiError(
+      admin.client().reviewQueue({ kind: "flow", cursor: first.nextCursor! }),
+      400,
+      "bad_request",
+    );
+    await expectApiError(admin.client().reviewQueue({ kind: "screen", limit: 51 }), 400);
+    expect((await admin.fetch("/api/v1/review")).status).toBe(400);
+  });
+
+  it("writes nothing when an item already has the decided status", async () => {
+    const result = await member.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      flow: { name: `Twice ${suffix}` },
+      screens: [captureScreen({ title: "Twice one" }), captureScreen({ title: "Twice two" })],
+    });
+    const flowId = result.flow!.id;
+    const stamps = async () =>
+      d1(
+        `SELECT a.updated_at AS app, f.updated_at AS flow, f.view_count AS views FROM flow f JOIN app a ON a.id = f.app_id WHERE f.id = '${flowId}'`,
+      );
+    await admin.client().review("flow", flowId, "approve");
+    const approved = await stamps();
+    await admin.client().review("flow", flowId, "approve");
+    expect(await admin.client().reviewStatus("flow", flowId)).toEqual({
+      kind: "flow",
+      id: flowId,
+      status: "published",
+    });
+    expect(await stamps()).toEqual(approved);
+    expect((await other.client().getFlow(flowId)).status).toBe("published");
+
+    const loose = await member.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      screens: [captureScreen({ title: "Rejected twice" })],
+    });
+    const screenId = loose.screens[0]!.id;
+    const row = () =>
+      d1(`SELECT status, review_reason, updated_at FROM screen WHERE id = '${screenId}'`);
+    await admin.client().review("screen", screenId, "reject", "First reason");
+    const rejected = await row();
+    expect(rejected).toEqual([expect.objectContaining({ review_reason: "First reason" })]);
+    await admin.client().review("screen", screenId, "reject", "Second reason");
+    expect(await row()).toEqual(rejected);
   });
 });
 

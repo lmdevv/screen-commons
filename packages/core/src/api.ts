@@ -17,6 +17,7 @@ import {
   type FlowSummary,
   type Screen,
   type ScreenDetail,
+  type Status,
   type User,
 } from "./schemas";
 import type { Taxonomy } from "./taxonomy";
@@ -108,10 +109,26 @@ export interface SearchResult {
   terms: { kind: "pattern" | "element" | "flowType" | "category"; slug: string; label: string }[];
 }
 
-export interface ReviewQueue {
-  screens: Screen[];
-  flows: FlowSummary[];
+export const reviewKindSchema = z.enum(["screen", "flow"]);
+export type ReviewKind = z.infer<typeof reviewKindSchema>;
+
+export const reviewQueueQuerySchema = z.object({
+  kind: reviewKindSchema,
+  cursor,
+  limit: z.coerce.number<number>().int().min(1).max(50).default(25),
+});
+export type ReviewQueueQuery = z.input<typeof reviewQueueQuerySchema>;
+
+export interface ReviewStatus {
+  kind: ReviewKind;
+  id: string;
+  status: Status;
 }
+
+/** One kind of pending item, oldest first. */
+export type ReviewQueue =
+  | ({ kind: "screen" } & Page<Screen>)
+  | ({ kind: "flow" } & Page<FlowSummary>);
 
 /** POST /admin/media/backfill: one page of the display-media backfill (admin only). */
 export const backfillDisplayInputSchema = z.object({
@@ -170,5 +187,6 @@ export interface ApiResponses {
   /** `token` is only ever returned once, at creation. */
   createKey: { key: ApiKey; token: string };
   reviewQueue: ReviewQueue;
+  reviewStatus: ReviewStatus;
   backfillDisplay: BackfillDisplayResult;
 }

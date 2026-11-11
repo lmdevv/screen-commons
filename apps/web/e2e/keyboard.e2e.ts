@@ -831,10 +831,16 @@ describe("admin review", WRITES, () => {
 
   test("reviews with J/K, R and A on the keyboard", async () => {
     await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD, "/browse/web");
-    const queue = await (await context.request.get(`${BASE}/api/v1/review`)).json();
-    for (const screen of queue.screens as { id: string; title: string | null }[]) {
-      if (screen.title && TITLES.includes(screen.title)) contributed.push(screen.id);
-    }
+    let cursor = "";
+    do {
+      const page = await (
+        await context.request.get(`${BASE}/api/v1/review?kind=screen&limit=50&cursor=${cursor}`)
+      ).json();
+      for (const screen of page.items as { id: string; title: string | null }[]) {
+        if (screen.title && TITLES.includes(screen.title)) contributed.push(screen.id);
+      }
+      cursor = page.nextCursor ?? "";
+    } while (cursor);
     assert.equal(contributed.length, 3, "the member's three screens are pending");
 
     await shortcut(page, "g r");

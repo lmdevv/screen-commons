@@ -235,10 +235,6 @@ export const revokeKey = createServerFn({ method: "POST" })
 
 // --- review (admin) --------------------------------------------------------------------------
 
-export const getReviewQueue = createServerFn({ method: "GET" }).handler(() =>
-  asUser((principal) => services.reviewQueue(principal)),
-);
-
 export const reviewItem = createServerFn({ method: "POST" })
   .validator(
     identity<{

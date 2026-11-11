@@ -99,5 +99,4 @@ export const queries = {
     }),
 
   keys: () => queryOptions({ queryKey: ["keys"], queryFn: () => fn.listKeys() }),
-  reviewQueue: () => queryOptions({ queryKey: ["review"], queryFn: () => fn.getReviewQueue() }),
 };
