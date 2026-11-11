@@ -33,7 +33,13 @@ function luhn(number) {
 const KEEP = {
   email: () => true,
   phone: (match) => digits(match).length >= 8 && digits(match).length <= 15,
-  card: (match) => luhn(digits(match)),
+  card: (match) => {
+    const number = digits(match);
+    for (let length = Math.min(number.length, 19); length >= 13; length -= 1) {
+      if (luhn(number.slice(0, length))) return true;
+    }
+    return false;
+  },
 };
 
 const FILE_ID_AND_TIME_KEYS = new Set([

@@ -28,6 +28,7 @@ const BARE_ID = new RegExp(
   "gu",
 );
 const CLI_NOT_FOUND_EXIT = 4;
+const SAFE_ID = /^\w[\w-]*$/u;
 
 class CannotCheck extends Error {}
 
@@ -181,6 +182,11 @@ async function checkBundle(dir, problems, verified) {
   }
   const problem = (message, id) => problems.push({ bundle: dir, id, problem: message });
   const steps = new Map();
+  for (const id of [...refs.flows, ...refs.screens].filter((id) => !SAFE_ID.test(id))) {
+    problem("is not a catalog id", id);
+    refs.flows.delete(id);
+    refs.screens.delete(id);
+  }
   for (const id of refs.flows) {
     const flow = await lookUp("flow", id);
     if (!flow) {

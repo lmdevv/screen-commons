@@ -83,7 +83,7 @@ It reads each item again and writes only its changes, one item every 300 ms.
 
 - `saved` or `unchanged` for every item, exit 0: go on.
 - `stopped` is set: the key was refused, or the instance is out of capacity (`unavailable`, `rate_limited`). Stop the run and report it. Later, the same command continues where it stopped, because saved items come back `unchanged`.
-- `failed`: fix the item in the batch file and apply again.
+- `failed`: fix the item in the batch file and apply again. `forbidden` means your key may not edit that item, so drop it from the batch.
 - `saved-differently`: the server stored something else. Compare `now` with the batch.
 
 ### 6. Check search
