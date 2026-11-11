@@ -18,7 +18,10 @@ const STOPWORDS = new Set(
 
 const SUFFIXES = ["ations", "ation", "ings", "ing", "ies", "ied", "es", "ed", "s", "e"];
 
-const BEFORE_NAME = new Set(["does", "did", "in", "on", "for"]);
+const BEFORE_NAME = new Set(["does", "did", "in", "on", "for", "my", "your", "our"]);
+const AFTER_NAME = new Set(
+  "s app apps application flow flows screen screens ui ux feature features".split(" "),
+);
 const ASKED = new Set(["does", "did"]);
 const ASKED_VERBS = new Set([
   "let",
@@ -198,7 +201,7 @@ export function resolveQuery<App extends NamedApp>(
     span.start === 0 ||
     span.end === words.length ||
     BEFORE_NAME.has(wordBefore(text, span.start)) ||
-    ["s", "app"].includes(text[span.end] ?? "");
+    AFTER_NAME.has(text[span.end] ?? "");
   const [mention] = nameSpans(words)
     .flatMap((span) => {
       const found = new Set([

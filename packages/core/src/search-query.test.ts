@@ -149,7 +149,7 @@ describe("resolveQuery", () => {
     });
   });
 
-  it("holds a name in the first or last word, or after does, in, on or for, or before 's or app", () => {
+  it("holds a name in the first or last word, after does, in, on, for or my, or before 's, app or flows", () => {
     for (const query of [
       "vercel deploy on push",
       "create issue linear",
@@ -158,6 +158,8 @@ describe("resolveQuery", () => {
       "what's new on the linear roadmap",
       "Linear's issue templates",
       "how do I create an issue in the linear app",
+      "Show me Spotify flows for playlist folders",
+      "How do I cancel my Spotify Premium subscription?",
       "zebra stripe",
       "linear progress bar",
     ]) {
@@ -174,7 +176,7 @@ describe("resolveQuery", () => {
       apps: ["linear", "linear-ios"],
       holds: false,
     });
-    expect(named("How do I cancel my Spotify Premium subscription?").holds).toBe(false);
+    expect(named("How do I join a Spotify Blend?").holds).toBe(false);
   });
 
   it("prefers a name that holds, then the longest", () => {
