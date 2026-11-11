@@ -51,9 +51,9 @@ export const catalogPrompts = {
       [
         `Answer this question from the Screen Commons catalog: ${question}`,
         "",
-        "1. Find the app the question asks about: call list_apps with the app's name as query, and note the slug of every app with that name (web and mobile apps can share one). If the question names no app, search the whole catalog.",
+        "1. Find the app the question asks about: call list_apps with the app's name as query, and note the slug of every app whose name is the one the question uses (web and mobile apps can share one). list_apps also returns partial matches, so an app with another name, even a similar one, is not the app asked about. If the question names no app, search the whole catalog.",
         "2. Call search_flows with the question as query, and with app set to each slug from step 1. Read `match` in the result: `match.app` is the app the search kept to, and `match.appNotFound` names an app the question asks about that the catalog doesn't have.",
-        "3. If the question names an app that list_apps didn't find, or `match.appNotFound` is set, answer that the catalog has no flows from that app and stop. Never offer another app's flow as the answer, even one that looks similar.",
+        "3. If step 1 found no app with the name the question uses, or `match.appNotFound` is set, answer that the catalog has no flows from that app and stop. Never offer another app's flow as the answer, even one that looks similar.",
         "4. Pick the flows that answer the question. If none fits, call search_screens with the same query and app before you say the catalog doesn't show it.",
         "5. Open each flow you use with get_flow and includeImages=true, and look at its screens before you describe them.",
         "6. Answer step by step from what the screens show. Cite every flow and screen you rely on by its id and url.",
