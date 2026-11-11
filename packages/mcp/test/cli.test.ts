@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { referenceBundleSchema, type ReferenceBundle } from "@screen-commons/core";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -648,5 +649,110 @@ describe("doctor", () => {
     const { code, stdout } = await run(["doctor"], { HOME, CHROME_PATH: "/nonexistent/chromium" });
     expect(code).toBe(0);
     expect(stdout).toMatch(/^warn {2}capture {3}no Chromium at \/nonexistent\/chromium/mu);
+  });
+});
+
+describe("bundles", () => {
+  const readBundle = async (out: string): Promise<ReferenceBundle> =>
+    referenceBundleSchema.parse(JSON.parse(await readFile(join(out, "bundle.json"), "utf8")));
+  const sha256 = (data: Buffer) => createHash("sha256").update(data).digest("hex");
+
+  it("writes a valid bundle", async () => {
+    const out = join(dir, "bundle-flow");
+    const { code, stdout } = await run(["flows", "bundle", "flow_1", "--out", out], withKey());
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({ path: out, steps: 2, downloaded: 2, warnings: [] });
+    const bundle = await readBundle(out);
+    expect(bundle.flow).toMatchObject({ id: "flow_1", catalogUrl: `${api.url}/flows/flow_1` });
+    expect(bundle.steps.map((step) => [step.position, step.id, step.localPath])).toEqual([
+      [0, "scr_1", "images/00-scr_1.png"],
+      [1, "scr_2", "images/01-scr_2.png"],
+    ]);
+    for (const step of bundle.steps) {
+      const image = await readFile(join(out, step.localPath));
+      expect(sha256(image)).toBe(step.sha256);
+      expect([step.width, step.height]).toEqual([2880, 1800]);
+    }
+    const references = await readFile(join(out, "REFERENCES.md"), "utf8");
+    expect(references.indexOf("](images/00-scr_1.png)")).toBeGreaterThan(0);
+    expect(references.indexOf(`(${api.url}/screens/scr_2)`)).toBeGreaterThan(
+      references.indexOf("](images/00-scr_1.png)"),
+    );
+
+    const screens = join(dir, "bundle-screens");
+    const loose = await run(
+      ["screens", "bundle", "scr_3", "scr_1", "scr_2", "--out", screens],
+      withKey(),
+    );
+    expect(loose.code).toBe(0);
+    const looseBundle = await readBundle(screens);
+    expect(looseBundle.flow).toBeNull();
+    expect(looseBundle.steps.map((step) => step.id)).toEqual(["scr_3", "scr_1", "scr_2"]);
+  });
+
+  it("reruns without downloading again", async () => {
+    const out = join(dir, "bundle-rerun");
+    const args = ["flows", "bundle", "flow_1", "--out", out];
+    expect((await run(args, withKey())).code).toBe(0);
+    const before = api.mediaRequests.length;
+    const again = await run(args, withKey());
+    expect(again.code).toBe(0);
+    expect(JSON.parse(again.stdout)).toMatchObject({ downloaded: 0, reused: 2 });
+    expect(api.mediaRequests.length).toBe(before);
+
+    await writeFile(join(out, "images/01-scr_2.png"), "damaged");
+    const repaired = await run(args, withKey());
+    expect(JSON.parse(repaired.stdout)).toMatchObject({ downloaded: 1, reused: 1 });
+    expect(api.mediaRequests.slice(before)).toEqual(["/media/scr_2-full.png"]);
+    const step = (await readBundle(out)).steps[1]!;
+    expect(sha256(await readFile(join(out, step.localPath)))).toBe(step.sha256);
+  });
+
+  it("flags pending content", async () => {
+    const out = join(dir, "bundle-pending");
+    const { code, stdout } = await run(["flows", "bundle", "pending", "--out", out], withKey());
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).warnings).toEqual(["pending_content"]);
+    const bundle = await readBundle(out);
+    expect(bundle.flow!.warnings).toEqual(["pending_content"]);
+    expect(bundle.steps.every((step) => step.warnings.includes("pending_content"))).toBe(true);
+    expect(bundle.steps[0]!.contributor).toEqual({ owned: true, source: "seed" });
+    expect(await readFile(join(out, "REFERENCES.md"), "utf8")).toContain("**pending_content**");
+  });
+
+  it("refuses to mix bundles, and writes nothing for a flow it can't read", async () => {
+    const out = join(dir, "bundle-collision");
+    expect((await run(["flows", "bundle", "flow_1", "--out", out], withKey())).code).toBe(0);
+    const other = ["screens", "bundle", "scr_9", "--out", out];
+    const refused = await run(other, withKey());
+    expect(refused.code).toBe(2);
+    expect(refused.stderr).toMatch(/^file_exists: .*the bundle of flow flow_1; pass --force/u);
+    expect((await run([...other, "--force"], withKey())).code).toBe(0);
+    expect(await readdir(join(out, "images"))).toEqual(["00-scr_9.png"]);
+
+    const notes = join(dir, "bundle-notes");
+    await mkdir(notes);
+    await writeFile(join(notes, "REFERENCES.md"), "my notes\n");
+    const overwrite = await run(["flows", "bundle", "flow_1", "--out", notes], withKey());
+    expect(overwrite.stderr).toMatch(/^file_exists: .*files this CLI didn't write; pass --force/u);
+    expect(await readFile(join(notes, "REFERENCES.md"), "utf8")).toBe("my notes\n");
+
+    const file = join(notes, "REFERENCES.md");
+    const notFolder = await run(["flows", "bundle", "flow_1", "--out", file], withKey());
+    expect(notFolder.code).toBe(2);
+    expect(notFolder.stderr).toMatch(/^usage: --out .* is not a folder/u);
+
+    const unsafe = join(dir, "bundle-unsafe");
+    const dotted = await run(["screens", "bundle", "x.y", "--out", unsafe], withKey());
+    expect(dotted.stderr).toMatch(/^bad_response: Screen id "x\.y" can't name a file/u);
+    await expect(access(unsafe)).rejects.toThrow();
+
+    const missing = join(dir, "bundle-missing");
+    const notFound = await run(["flows", "bundle", "missing", "--out", missing], withKey());
+    expect(notFound.code).toBe(4);
+    await expect(access(missing)).rejects.toThrow();
+    expect((await run(["flows", "bundle", "flow_1"], withKey())).stderr).toMatch(
+      /^usage: Pass --out/u,
+    );
   });
 });

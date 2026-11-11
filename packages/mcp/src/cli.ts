@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm } from "node:fs/promises";
 import { hostname } from "node:os";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs, type ParseArgsConfig } from "node:util";
 
 import {
   API_KEY_PREFIX,
+  IMAGE_EXTENSIONS,
+  bundleApp,
+  bundleImagePath,
+  bundleSubject,
   compactApp,
   compactFlow,
   compactScreen,
@@ -17,13 +21,19 @@ import {
   createdFlowResult,
   flowDetailResult,
   readImageHeader,
+  referenceBundleSchema,
+  referenceMarkdown,
   screenDetailResult,
+  statusWarnings,
   suggestPatterns,
   updateFlowInputSchema,
   updateScreenInputSchema,
+  type BundleStep,
+  type FlowDetail,
   type ListAppsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
+  type ReferenceBundle,
   type ReviewKind,
   type ReviewQueueQuery,
   type Screen,
@@ -192,6 +202,8 @@ const textFlags = {
   "text-file": { help: "Read --text from this UTF-8 file" },
 };
 
+const sha256 = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
+
 const parseSteps = (values: Values) =>
   list(values, "step")?.map((step) => {
     const split = step.indexOf("=");
@@ -200,27 +212,14 @@ const parseSteps = (values: Values) =>
       : { screenId: step.slice(0, split), label: step.slice(split + 1) };
   });
 
-const extensions: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-};
+const keyOnlyForOwnOrigin = (context: Context, url: URL): Record<string, string> =>
+  context.apiKey && url.origin === new URL(context.origin).origin
+    ? { authorization: `Bearer ${context.apiKey}` }
+    : {};
 
-async function downloadScreen(context: Context) {
-  return saveImage(context, await context.client().getScreen(context.positionals[0]!));
-}
-
-async function saveImage(context: Context, screen: Screen) {
-  const { values, origin } = context;
-  const { id } = screen;
-  const url = new URL(values.thumb ? screen.thumbUrl : screen.imageUrl, `${origin}/`);
-  const response = await context.download(url, {
-    // Media can live on another host, which must never see the key.
-    headers:
-      context.apiKey && url.origin === new URL(origin).origin
-        ? { authorization: `Bearer ${context.apiKey}` }
-        : {},
-  });
+async function fetchImage(context: Context, path: string) {
+  const url = new URL(path, `${context.origin}/`);
+  const response = await context.download(url, { headers: keyOnlyForOwnOrigin(context, url) });
   if (!response.ok) {
     throw new CodedError(
       response.status === 404 ? "not_found" : "network",
@@ -230,15 +229,31 @@ async function saveImage(context: Context, screen: Screen) {
   const bytes = Buffer.from(await response.arrayBuffer());
   const header = readImageHeader(bytes);
   if (!header) throw new CodedError("bad_response", `${url.href} is not an image`);
-  const path = resolve(
-    str(values, "out") ?? `${id}${values.thumb ? "-thumb" : ""}.${extensions[header.type]}`,
+  return { url, bytes, header };
+}
+
+const exists = (path: string) =>
+  access(path).then(
+    () => true,
+    () => false,
   );
-  if (!values.force) {
-    const exists = await access(path).then(
-      () => true,
-      () => false,
-    );
-    if (exists) throw new CodedError("file_exists", `${path} exists; pass --force to replace it`);
+
+async function downloadScreen(context: Context) {
+  return saveImage(context, await context.client().getScreen(context.positionals[0]!));
+}
+
+async function saveImage(context: Context, screen: Screen) {
+  const { values } = context;
+  const { id } = screen;
+  const { url, bytes, header } = await fetchImage(
+    context,
+    values.thumb ? screen.thumbUrl : screen.imageUrl,
+  );
+  const path = resolve(
+    str(values, "out") ?? `${id}${values.thumb ? "-thumb" : ""}.${IMAGE_EXTENSIONS[header.type]}`,
+  );
+  if (!values.force && (await exists(path))) {
+    throw new CodedError("file_exists", `${path} exists; pass --force to replace it`);
   }
   await writeFileAtomic(path, bytes);
   return {
@@ -251,6 +266,138 @@ async function saveImage(context: Context, screen: Screen) {
     height: header.height,
   };
 }
+
+interface BundleItem {
+  position: number;
+  label: string | null;
+  screen: Screen;
+}
+
+async function previousBundle(dir: string): Promise<ReferenceBundle | "foreign" | null> {
+  let text;
+  try {
+    text = await readFile(join(dir, "bundle.json"), "utf8");
+  } catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+    if (code === "ENOTDIR") throw usage(`--out ${dir} is not a folder`);
+    if (code !== "ENOENT") throw error;
+    return (await exists(join(dir, "REFERENCES.md"))) ? "foreign" : null;
+  }
+  try {
+    return referenceBundleSchema.parse(JSON.parse(text));
+  } catch {
+    return "foreign";
+  }
+}
+
+async function writeBundle(context: Context, flow: FlowDetail | null, items: BundleItem[]) {
+  const { origin, values } = context;
+  const dir = resolve(str(values, "out")!);
+  const unsafe = items.find(({ screen }) => !/^[\w-]{1,64}$/u.test(screen.id));
+  if (unsafe) {
+    throw new CodedError(
+      "bad_response",
+      `Screen id ${JSON.stringify(unsafe.screen.id)} can't name a file`,
+    );
+  }
+  const subject = bundleSubject({ flow, steps: items.map(({ screen }) => screen) });
+  const found = await previousBundle(dir);
+  if (found && !values.force) {
+    const theirs = found === "foreign" ? "foreign" : bundleSubject(found);
+    if (theirs !== subject) {
+      throw new CodedError(
+        "file_exists",
+        `${dir} holds ${theirs === "foreign" ? "files this CLI didn't write" : `the bundle of ${theirs}`}; pass --force to replace it`,
+      );
+    }
+  }
+  const previous = found === "foreign" ? null : found;
+  const recorded = new Map(previous?.steps.map((step) => [step.imageUrl, step] as const));
+  const listedByPrevious = new Set(previous?.steps.map((step) => step.localPath));
+  const bundleJson = join(dir, "bundle.json");
+  const references = join(dir, "REFERENCES.md");
+  await mkdir(join(dir, "images"), { recursive: true });
+  let downloaded = 0;
+  const steps: BundleStep[] = [];
+  for (const { position, label, screen } of items) {
+    const imageUrl = new URL(screen.imageUrl, `${origin}/`).href;
+    const prior = recorded.get(imageUrl);
+    const kept = prior && (await readFile(join(dir, prior.localPath)).catch(() => null));
+    const reused = kept && sha256(kept) === prior.sha256 ? kept : null;
+    const bytes = reused ?? (await fetchImage(context, imageUrl)).bytes;
+    if (!reused) downloaded += 1;
+    const header = readImageHeader(bytes)!;
+    const localPath = bundleImagePath(position, screen.id, header.type);
+    if (!reused || prior?.localPath !== localPath) {
+      if (listedByPrevious.has(localPath)) {
+        await rm(references, { force: true });
+        await rm(bundleJson, { force: true });
+      }
+      await writeFileAtomic(join(dir, localPath), bytes);
+    }
+    steps.push({
+      id: screen.id,
+      position,
+      label,
+      title: screen.title,
+      catalogUrl: `${origin}/screens/${screen.id}`,
+      imageUrl,
+      localPath,
+      sha256: sha256(bytes),
+      width: header.width,
+      height: header.height,
+      sourceUrl: screen.sourceUrl,
+      capturedAt: screen.capturedAt,
+      app: bundleApp(screen.app),
+      contributor: { owned: screen.owned === true, source: screen.source },
+      status: screen.status,
+      warnings: statusWarnings(screen.status),
+    });
+  }
+  const bundle: ReferenceBundle = {
+    version: 1,
+    instance: origin,
+    retrievedAt: new Date().toISOString(),
+    flow: flow && {
+      id: flow.id,
+      name: flow.name,
+      type: flow.type,
+      catalogUrl: `${origin}/flows/${flow.id}`,
+      app: bundleApp(flow.app),
+      status: flow.status,
+      warnings: statusWarnings(flow.status),
+    },
+    steps,
+  };
+  await writeFileAtomic(bundleJson, `${JSON.stringify(bundle, null, 2)}\n`);
+  await writeFileAtomic(references, referenceMarkdown(bundle));
+  const current = new Set(steps.map((step) => step.localPath));
+  for (const step of previous?.steps ?? []) {
+    if (!current.has(step.localPath)) await rm(join(dir, step.localPath), { force: true });
+  }
+  return {
+    path: dir,
+    references,
+    steps: steps.length,
+    downloaded,
+    reused: steps.length - downloaded,
+    warnings: [
+      ...new Set([...(bundle.flow?.warnings ?? []), ...steps.flatMap((step) => step.warnings)]),
+    ],
+  };
+}
+
+const bundleFlags = {
+  out: { help: "Folder to write (required). A rerun into it reuses unchanged images" },
+  force: {
+    help: "Replace a bundle of something else, or a REFERENCES.md, already in --out",
+    boolean: true,
+  },
+};
+
+const requireOut = (values: Values) => {
+  if (!str(values, "out")) throw usage("Pass --out <dir>");
+};
 
 async function upload(context: Context) {
   const { values } = context;
@@ -828,6 +975,21 @@ const COMMANDS: Tree = {
       },
       run: downloadScreen,
     },
+    bundle: {
+      summary: "Save screens, their images and REFERENCES.md to a folder, in the order given",
+      args: ["id"],
+      optionalArgs: ["id..."],
+      flags: bundleFlags,
+      run: async (context) => {
+        requireOut(context.values);
+        const api = context.client();
+        const items: BundleItem[] = [];
+        for (const [position, id] of context.positionals.entries()) {
+          items.push({ position, label: null, screen: await api.getScreen(id) });
+        }
+        return writeBundle(context, null, items);
+      },
+    },
   },
   flows: {
     search: {
@@ -857,6 +1019,17 @@ const COMMANDS: Tree = {
       args: ["id"],
       run: async ({ client, origin, positionals }) =>
         flowDetailResult(origin, await client().getFlow(positionals[0]!)),
+    },
+    bundle: {
+      summary: "Save a flow, its step images and REFERENCES.md to a folder",
+      args: ["id"],
+      flags: bundleFlags,
+      run: async (context) => {
+        requireOut(context.values);
+        const flow = await context.client().getFlow(context.positionals[0]!);
+        const steps = flow.steps.slice().sort((a, b) => a.position - b.position);
+        return writeBundle(context, flow, steps);
+      },
     },
     create: {
       summary: "Create a flow from existing screens of one app",
