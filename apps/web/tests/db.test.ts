@@ -103,6 +103,154 @@ describe("save_count triggers (regression: counters diverging)", () => {
   });
 });
 
+const FACET_DRIFT = `WITH truth AS (
+    SELECT app_id, 'screen' AS kind, '' AS value, count(*) AS count, NULL AS last
+      FROM screen WHERE status = 'published' GROUP BY app_id
+    UNION ALL SELECT app_id, 'flow', '', count(*), NULL FROM flow WHERE status = 'published' GROUP BY app_id
+    UNION ALL SELECT screen.app_id, 'pattern', j.value, count(*), NULL FROM screen, json_each(screen.patterns) j
+      WHERE screen.status = 'published' GROUP BY screen.app_id, j.value
+    UNION ALL SELECT screen.app_id, 'element', j.value, count(*), NULL FROM screen, json_each(screen.elements) j
+      WHERE screen.status = 'published' GROUP BY screen.app_id, j.value
+    UNION ALL SELECT app_id, 'version', version, count(*), max(captured_at)
+      FROM screen WHERE status = 'published' AND version IS NOT NULL GROUP BY app_id, version
+  ), facet AS (SELECT app_id, kind, value, count, last_captured_at AS last FROM app_facet)
+  SELECT 'missing' AS side, * FROM (SELECT * FROM truth EXCEPT SELECT * FROM facet)
+  UNION ALL SELECT 'extra', * FROM (SELECT * FROM facet EXCEPT SELECT * FROM truth)`;
+
+describe("app_facet triggers (regression: tallies diverging from screens and flows)", () => {
+  it("stays exact through uploads, moderation, edits, moves and deletes", async () => {
+    const run = (statement: string) => db.prepare(statement).run();
+    const screenRow = (id: string, app: string, status: string, patterns: string, at: number) =>
+      `('${id}', '${app}', 'k-${id}', 't', 1, 1, 1, 1, 1, '${status}', '${patterns}', '["cta"]', 'v1', ${at})`;
+    await db.batch([
+      insertUser("tallier"),
+      db.prepare(
+        "INSERT INTO app (id, slug, name, platform, status) VALUES ('fa-1', 'fa-1', 'A', 'web', 'published'), ('fa-2', 'fa-2', 'B', 'web', 'published')",
+      ),
+      db.prepare(
+        `INSERT INTO screen (id, app_id, image_key, thumb_key, width, height, bytes, thumb_width, thumb_height, status, patterns, elements, version, captured_at) VALUES
+          ${screenRow("fs-1", "fa-1", "published", '["pricing","pricing"]', 10)},
+          ${screenRow("fs-2", "fa-1", "published", '["pricing","signup"]', 20)},
+          ${screenRow("fs-3", "fa-1", "pending", '["signup"]', 30)},
+          ${screenRow("fs-4", "fa-2", "published", "[]", 40)}`,
+      ),
+      db.prepare(
+        "INSERT INTO flow (id, app_id, name, status) VALUES ('ff-1', 'fa-1', 'One', 'published'), ('ff-2', 'fa-1', 'Two', 'pending')",
+      ),
+    ]);
+    const tallies = await db
+      .prepare(
+        "SELECT kind, value, count, last_captured_at AS last FROM app_facet WHERE app_id = 'fa-1' ORDER BY kind, value",
+      )
+      .all();
+    expect(tallies.results).toEqual([
+      { kind: "element", value: "cta", count: 2, last: null },
+      { kind: "flow", value: "", count: 1, last: null },
+      { kind: "pattern", value: "pricing", count: 3, last: null },
+      { kind: "pattern", value: "signup", count: 1, last: null },
+      { kind: "screen", value: "", count: 2, last: null },
+      { kind: "version", value: "v1", count: 2, last: 20 },
+    ]);
+
+    const steps = [
+      "UPDATE screen SET status = 'published' WHERE id = 'fs-3'",
+      `UPDATE screen SET patterns = '["signup","checkout"]', elements = '[]', text = 'enriched' WHERE id = 'fs-1'`,
+      "UPDATE screen SET text = 'only text' WHERE id = 'fs-2'",
+      "UPDATE screen SET version = 'v2', captured_at = 5 WHERE id = 'fs-3'",
+      "UPDATE screen SET captured_at = 1 WHERE id = 'fs-2'",
+      "UPDATE screen SET status = 'rejected' WHERE id = 'fs-1'",
+      "UPDATE screen SET app_id = 'fa-2' WHERE id = 'fs-2'",
+      "UPDATE screen SET app_id = 'fa-1', status = 'pending' WHERE id = 'fs-2'",
+      "UPDATE screen SET version = NULL WHERE id = 'fs-4'",
+      "DELETE FROM screen WHERE id = 'fs-3'",
+      "UPDATE flow SET status = 'published' WHERE id = 'ff-2'",
+      "UPDATE flow SET app_id = 'fa-2' WHERE id = 'ff-1'",
+      "UPDATE flow SET status = 'rejected' WHERE id = 'ff-2'",
+      "DELETE FROM flow WHERE id = 'ff-1'",
+      "DELETE FROM app WHERE id = 'fa-2'",
+    ];
+    for (const step of steps) {
+      await run(step);
+      expect((await db.prepare(FACET_DRIFT).all()).results, step).toEqual([]);
+    }
+    const left = await db
+      .prepare("SELECT count(*) AS n FROM app_facet WHERE app_id = 'fa-2'")
+      .first();
+    expect(left).toEqual({ n: 0 });
+  });
+});
+
+describe("0010_app_facets (migration safety)", () => {
+  it("backfills tallies for existing rows and converges when run again", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "screen-commons-migration-test-"));
+    try {
+      const source = join(webDir, "../../packages/db/migrations");
+      const migrations = join(dir, "migrations");
+      await mkdir(migrations);
+      const files = (await readdir(source)).filter((file) => file.endsWith(".sql")).sort();
+      const copy = (names: string[]) =>
+        Promise.all(names.map((file) => copyFile(join(source, file), join(migrations, file))));
+      const config = writeTestWranglerConfig(dir, { migrationsDir: migrations });
+      const wrangler = (...args: string[]) =>
+        execFileSync(
+          "pnpm",
+          [
+            "exec",
+            "wrangler",
+            "d1",
+            ...args,
+            "--local",
+            "--config",
+            config,
+            "--persist-to",
+            join(dir, "state"),
+          ],
+          { cwd: webDir, env: { ...process.env, CI: "1" }, stdio: "pipe" },
+        ).toString();
+      const query = <T>(command: string) =>
+        (
+          JSON.parse(wrangler("execute", "DB", "--json", "--command", command)) as [
+            { results: T[] },
+          ]
+        )[0].results;
+
+      await copy(files.filter((file) => file < "0010"));
+      wrangler("migrations", "apply", "DB");
+      wrangler(
+        "execute",
+        "DB",
+        "--command",
+        `INSERT INTO app (id, slug, name, platform) VALUES ('a1', 'a1', 'A1', 'web');
+         INSERT INTO screen (id, app_id, image_key, thumb_key, width, height, bytes, thumb_width, thumb_height, status, patterns, version, captured_at) VALUES
+          ('s1', 'a1', 'k1', 't', 1, 1, 1, 1, 1, 'published', '["pricing"]', 'v1', 1),
+          ('s2', 'a1', 'k2', 't', 1, 1, 1, 1, 1, 'published', '["pricing","signup"]', 'v2', 2),
+          ('s3', 'a1', 'k3', 't', 1, 1, 1, 1, 1, 'pending', '["signup"]', 'v3', 3);
+         INSERT INTO flow (id, app_id, name, status) VALUES ('f1', 'a1', 'Flow', 'published');`,
+      );
+
+      await copy(files.filter((file) => file >= "0010"));
+      wrangler("migrations", "apply", "DB");
+      const tallies = "SELECT kind, value, count FROM app_facet ORDER BY kind, value";
+      const backfilled = query(tallies);
+      expect(backfilled).toEqual([
+        { kind: "flow", value: "", count: 1 },
+        { kind: "pattern", value: "pricing", count: 2 },
+        { kind: "pattern", value: "signup", count: 1 },
+        { kind: "screen", value: "", count: 2 },
+        { kind: "version", value: "v1", count: 1 },
+        { kind: "version", value: "v2", count: 1 },
+      ]);
+      expect(query(FACET_DRIFT)).toEqual([]);
+
+      wrangler("execute", "DB", "--file", join(migrations, "0010_app_facets.sql"));
+      expect(query(tallies)).toEqual(backfilled);
+      expect(query(FACET_DRIFT)).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("0005_screen_dedupe (migration safety)", () => {
   it("keeps duplicate rows, and only new uploads are held to one per image", async () => {
     const dir = await mkdtemp(join(tmpdir(), "screen-commons-migration-test-"));

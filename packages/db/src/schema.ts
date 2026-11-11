@@ -22,6 +22,7 @@ type Source = "upload" | "extension" | "mcp" | "seed";
 type Role = "admin" | "member";
 export type CollectionItemKind = "screen" | "flow" | "app";
 export type ApiKeyKind = "standard" | "login";
+export type AppFacetKind = "screen" | "flow" | "pattern" | "element" | "version";
 
 // ---------------------------------------------------------------------------------------------
 // Better Auth core tables (user has an extra `role` column)
@@ -193,7 +194,7 @@ export const screen = sqliteTable(
   },
   (table) => [
     index("screen_status_created_idx").on(table.status, table.createdAt),
-    index("screen_app_created_idx").on(table.appId, table.createdAt),
+    index("screen_app_created_idx").on(table.appId, table.createdAt, table.id),
     index("screen_app_image_idx").on(table.appId, table.imageKey),
     uniqueIndex("screen_dedupe_idx").on(table.appId, table.contributorId, table.dedupeImageKey),
     index("screen_image_key_idx").on(table.imageKey),
@@ -239,6 +240,24 @@ export const flow = sqliteTable(
       table.id,
     ),
   ],
+);
+
+/**
+ * Written only by the triggers in the app_facets migration, which also make it WITHOUT ROWID;
+ * drizzle can declare neither.
+ */
+export const appFacet = sqliteTable(
+  "app_facet",
+  {
+    appId: text("app_id")
+      .notNull()
+      .references(() => app.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<AppFacetKind>().notNull(),
+    value: text("value").notNull(),
+    count: integer("count").notNull(),
+    lastCapturedAt: integer("last_captured_at"),
+  },
+  (table) => [primaryKey({ columns: [table.appId, table.kind, table.value] })],
 );
 
 export const flowStep = sqliteTable(
