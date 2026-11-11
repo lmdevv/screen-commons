@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -6,6 +7,7 @@ import {
   captureBatchInputSchema,
   createFlowInputSchema,
   type CaptureBatchInput,
+  type CliLoginStatus,
   type FlowDetail,
   type FlowSummary,
   type ReviewKind,
@@ -17,14 +19,25 @@ import sharp from "sharp";
 
 export const API_KEY = "sc_test_key";
 export const MEMBER_KEY = "sc_member_key";
+export const OTHER_KEY = "sc_other_key";
 
 export interface MockApi {
   url: string;
   batches: ReturnType<typeof captureBatchInputSchema.parse>[];
   flows: unknown[];
   decisions: { kind: string; id: string; decision: string; reason?: string }[];
+  login: { status: CliLoginStatus; hashes: string[]; revoked: string[] };
   close: () => Promise<void>;
 }
+
+const user = (email: string) => ({
+  id: email,
+  name: email,
+  email,
+  image: null,
+  role: "admin",
+  createdAt: "2026-10-01T00:00:00.000Z",
+});
 
 const app = {
   id: "app_1",
@@ -96,6 +109,7 @@ export async function startMockApi(): Promise<MockApi> {
     saved: false,
     createdAt: "2026-10-01T00:00:00.000Z",
   });
+  const login: MockApi["login"] = { status: "approved", hashes: [], revoked: [] };
   let counter = 0;
 
   const server = createServer(async (request, response) => {
@@ -111,11 +125,44 @@ export async function startMockApi(): Promise<MockApi> {
     }
     if (!url.pathname.startsWith("/api/v1/"))
       return json(404, { error: { code: "not_found", message: "nope" } });
-    const member = request.headers.authorization === `Bearer ${MEMBER_KEY}`;
-    if (request.headers.authorization !== `Bearer ${API_KEY}` && !member) {
+    const path = url.pathname.slice("/api/v1".length);
+    if (request.method === "GET" && path === "/taxonomy") return json(200, TAXONOMY);
+    if (request.method === "POST" && path === "/cli-login") {
+      const { hash } = JSON.parse(await readBody(request)) as { hash: string };
+      login.hashes.push(hash);
+      return json(201, {
+        code: "BCDF-GHJK",
+        url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/cli-login?code=BCDF-GHJK`,
+        expiresAt: "2026-11-10T00:10:00.000Z",
+        interval: 1,
+      });
+    }
+    if (request.method === "POST" && path === "/cli-login/poll") {
+      const { hash } = JSON.parse(await readBody(request)) as { hash: string };
+      if (!login.hashes.includes(hash)) return json(200, { status: "expired" });
+      return json(
+        200,
+        login.status === "approved"
+          ? { status: "approved", keyId: hash.slice(0, 8) }
+          : { status: login.status },
+      );
+    }
+    const token = /^Bearer (.+)$/u.exec(request.headers.authorization ?? "")?.[1] ?? "";
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const email =
+      token === API_KEY
+        ? "admin@example.com"
+        : token === OTHER_KEY
+          ? "other@example.com"
+          : token === MEMBER_KEY
+            ? "member@example.com"
+            : login.status === "approved" && login.hashes.includes(tokenHash)
+              ? "login@example.com"
+              : undefined;
+    const member = token === MEMBER_KEY;
+    if (!email) {
       return json(401, { error: { code: "unauthorized", message: "Invalid API key" } });
     }
-    const path = url.pathname.slice("/api/v1".length);
     try {
       if (path.startsWith("/review") && member) {
         return json(403, {
@@ -157,16 +204,12 @@ export async function startMockApi(): Promise<MockApi> {
         response.writeHead(204);
         return response.end();
       }
-      if (request.method === "GET" && path === "/taxonomy") return json(200, TAXONOMY);
-      if (request.method === "GET" && path === "/me") {
-        return json(200, {
-          id: "user_1",
-          name: "Admin",
-          email: "admin@example.com",
-          image: null,
-          role: "admin",
-          createdAt: "2026-10-01T00:00:00.000Z",
-        });
+      if (request.method === "GET" && path === "/me") return json(200, user(email));
+      const keyMatch = /^\/keys\/([^/]+)$/u.exec(path);
+      if (request.method === "DELETE" && keyMatch) {
+        login.revoked.push(keyMatch[1]!);
+        response.writeHead(204);
+        return response.end();
       }
       if (request.method === "GET" && path === "/screens") {
         return json(200, {
@@ -268,6 +311,7 @@ export async function startMockApi(): Promise<MockApi> {
     batches,
     flows,
     decisions,
+    login,
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

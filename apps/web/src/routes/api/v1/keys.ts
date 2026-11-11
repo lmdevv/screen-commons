@@ -5,7 +5,6 @@ import { requireUser } from "../../../server/http/auth";
 import { readJson } from "../../../server/http/body";
 import * as services from "../../../server/services";
 
-/** API keys are managed from a signed-in session only (the services reject key principals). */
 export const Route = createFileRoute("/api/v1/keys")({
   caseSensitive: true,
   server: {

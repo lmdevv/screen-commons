@@ -1,0 +1,1 @@
+ALTER TABLE `api_key` ADD `kind` text DEFAULT 'standard' NOT NULL;

@@ -7,9 +7,11 @@ import {
   type ListAppsQuery,
   type ListFlowsQuery,
   type ListScreensQuery,
+  type PollCliLoginInput,
   type ReviewKind,
   type ReviewQueueQuery,
   type SearchQuery,
+  type StartCliLoginInput,
 } from "./api";
 import type {
   CaptureBatchInput,
@@ -165,6 +167,10 @@ export function createScreenCommonsClient(options: ScreenCommonsClientOptions) {
     listKeys: () => request<ApiResponses["listKeys"]>("GET", "/keys"),
     createKey: (name: string) => request<ApiResponses["createKey"]>("POST", "/keys", { name }),
     revokeKey: (id: string) => request<void>("DELETE", `/keys/${encodeURIComponent(id)}`),
+    startCliLogin: (input: StartCliLoginInput) =>
+      request<ApiResponses["startCliLogin"]>("POST", "/cli-login", input),
+    pollCliLogin: (input: PollCliLoginInput) =>
+      request<ApiResponses["pollCliLogin"]>("POST", "/cli-login/poll", input),
 
     reviewQueue: <K extends ReviewKind>(query: ReviewQueueQuery & { kind: K }) =>
       request<Extract<ApiResponses["reviewQueue"], { kind: K }>>("GET", `/review${toQuery(query)}`),

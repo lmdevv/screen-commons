@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import { randomUUID } from "node:crypto";
-import { access, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { access, readFile } from "node:fs/promises";
+import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs, type ParseArgsConfig } from "node:util";
 
 import {
+  API_KEY_PREFIX,
   compactApp,
   compactFlow,
   compactScreen,
@@ -30,13 +33,27 @@ import {
 import type { z } from "zod";
 
 import { version } from "../package.json";
-import { resolveInstance } from "./config";
+import {
+  readProfiles,
+  removeProfile,
+  resolveInstance,
+  saveProfile,
+  selectProfile,
+  writeFileAtomic,
+  type Instance,
+  type Profile,
+  type ProfileSelection,
+} from "./config";
 import { CodedError, errorInfo } from "./errors";
 import { imageFetchFor } from "./public-fetch";
 import { retryingFetch } from "./retry";
 
+/** Every JSON document on stdout carries it. Bump it when a field changes meaning or goes away. */
+const SCHEMA_VERSION = 1;
+
 const EXIT_CODES: Record<string, number> = {
   usage: 2,
+  invalid_profiles: 2,
   invalid_manifest: 2,
   bad_request: 2,
   conflict: 2,
@@ -50,6 +67,8 @@ const EXIT_CODES: Record<string, number> = {
   missing_api_key: 3,
   unauthorized: 3,
   forbidden: 3,
+  login_denied: 3,
+  login_expired: 3,
   not_found: 4,
   network: 5,
   rate_limited: 5,
@@ -67,13 +86,26 @@ interface Context {
   /** A client with the API key, or refusal when there's no key. */
   client: () => ScreenCommonsClient;
   anonymousClient: () => ScreenCommonsClient;
+  connect: (url: string, apiKey?: string) => ScreenCommonsClient;
   origin: string;
   /** Media from this instance. */
   download: typeof fetch;
   /** A screen's own source URL, anywhere on the web. */
   sourceFetch: typeof fetch;
   apiKey: string | undefined;
-  printLine: (value: unknown) => void;
+  instance: Instance;
+  profile: ProfileSelection;
+  /** Prints a line before the result; from then on, `--json` prints the result as one line too. */
+  printLine: (line: object) => void;
+  addSecret: (secret: string) => void;
+}
+
+/** A result for a person: printed as `text`, or as `json` with `--json`. */
+class Readable {
+  constructor(
+    readonly json: object,
+    readonly text: string,
+  ) {}
 }
 
 interface Command {
@@ -82,7 +114,7 @@ interface Command {
   args?: string[];
   optionalArgs?: string[];
   flags?: Record<string, { help: string; multiple?: boolean; boolean?: boolean }>;
-  run: (context: Context) => Promise<unknown>;
+  run: (context: Context) => Promise<object | void>;
 }
 
 type Tree = Record<string, Command | Record<string, Command>>;
@@ -208,13 +240,7 @@ async function saveImage(context: Context, screen: Screen) {
     );
     if (exists) throw new CodedError("file_exists", `${path} exists; pass --force to replace it`);
   }
-  const partial = `${path}.${process.pid}.partial`;
-  try {
-    await writeFile(partial, bytes);
-    await rename(partial, path);
-  } finally {
-    await rm(partial, { force: true });
-  }
+  await writeFileAtomic(path, bytes);
   return {
     id,
     path,
@@ -397,15 +423,296 @@ const reviewKind = { kind: { help: "screen or flow. Found from each id if omitte
 
 /** A failure that still has a JSON answer for stdout. */
 class PartialFailure extends CodedError {
-  readonly report: unknown;
+  readonly report: object;
 
-  constructor(report: unknown, code: string, message: string) {
+  constructor(report: object, code: string, message: string) {
     super(code, message);
     this.report = report;
   }
 }
 
+const forProfile = ({ explicit, name }: ProfileSelection) => (explicit ? ` --profile ${name}` : "");
+
+async function login(context: Context) {
+  const { origin, profile } = context;
+  const token = API_KEY_PREFIX + randomBytes(32).toString("base64url");
+  context.addSecret(token);
+  const hash = createHash("sha256").update(token).digest("hex");
+  const api = context.anonymousClient();
+  const started = await api.startCliLogin({
+    hash,
+    prefix: token.slice(0, 8),
+    device: hostname().slice(0, 40) || "unknown host",
+  });
+  context.printLine(
+    new Readable(
+      { status: "pending", url: started.url, code: started.code, expiresAt: started.expiresAt },
+      `Open this link in a browser where you're signed in to Screen Commons:\n\n  ${started.url}\n\nApprove it if the page shows ${started.code}. Waiting...\n`,
+    ),
+  );
+  for (;;) {
+    await sleep(Math.max(1, started.interval) * 1000);
+    const poll = await api.pollCliLogin({ code: started.code, hash });
+    if (poll.status === "approved") {
+      const user = await context.connect(origin, token).me();
+      await saveProfile(profile.dir, profile.name, {
+        version: 1,
+        url: origin,
+        apiKey: token,
+        keyId: poll.keyId,
+        email: user.email,
+      });
+      return new Readable(
+        { status: "approved", profile: profile.name, url: origin, user },
+        `logged in as ${user.email} (profile ${profile.name})\n`,
+      );
+    }
+    if (poll.status === "denied") {
+      throw new CodedError(
+        "login_denied",
+        "The login was denied in the browser. Nothing was saved",
+      );
+    }
+    if (poll.status === "expired") {
+      throw new CodedError(
+        "login_expired",
+        "The code expired before anyone approved it. Run screen-commons login again",
+      );
+    }
+  }
+}
+
+const isAlreadyRevoked = (error: unknown) =>
+  error instanceof ScreenCommonsApiError &&
+  (error.code === "unauthorized" || error.code === "not_found");
+
+async function revokeSaved(context: Context, saved: Profile): Promise<boolean> {
+  if (!saved.keyId) return false;
+  try {
+    await context.connect(saved.url, saved.apiKey).revokeKey(saved.keyId);
+    return true;
+  } catch (error) {
+    return isAlreadyRevoked(error);
+  }
+}
+
+async function logout(context: Context) {
+  const { name, saved, dir } = context.profile;
+  if (!saved) {
+    return new Readable(
+      { profile: name, removed: false, revoked: false },
+      `Profile ${name} isn't logged in. Nothing to do\n`,
+    );
+  }
+  const revoked = await revokeSaved(context, saved);
+  await removeProfile(dir, name);
+  return new Readable(
+    { profile: name, url: saved.url, removed: true, revoked },
+    `Logged out of ${saved.url} (profile ${name}). ${
+      revoked
+        ? "Its key is revoked\n"
+        : "Its key couldn't be revoked: revoke it under Settings, API keys\n"
+    }`,
+  );
+}
+
+async function listProfiles({ profile }: Context) {
+  const profiles = (await readProfiles(profile.dir)).map(
+    ({ name, profile: { url, email, apiKey } }) => ({
+      name,
+      url,
+      email: email ?? null,
+      keyPrefix: apiKey.slice(0, 8),
+    }),
+  );
+  const width = Math.max(0, ...profiles.map((item) => item.name.length));
+  return new Readable(
+    { active: profile.name, profiles },
+    profiles.length === 0
+      ? "No profiles. Run screen-commons login --url <instance>\n"
+      : profiles
+          .map(
+            (item) =>
+              `${item.name === profile.name ? "*" : " "} ${item.name.padEnd(width)}  ${item.email ?? "?"}  ${item.url}\n`,
+          )
+          .join(""),
+  );
+}
+
+type CheckStatus = "ok" | "warn" | "fail" | "skip";
+interface Check {
+  name: "instance" | "profile" | "key" | "capture";
+  status: CheckStatus;
+  detail: string;
+  fix?: string;
+}
+
+async function doctor(context: Context) {
+  const { origin, instance, profile, apiKey } = context;
+  const quick = (key?: string) =>
+    createScreenCommonsClient({
+      baseUrl: origin,
+      apiKey: key,
+      fetch: retryingFetch({ attempts: 1, timeoutMs: 10_000, readBody: true }),
+    });
+  const relogin = `run screen-commons login --url ${origin}${forProfile(profile)}`;
+  const checks: Check[] = [];
+
+  let reachable = true;
+  try {
+    await quick().taxonomy();
+    checks.push({ name: "instance", status: "ok", detail: `${origin} answers` });
+  } catch (error) {
+    reachable = false;
+    checks.push({
+      name: "instance",
+      status: "fail",
+      detail: errorInfo(error, origin).message,
+      fix: {
+        flag: "check --url",
+        env: "check SCREEN_COMMONS_URL",
+        profile: `check the URL in profile ${profile.name}, or log in again`,
+        default: "pass --url <instance> or set SCREEN_COMMONS_URL",
+      }[instance.sources.url],
+    });
+  }
+
+  const { saved } = profile;
+  if (instance.sources.apiKey === "profile") {
+    checks.push({
+      name: "profile",
+      status: "ok",
+      detail: `${profile.name}, ${saved!.email ?? "unknown account"} at ${saved!.url}`,
+    });
+  } else if (apiKey) {
+    checks.push({
+      name: "profile",
+      status: "ok",
+      detail: `not used; the key comes from ${instance.sources.apiKey === "flag" ? "--api-key" : "SCREEN_COMMONS_API_KEY"}`,
+    });
+  } else {
+    checks.push(
+      saved
+        ? {
+            name: "profile",
+            status: "fail",
+            detail: `profile ${profile.name} is for ${saved.url}, so its key isn't sent to ${origin}`,
+            fix: `use --url ${saved.url}, or ${relogin}`,
+          }
+        : {
+            name: "profile",
+            status: "fail",
+            detail: `no profile ${profile.name} and no API key`,
+            fix: relogin,
+          },
+    );
+  }
+
+  if (!reachable || !apiKey) {
+    checks.push({
+      name: "key",
+      status: "skip",
+      detail: reachable ? "no key to check" : "the instance didn't answer",
+    });
+  } else {
+    try {
+      const user = await quick(apiKey).me();
+      checks.push({ name: "key", status: "ok", detail: `valid for ${user.email} (${user.role})` });
+    } catch (error) {
+      const { code, message } = errorInfo(error, origin);
+      checks.push({
+        name: "key",
+        status: "fail",
+        detail: message,
+        fix:
+          code !== "unauthorized"
+            ? undefined
+            : {
+                flag: "check --api-key",
+                env: `replace or unset SCREEN_COMMONS_API_KEY, which wins over profile ${profile.name}`,
+                profile: relogin,
+              }[instance.sources.apiKey!],
+      });
+    }
+  }
+
+  const { findChrome } = await import("@screen-commons/capture");
+  const chrome = findChrome();
+  checks.push(
+    chrome && existsSync(chrome)
+      ? { name: "capture", status: "ok", detail: `Chromium at ${chrome}` }
+      : {
+          name: "capture",
+          status: "warn",
+          detail: chrome
+            ? `no Chromium at ${chrome}, so screen-commons-mcp can't capture headless`
+            : "no Chromium found, so screen-commons-mcp can't capture headless",
+          fix: "install Chromium or Chrome, or set CHROME_PATH",
+        },
+  );
+
+  const ok = !checks.some((check) => check.status === "fail");
+  const report = new Readable(
+    { ok, url: origin, checks },
+    checks
+      .map(
+        ({ status, name, detail, fix }) =>
+          `${CHECK_LABEL[status]}  ${name.padEnd(8)}  ${detail}${fix ? `. Fix: ${fix}` : ""}\n`,
+      )
+      .join(""),
+  );
+  if (ok) return report;
+  const failed = checks.filter((check) => check.status === "fail").map((check) => check.name);
+  throw new PartialFailure(report, "doctor_failed", `Failed: ${failed.join(", ")}`);
+}
+
+const CHECK_LABEL: Record<CheckStatus, string> = {
+  ok: "ok  ",
+  warn: "warn",
+  fail: "FAIL",
+  skip: "skip",
+};
+
 const COMMANDS: Tree = {
+  login: {
+    summary: "Get a key with one approval in the browser, and save it as a profile",
+    run: login,
+  },
+  logout: {
+    summary: "Revoke the profile's key and forget it",
+    run: logout,
+  },
+  profiles: {
+    summary: "List saved logins. * marks the one in use",
+    run: listProfiles,
+  },
+  doctor: {
+    summary: "Check the instance, profile, key and capture setup. One line per check",
+    run: doctor,
+  },
+  keys: {
+    list: {
+      summary: "List your API keys. Needs a key from screen-commons login",
+      run: ({ client }) => client().listKeys(),
+    },
+    create: {
+      summary: "Create an API key and print its token, shown only this once",
+      flags: { name: { help: "What the key is for (required)" } },
+      run: ({ client, values }) => {
+        const name = str(values, "name");
+        if (!name) throw usage("Pass --name <name>");
+        return client().createKey(name);
+      },
+    },
+    revoke: {
+      summary: "Revoke an API key. It stops working at once",
+      args: ["id"],
+      run: async ({ client, positionals }) => {
+        await client().revokeKey(positionals[0]!);
+        return { revoked: true, id: positionals[0] };
+      },
+    },
+  },
   whoami: {
     summary: "Show who the API key belongs to",
     run: async ({ client, origin }) => ({ ...(await client().me()), url: origin }),
@@ -735,21 +1042,26 @@ const COMMANDS: Tree = {
 };
 
 const GLOBAL_FLAGS = `Global flags:
-  --url <origin>     Screen Commons instance [SCREEN_COMMONS_URL] (default http://localhost:5173)
+  --url <origin>     Screen Commons instance [SCREEN_COMMONS_URL] (default: the profile's, then http://localhost:5173)
   --api-key <sc_…>   API key [SCREEN_COMMONS_API_KEY]. Prefer the variable: flags show up in ps
+  --profile <name>   Login saved by screen-commons login [SCREEN_COMMONS_PROFILE] (default "default")
+  --json             JSON from login, logout, profiles and doctor too
   --help             Show help for any command
+A flag wins over its variable, and both over the profile. A profile's key only goes to its own URL.
 `;
 
 const EXIT_HELP = `Exit codes:
   0  Success
-  1  Failed, including a publish or review where any item failed (see its JSON output)
-  2  Bad input: usage, manifest, image or a request the server refuses as invalid
-  3  No API key, a rejected one, or not allowed
+  1  Failed, including a publish or review where any item failed (see its JSON output) or a failed doctor check
+  2  Bad input: usage, manifest, image, profiles file or a request the server refuses as invalid
+  3  No API key, a rejected one, not allowed, or a login that was denied or expired
   4  Not found
   5  Unreachable or rate limited; retried already, so try again later
 `;
 
-const OUTPUT_HELP = `Output: JSON on stdout. Errors are one "code: message" line on stderr.
+const OUTPUT_HELP = `Output: JSON on stdout, with "schemaVersion": ${SCHEMA_VERSION}. login, logout, profiles and doctor
+print text unless --json; login --json prints one line when it starts waiting and one when it's
+done. Errors are one "code: message" line on stderr.
 review approve and review reject print one JSON line per id as they go, one id per 300 ms.
 A result of unchanged means the item already had that decision.
 `;
@@ -814,8 +1126,12 @@ function rootHelp(): string {
 const GLOBAL_OPTIONS = {
   url: { type: "string" },
   "api-key": { type: "string" },
+  profile: { type: "string" },
+  json: { type: "boolean" },
   help: { type: "boolean", short: "h" },
 } satisfies Options;
+const GLOBAL_VALUE_FLAGS = ["--url", "--api-key", "--profile"];
+const GLOBAL_SWITCHES = ["--help", "-h", "--version", "--json"];
 
 /** Finds the command words, which may have global flags before or between them. */
 function locate(argv: string[]) {
@@ -825,11 +1141,11 @@ function locate(argv: string[]) {
   let index = 0;
   for (; index < argv.length; index += 1) {
     const arg = argv[index]!;
-    if (arg === "--url" || arg === "--api-key") {
+    if (GLOBAL_VALUE_FLAGS.includes(arg)) {
       rest.push(arg, argv[(index += 1)] ?? "");
-    } else if (arg.startsWith("--url=") || arg.startsWith("--api-key=")) {
+    } else if (GLOBAL_VALUE_FLAGS.some((flag) => arg.startsWith(`${flag}=`))) {
       rest.push(arg);
-    } else if (arg === "--help" || arg === "-h" || arg === "--version") {
+    } else if (GLOBAL_SWITCHES.includes(arg)) {
       rest.push(arg);
     } else if (arg.startsWith("-") || !node || isCommand(node as Command)) {
       break;
@@ -859,11 +1175,18 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
     .map((secret) => secret?.trim())
     .filter((secret): secret is string => Boolean(secret));
   const redact = (value: string) =>
-    secrets.reduce((text, secret) => text.replaceAll(secret, "[redacted]"), value);
-  const print = (value: unknown) => {
-    const text = typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}\n`;
-    process.stdout.write(redact(text));
-  };
+    secrets
+      .filter((secret) => secret.length >= 8)
+      .reduce((text, secret) => text.replaceAll(secret, "[redacted]"), value);
+  const print = (text: string) => process.stdout.write(redact(text));
+  let wantsJson = false;
+  let jsonLines = false;
+  const json = (value: object) =>
+    `${JSON.stringify({ schemaVersion: SCHEMA_VERSION, ...value }, null, jsonLines ? undefined : 2)}\n`;
+  const show = (result: object) =>
+    print(
+      !(result instanceof Readable) ? json(result) : wantsJson ? json(result.json) : result.text,
+    );
 
   let origin: string | undefined;
   try {
@@ -916,50 +1239,62 @@ async function main(argv: string[], env: NodeJS.ProcessEnv = process.env): Promi
       );
     }
 
-    let instance;
+    let profile: ProfileSelection;
+    try {
+      profile = await selectProfile(values.profile as string | undefined, env);
+    } catch (error) {
+      throw new CodedError("invalid_profiles", (error as Error).message);
+    }
+    if (profile.saved) secrets.push(profile.saved.apiKey);
+    let instance: Instance;
     try {
       instance = resolveInstance(
         { url: values.url as string | undefined, apiKey: values["api-key"] as string | undefined },
         env,
+        profile.saved,
       );
     } catch (error) {
       throw usage((error as Error).message);
     }
     if (instance.apiKey) secrets.push(instance.apiKey);
     origin = instance.url;
+
+    wantsJson = values.json === true;
     const doFetch = retryingFetch({ readBody: true });
     const headers = { "x-screen-commons-client": `screen-commons-cli/${version}` };
-    const anonymousClient = () =>
-      createScreenCommonsClient({ baseUrl: instance.url, fetch: doFetch, headers });
+    const connect = (url: string, apiKey?: string) =>
+      createScreenCommonsClient({ baseUrl: url, apiKey, fetch: doFetch, headers });
     const context: Context = {
       values: values as Values,
       positionals,
       origin: instance.url,
       apiKey: instance.apiKey,
+      instance,
+      profile,
       download: doFetch,
       sourceFetch: retryingFetch({ fetch: imageFetchFor(instance.url) }),
-      printLine: (value) => print(`${JSON.stringify(value)}\n`),
-      anonymousClient,
+      connect,
+      anonymousClient: () => connect(instance.url),
       client: () => {
         if (!instance.apiKey) {
           throw new CodedError(
             "missing_api_key",
-            `Set SCREEN_COMMONS_API_KEY or pass --api-key. Create a key at ${instance.url}/settings`,
+            `No API key for ${instance.url}. Run screen-commons login --url ${instance.url}${forProfile(profile)}, or set SCREEN_COMMONS_API_KEY`,
           );
         }
-        return createScreenCommonsClient({
-          baseUrl: instance.url,
-          apiKey: instance.apiKey,
-          fetch: doFetch,
-          headers,
-        });
+        return connect(instance.url, instance.apiKey);
       },
+      printLine: (line) => {
+        jsonLines = true;
+        show(line);
+      },
+      addSecret: (secret) => secrets.push(secret),
     };
     const result = await command.run(context);
-    if (result !== undefined) print(result);
+    if (result !== undefined) show(result);
     return 0;
   } catch (error) {
-    if (error instanceof PartialFailure) print(error.report);
+    if (error instanceof PartialFailure) show(error.report);
     const { code, message } = errorInfo(error, origin);
     process.stderr.write(redact(`${code}: ${message.replace(/\s*\n\s*/gu, " ")}\n`));
     return EXIT_CODES[code] ?? 1;

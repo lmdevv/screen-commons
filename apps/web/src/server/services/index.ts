@@ -12,4 +12,5 @@ export { backfillDisplay } from "./media";
 export * from "./review";
 export { type Viewer } from "./shared";
 export { createKey, listKeys, revokeKey } from "../keys";
+export { decideCliLogin, getCliLogin, pollCliLogin, startCliLogin } from "../cli-login";
 export { toUser as me } from "../principal";

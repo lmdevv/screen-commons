@@ -159,6 +159,57 @@ export interface BackfillDisplayResult {
   remaining: number;
 }
 
+const cliLoginCode = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/u, "Not a login code");
+const tokenHash = z.string().regex(/^[0-9a-f]{64}$/u, "Expected a hex SHA-256");
+
+/**
+ * POST /cli-login: `screen-commons login` asks for a key. It sends the hash of a token it made and
+ * keeps, so the token itself never crosses the network.
+ */
+export const startCliLoginInputSchema = z.object({
+  hash: tokenHash,
+  prefix: z.string().regex(/^sc_[\w-]{5}$/u, "Expected the token's first 8 characters"),
+  device: z.string().trim().min(1).max(40),
+});
+export type StartCliLoginInput = z.input<typeof startCliLoginInputSchema>;
+
+export const pollCliLoginInputSchema = z.object({ code: cliLoginCode, hash: tokenHash });
+export type PollCliLoginInput = z.input<typeof pollCliLoginInputSchema>;
+
+export const decideCliLoginInputSchema = z.object({
+  code: cliLoginCode,
+  decision: z.enum(["approve", "deny"]),
+});
+export type DecideCliLoginInput = z.input<typeof decideCliLoginInputSchema>;
+
+export const lookupCliLoginInputSchema = z.object({ code: cliLoginCode });
+
+export type CliLoginStatus = "pending" | "approved" | "denied" | "expired";
+
+export interface CliLoginStart {
+  code: string;
+  /** The page where a signed-in user approves this login. */
+  url: string;
+  expiresAt: string;
+  /** Seconds to wait between polls. */
+  interval: number;
+}
+
+export type CliLoginPoll =
+  | { status: "pending" | "denied" | "expired" }
+  | { status: "approved"; keyId: string };
+
+export interface CliLoginView {
+  code: string;
+  device: string;
+  status: CliLoginStatus;
+  expiresAt: string;
+}
+
 /** Response shapes, keyed by endpoint, so clients and handlers agree. */
 export interface ApiResponses {
   me: User;
@@ -186,6 +237,8 @@ export interface ApiResponses {
   listKeys: { items: ApiKey[] };
   /** `token` is only ever returned once, at creation. */
   createKey: { key: ApiKey; token: string };
+  startCliLogin: CliLoginStart;
+  pollCliLogin: CliLoginPoll;
   reviewQueue: ReviewQueue;
   reviewStatus: ReviewStatus;
   backfillDisplay: BackfillDisplayResult;

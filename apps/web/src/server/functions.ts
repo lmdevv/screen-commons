@@ -233,6 +233,14 @@ export const revokeKey = createServerFn({ method: "POST" })
     }),
   );
 
+export const getCliLogin = createServerFn({ method: "GET" })
+  .validator(identity<{ code: string }>())
+  .handler(({ data }) => asUser((principal) => services.getCliLogin(principal, data)));
+
+export const decideCliLogin = createServerFn({ method: "POST" })
+  .validator(identity<{ code: string; decision: "approve" | "deny" }>())
+  .handler(({ data }) => asUser((principal) => services.decideCliLogin(principal, data)));
+
 // --- review (admin) --------------------------------------------------------------------------
 
 export const reviewItem = createServerFn({ method: "POST" })
