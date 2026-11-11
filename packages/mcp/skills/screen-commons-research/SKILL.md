@@ -108,6 +108,6 @@ Reply with ANSWER.md's text and the folder's path.
 
 ## Without a shell
 
-With only the Screen Commons MCP tools, call `search_flows` with the question, read its first line the way step 2 reads `match`, then call `get_flow` on each flow you pick to see its images. Say that the answer has no bundle and unchecked references, because only the CLI writes and checks them.
+With only the Screen Commons MCP tools, call `search_flows` with the question, read its first line the way step 2 reads `match`, then call `get_flow` with `includeImages=true` on each flow you pick and look at its images. Say that the answer has no bundle and unchecked references, because only the CLI writes and checks them.
 
-<!-- TODO(SC-07): name the servers' research_flow prompt here once it ships on both MCP servers. -->
+Both MCP servers serve these steps as the `research_flow` prompt. Its one argument, `question`, is the whole question. A client that asks for each argument in a form passes it whole. Claude Code splits a prompt command's arguments at spaces and keeps quotes as text, so `/mcp__<server>__research_flow How does Spotify let users create a playlist?` sends only `How`. In Claude Code, follow the steps above instead of running the prompt.
