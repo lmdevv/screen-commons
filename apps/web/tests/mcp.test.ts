@@ -138,7 +138,13 @@ describe("remote MCP (/mcp)", () => {
     expect(body.result).toEqual(promptResult(catalogPrompts.research_flow.text({ question })));
     const text = (body.result!.messages as { content: { text: string } }[])[0]!.content.text;
     expect(text).toContain(question);
-    for (const step of ["list_apps", "match.appNotFound", "search_flows", "get_flow"]) {
+    for (const step of [
+      "search_flows",
+      "match.appNotFound",
+      "match.app",
+      "list_apps",
+      "get_flow",
+    ]) {
       expect(text).toContain(step);
     }
 
