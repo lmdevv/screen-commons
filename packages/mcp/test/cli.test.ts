@@ -1,9 +1,21 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import {
+  access,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  readlink,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { referenceBundleSchema, type ReferenceBundle } from "@screen-commons/core";
 import sharp from "sharp";
@@ -12,17 +24,22 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { API_KEY, MEMBER_KEY, OTHER_KEY, startMockApi, type MockApi } from "./mock-api";
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+const tsx = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
 let api: MockApi;
 let dir: string;
 
 /** Asynchronous, because the mock API answers from this process. */
-function run(args: string[], env: Record<string, string> = {}, stdin = "") {
+function run(args: string[], env: Record<string, string> = {}, stdin = "", cwd = packageDir) {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((done, fail) => {
-    const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
-      cwd: packageDir,
-      env: { PATH: process.env.PATH, HOME: join(dir, "home"), ...env },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const child = spawn(
+      process.execPath,
+      ["--import", tsx, join(packageDir, "src/cli.ts"), ...args],
+      {
+        cwd,
+        env: { PATH: process.env.PATH, HOME: join(dir, "home"), ...env },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
     child.stdin.end(stdin);
     let stdout = "";
     let stderr = "";
@@ -781,5 +798,107 @@ describe("bundles", () => {
     expect((await run(["flows", "bundle", "flow_1"], withKey())).stderr).toMatch(
       /^usage: Pass --out/u,
     );
+  });
+});
+
+describe("skills", () => {
+  const names = ["screen-commons-contribute", "screen-commons-enrich", "screen-commons-research"];
+  const shipped = (name: string) => readFile(join(packageDir, "skills", name, "SKILL.md"), "utf8");
+  const install = async (home: string, ...flags: string[]) => {
+    const result = await run(["skills", "install", ...flags], { HOME: home });
+    return { ...result, report: JSON.parse(result.stdout || "null") };
+  };
+  const results = (report: { skills: { name: string; result: string; link: string }[] }) =>
+    Object.fromEntries(report.skills.map((skill) => [skill.name, [skill.result, skill.link]]));
+
+  it("installs each skill once for every agent, and a rerun changes nothing", async () => {
+    const home = await mkdtemp(join(dir, "home-"));
+    const first = await install(home);
+    expect(first.code).toBe(0);
+    expect(first.report).toMatchObject({ scope: "user", changed: true });
+    expect(results(first.report)).toEqual(
+      Object.fromEntries(names.map((name) => [name, ["installed", "linked"]])),
+    );
+    for (const name of names) {
+      const copy = join(home, ".agents/skills", name);
+      expect(await readFile(join(copy, "SKILL.md"), "utf8")).toBe(await shipped(name));
+      const link = join(home, ".claude/skills", name);
+      expect((await lstat(link)).isSymbolicLink()).toBe(true);
+      expect(await readFile(join(link, "SKILL.md"), "utf8")).toBe(await shipped(name));
+    }
+    await readFile(
+      join(home, ".agents/skills/screen-commons-research/scripts/check-references.mjs"),
+    );
+
+    const again = await install(home);
+    expect(again.code).toBe(0);
+    expect(again.report.changed).toBe(false);
+    expect(results(again.report)).toEqual(
+      Object.fromEntries(names.map((name) => [name, ["unchanged", "unchanged"]])),
+    );
+    const listed = JSON.parse((await run(["skills", "list"], { HOME: home })).stdout) as {
+      skills: { name: string; user: unknown; project: unknown }[];
+    };
+    expect(listed.skills.map((skill) => skill.name)).toEqual(names);
+    expect(listed.skills[0]).toMatchObject({
+      user: { copy: "current", link: "ours" },
+      project: { copy: "missing", link: "missing" },
+    });
+  });
+
+  it("replaces an older or edited copy and leaves a newer one alone", async () => {
+    const home = await mkdtemp(join(dir, "home-"));
+    await install(home);
+    const copy = (name: string, file: string) => join(home, ".agents/skills", name, file);
+    const marker = (version: string) => JSON.stringify({ package: "screen-commons-mcp", version });
+    await writeFile(copy("screen-commons-research", ".screen-commons.json"), marker("0.0.1"));
+    await writeFile(copy("screen-commons-enrich", "SKILL.md"), "edited");
+    await writeFile(copy("screen-commons-contribute", ".screen-commons.json"), marker("99.0.0"));
+    await writeFile(copy("screen-commons-contribute", "SKILL.md"), "from a newer release");
+
+    const rerun = await install(home);
+    expect(rerun.code).toBe(0);
+    expect(results(rerun.report)).toEqual({
+      "screen-commons-contribute": ["kept", "unchanged"],
+      "screen-commons-enrich": ["updated", "unchanged"],
+      "screen-commons-research": ["updated", "unchanged"],
+    });
+    expect(await readFile(copy("screen-commons-enrich", "SKILL.md"), "utf8")).toBe(
+      await shipped("screen-commons-enrich"),
+    );
+    expect(await readFile(copy("screen-commons-contribute", "SKILL.md"), "utf8")).toBe(
+      "from a newer release",
+    );
+  });
+
+  it("won't replace a folder it didn't install, and installs the rest", async () => {
+    const home = await mkdtemp(join(dir, "home-"));
+    const mine = join(home, ".agents/skills/screen-commons-research");
+    await mkdir(mine, { recursive: true });
+    await writeFile(join(mine, "SKILL.md"), "my own");
+    const result = await install(home);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/^skills_skipped: screen-commons-research: /u);
+    expect(results(result.report)["screen-commons-research"]).toEqual(["skipped", "linked"]);
+    expect(results(result.report)["screen-commons-enrich"]).toEqual(["installed", "linked"]);
+    expect(await readFile(join(mine, "SKILL.md"), "utf8")).toBe("my own");
+  });
+
+  it("--project installs into this folder with relative links, and leaves HOME alone", async () => {
+    const home = await mkdtemp(join(dir, "home-"));
+    const project = await mkdtemp(join(dir, "project-"));
+    const result = await run(["skills", "install", "--project"], { HOME: home }, "", project);
+    expect(result.code).toBe(0);
+    const report = JSON.parse(result.stdout) as { scope: string; skillsDir: string };
+    expect(report).toMatchObject({ scope: "project" });
+    for (const name of names) {
+      expect(await readFile(join(project, ".agents/skills", name, "SKILL.md"), "utf8")).toBe(
+        await shipped(name),
+      );
+      expect(await readlink(join(project, ".claude/skills", name))).toBe(
+        join("..", "..", ".agents", "skills", name),
+      );
+    }
+    await expect(lstat(join(home, ".agents"))).rejects.toThrow();
   });
 });

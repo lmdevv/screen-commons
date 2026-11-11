@@ -61,6 +61,7 @@ import {
 import { CodedError, errorInfo } from "./errors";
 import { imageFetchFor } from "./public-fetch";
 import { retryingFetch } from "./retry";
+import { installSkills, listSkills } from "./skills";
 
 /** Every JSON document on stdout carries it. Bump it when a field changes meaning or goes away. */
 const SCHEMA_VERSION = 1;
@@ -1230,6 +1231,34 @@ const COMMANDS: Tree = {
       args: ["path"],
       flags: { "batch-size": { help: "Screens per request, up to 50. Default as many as fit" } },
       run: publish,
+    },
+  },
+  skills: {
+    list: {
+      summary: "List the agent skills in this package and where each is installed. Needs no key",
+      run: () => listSkills(),
+    },
+    install: {
+      summary:
+        "Install the agent skills for Claude Code, Codex, Cursor and OpenCode. Safe to repeat",
+      flags: {
+        project: {
+          help: "Install into .agents/skills and .claude/skills here, not in your home folder",
+          boolean: true,
+        },
+      },
+      run: async ({ values }) => {
+        const report = await installSkills(values.project ? "project" : "user");
+        const skipped = report.skills.filter(
+          (skill) => skill.result === "skipped" || skill.link === "skipped",
+        );
+        if (skipped.length === 0) return report;
+        throw new PartialFailure(
+          report,
+          "skills_skipped",
+          `${skipped.map((skill) => skill.name).join(", ")}: a folder or link this installer didn't make is in the way. Move it and run again`,
+        );
+      },
     },
   },
 };
