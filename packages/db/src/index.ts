@@ -36,8 +36,7 @@ export function jsonArrayContains(column: SQLWrapper, value: string): SQL {
 }
 
 export interface FtsTerm {
-  prefixes: readonly string[];
-  words: readonly string[];
+  phrases: readonly (readonly string[])[];
 }
 
 export function ftsMatch(
@@ -45,18 +44,16 @@ export function ftsMatch(
   operator: "AND" | "OR",
   {
     minPrefix = 1,
+    wholeWords = false,
     exceptColumns = [],
-  }: { minPrefix?: number; exceptColumns?: readonly string[] } = {},
+  }: { minPrefix?: number; wholeWords?: boolean; exceptColumns?: readonly string[] } = {},
 ): string {
-  const quote = (text: string) => `"${text.replaceAll('"', '""')}"`;
+  const token = (text: string) =>
+    `"${text.replaceAll('"', '""')}"${wholeWords || text.length < minPrefix ? "" : "*"}`;
   const match = terms
-    .map(({ prefixes, words }) => {
-      const any = [
-        ...prefixes.map((prefix) => `${quote(prefix)}${prefix.length < minPrefix ? "" : "*"}`),
-        ...words.map(quote),
-      ].join(" OR ");
-      return `(${any})`;
-    })
+    .map(
+      ({ phrases }) => `(${phrases.map((phrase) => phrase.map(token).join(" + ")).join(" OR ")})`,
+    )
     .join(` ${operator} `);
   return exceptColumns.length > 0 ? `-{${exceptColumns.join(" ")}} : (${match})` : match;
 }

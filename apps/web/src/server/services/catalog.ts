@@ -12,7 +12,6 @@ import {
   planSearchQuery,
   resolveQuery,
   searchMatch,
-  stemPrefixes,
   searchQuerySchema,
   type AppDetail,
   type AppSummary,
@@ -157,6 +156,9 @@ type RankedSurface = (typeof RANKED)[keyof typeof RANKED];
 /** Shorter stems match whole words, since a one- or two-letter prefix matches most of the index. */
 const MIN_PREFIX = 3;
 
+const MAX_NAMED_APPS = 50;
+const fewestExtraWordsFirst = sql`length(${app.name})`;
+
 const RANK_MODES = ["strict", "relaxed"] as const;
 type RankMode = (typeof RANK_MODES)[number];
 
@@ -174,10 +176,11 @@ function namedAppFilter(column: typeof screen.appId | typeof flow.appId, search:
 
 const NO_QUERY: Search = { apps: [], holdsWithoutResults: false, terms: [], missingApps: [] };
 
-const ftsTerm = (term: SearchTerm) =>
-  term.wholeWord
-    ? { prefixes: [], words: [term.word] }
-    : { prefixes: stemPrefixes(term.stem), words: [] };
+const checkedWords = (search: Search) => [
+  ...new Set(search.missingApps.flatMap((name) => name.words)),
+];
+
+const hasBit = (mask: number, index: number) => Math.floor(mask / 2 ** index) % 2 === 1;
 
 const keepNamedAppRowsIfAny = (rows: SQL) =>
   sql`SELECT * FROM (SELECT *, max(in_app) OVER () AS app_hit FROM (${rows})) WHERE in_app = app_hit`;
@@ -210,7 +213,9 @@ async function readQuery(
                     ),
                   ),
             ),
-          );
+          )
+          .orderBy(fewestExtraWordsFirst)
+          .limit(MAX_NAMED_APPS);
   return resolveQuery(plan, apps, Boolean(appFilterValue));
 }
 
@@ -220,7 +225,7 @@ const unsearchable = (q: string | undefined, search: Search) =>
 const UNSEARCHABLE_PAGE = {
   items: [],
   nextCursor: null,
-  match: searchMatch(NO_QUERY, "unsearchable", new Set(), false),
+  match: searchMatch(NO_QUERY, "unsearchable", new Set(), new Set(), false),
 };
 
 function rankedPage(
@@ -235,10 +240,16 @@ function rankedPage(
   const fts = sql.raw(surface.fts);
   const weights = sql.raw(Object.values(surface.weights).join(", "));
   const match = (subset: SearchTerm[], operator: "AND" | "OR") =>
-    ftsMatch(subset.map(ftsTerm), operator, {
-      minPrefix: MIN_PREFIX,
+    ftsMatch(subset, operator, { minPrefix: MIN_PREFIX, exceptColumns: surface.appColumns });
+  const joined = sql`${fts} JOIN ${surface.table} ON ${surface.table.id} = ${fts}.${sql.raw(surface.ftsId)}`;
+  const known = checkedWords(search).map((word, index) => {
+    const whole = ftsMatch([{ phrases: [[word]] }], "AND", {
+      wholeWords: true,
       exceptColumns: surface.appColumns,
     });
+    return sql`EXISTS (SELECT 1 FROM ${joined} WHERE ${fts} MATCH ${whole} AND ${conditions}) * ${2 ** index}`;
+  });
+  const knownMask = known.length > 0 ? sql.join(known, sql` + `) : sql`0`;
   const inApp = namedAppFilter(surface.table.appId, search);
   const namedAppIfAny = mode === "relaxed" && !search.holdsWithoutResults && search.apps.length > 0;
   const flags = (mode === "relaxed" ? terms : []).map((term, index) => ({
@@ -246,12 +257,12 @@ function rankedPage(
     match: match([term], "AND"),
     bit: 2 ** index,
   }));
-  const scored = sql`SELECT ${surface.table.id} AS id, -bm25(${fts}, ${weights}) AS score, ${inApp ?? sql`0`} AS in_app${sql.join(
+  const scored = sql`SELECT ${surface.table.id} AS id, -bm25(${fts}, ${weights}) AS score, ${inApp ?? sql`0`} AS in_app, ${knownMask} AS known${sql.join(
     flags.map(
       ({ column, match: flag }) =>
         sql`, ${fts}.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ${flag}) AS ${column}`,
     ),
-  )} FROM ${fts} JOIN ${surface.table} ON ${surface.table.id} = ${fts}.${sql.raw(surface.ftsId)} WHERE ${fts} MATCH ${match(terms, mode === "strict" ? "AND" : "OR")} AND ${and(conditions, namedAppIfAny ? undefined : inApp)}`;
+  )} FROM ${joined} WHERE ${fts} MATCH ${match(terms, mode === "strict" ? "AND" : "OR")} AND ${and(conditions, namedAppIfAny ? undefined : inApp)}`;
   const scoped = namedAppIfAny ? keepNamedAppRowsIfAny(scored) : scored;
   const termsInRow = sql.join(
     flags.map(({ column }) => column),
@@ -264,8 +275,8 @@ function rankedPage(
   );
   const keyed =
     mode === "strict"
-      ? sql`SELECT id, in_app, score AS key, ${2 ** terms.length - 1} AS mask FROM (${scoped})`
-      : sql`SELECT id, in_app, ${termsInRow} + ${scoreBelowOne} AS key, ${termsInAnyRow} AS mask FROM (${scoped})`;
+      ? sql`SELECT id, in_app, known, score AS key, ${2 ** terms.length - 1} AS mask FROM (${scoped})`
+      : sql`SELECT id, in_app, known, ${termsInRow} + ${scoreBelowOne} AS key, ${termsInAnyRow} AS mask FROM (${scoped})`;
   return sql`SELECT * FROM (${keyed}) ${after ? sql`WHERE key < ${after.key} OR (key = ${after.key} AND id < ${after.id})` : sql``} ORDER BY key DESC, id DESC LIMIT ${limit}`;
 }
 
@@ -274,6 +285,7 @@ interface RankedRow<Row> {
   key: number;
   mask: number;
   inApp: number;
+  known: number;
 }
 
 function selectRanked<Table extends typeof screen | typeof flow>(table: Table, page: SQL) {
@@ -283,6 +295,7 @@ function selectRanked<Table extends typeof screen | typeof flow>(table: Table, p
       key: sql<number>`ranked.key`,
       mask: sql<number>`ranked.mask`,
       inApp: sql<number>`ranked.in_app`,
+      known: sql<number>`ranked.known`,
     })
     .from(table)
     .innerJoin(sql`(${page}) AS ranked`, sql`ranked.id = ${table.id}`)
@@ -309,7 +322,7 @@ async function rankedSearch<Row extends { id: string }>(
     mode = "relaxed";
     rows = await run(mode, undefined, firstSize);
   }
-  const mask = rows[0]?.mask ?? 0;
+  const { mask = 0, known = 0, inApp } = rows[0] ?? {};
   const page = toPage(rows, limit, ({ row, key }) => encodeCursor(mode, key, row.id));
   return {
     items: page.rows.map(({ row }) => row),
@@ -317,12 +330,9 @@ async function rankedSearch<Row extends { id: string }>(
     match: searchMatch(
       search,
       mode,
-      new Set(
-        search.terms.flatMap((term, index) =>
-          Math.floor(mask / 2 ** index) % 2 === 1 ? [term.stem] : [],
-        ),
-      ),
-      search.holdsWithoutResults || rows[0]?.inApp === 1,
+      new Set(search.terms.filter((_, index) => hasBit(mask, index)).map((term) => term.stem)),
+      new Set(checkedWords(search).filter((_, index) => hasBit(known, index))),
+      search.holdsWithoutResults || inApp === 1,
     ),
   };
 }
@@ -517,7 +527,7 @@ export async function listScreens(
       page.rows.map(({ row }) => row),
     ),
     nextCursor: page.nextCursor,
-    match: searchMatch(search, "none", new Set(), true),
+    match: searchMatch(search, "none", new Set(), new Set(), true),
   };
 }
 
@@ -634,7 +644,7 @@ export async function listFlows(
   return {
     items: await flowSummaries(viewer, page.rows),
     nextCursor: page.nextCursor,
-    match: searchMatch(search, "none", new Set(), true),
+    match: searchMatch(search, "none", new Set(), new Set(), true),
   };
 }
 

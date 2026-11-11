@@ -87,13 +87,42 @@ describe("planSearchQuery", () => {
     expect(words("Show me the onboarding flow steps of this app")).toEqual(["onboarding"]);
   });
 
-  it("keeps like, new and make searchable", () => {
-    expect(words("make a new playlist I like")).toEqual(["make", "new", "playlist", "like"]);
+  it("skips the words of how a question asks, and keeps new and make", () => {
+    expect(words("make a new playlist I like")).toEqual(["make", "new", "playlist"]);
+    expect(words("What does Spotify's profile page look like?")).toEqual(["profile", "page"]);
+    expect(words("What happens when you log out, and how does it work?")).toEqual(["log out"]);
+  });
+
+  it("finds every spelling of signing up, logging in and logging out", () => {
+    const signup = [["signup"], ["sign", "up"], ["register"]];
+    for (const query of ["Vercel signup", "Vercel sign-up", "How do I sign up on Vercel?"]) {
+      expect(
+        resolve(query).terms.map((term) => term.phrases),
+        query,
+      ).toEqual([signup]);
+    }
+    expect(words("Show me the Linear signing up flow")).toEqual(["signing up"]);
+    expect(resolve("Vercel login").terms[0]?.phrases).toEqual([
+      ["login"],
+      ["signin"],
+      ["log", "in"],
+      ["sign", "in"],
+    ]);
+    expect(resolve("Spotify logout").terms[0]?.phrases).toContainEqual(["log", "out"]);
+    expect(words("sign in with Google")).toEqual(["sign in", "google"]);
+  });
+
+  it("reads the .com of a dotted name as part of the name and never searches it", () => {
+    expect(named("cal.com signup")).toEqual({ apps: ["cal-com"], holds: true });
+    expect(words("cal.com signup")).toEqual(["signup"]);
+    const monday = resolve("How does Monday.com handle onboarding?");
+    expect(monday.missingApps).toEqual([{ text: "Monday.com", words: ["monday"] }]);
+    expect(monday.terms.map((term) => term.word)).toEqual(["monday", "onboarding"]);
   });
 
   it("folds case and diacritics the way the index does", () => {
     const [word] = planSearchQuery("Réglages").words;
-    expect(word).toEqual({ typed: "Reglages", text: "reglages", stem: "reglag" });
+    expect(word).toEqual({ typed: "Reglages", text: "reglages", stem: "reglag", tld: false });
     expect(planSearchQuery("プレイリストを作成").words.map((each) => each.text)).toEqual([
       "プレイリストを作成",
     ]);
@@ -199,22 +228,33 @@ describe("resolveQuery", () => {
   it("finds a plural with the singular form, and the other way round", () => {
     const query = resolve("Spotify stories");
     expect(query.apps[0]?.slug).toBe("spotify");
-    expect(query.terms).toEqual([{ word: "stories", stem: "story", wholeWord: false }]);
+    expect(query.terms).toEqual([
+      { word: "stories", stem: "story", phrases: [["story"], ["storie"]] },
+    ]);
   });
 
-  it("reports a name a strong cue asks about that no app has, as a whole word", () => {
+  it("reports a capitalized name after does, before 's, or last after in or on, and searches it as a prefix", () => {
     const line = resolve("How does LINE let users create a group?");
     expect(line.apps).toEqual([]);
-    expect(line.missingApps).toEqual([{ text: "LINE", stems: ["lin"] }]);
-    expect(line.terms[0]).toEqual({ word: "line", stem: "lin", wholeWord: true });
+    expect(line.missingApps).toEqual([{ text: "LINE", words: ["line"] }]);
+    expect(line.terms[0]).toEqual({ word: "line", stem: "lin", phrases: [["lin"]] });
     expect(missing("How does Square let users take a payment?")).toEqual(["Square"]);
+    expect(missing("How does Apple Music let users create a playlist?")).toEqual(["Apple Music"]);
+    expect(missing("Netflix's download flow")).toEqual(["Netflix"]);
+    expect(missing("Find examples of a pricing page like Notion's")).toEqual(["Notion"]);
+    expect(missing("What does the checkout look like in Shopify?")).toEqual(["Shopify"]);
+    expect(missing("download episodes in the Netflix app")).toEqual(["Netflix"]);
+  });
+
+  it("reads does X as the words before a verb when capitals mark every word or none", () => {
     expect(missing("how does netflix handle downloads")).toEqual(["netflix"]);
     expect(missing("HOW DOES NETFLIX LET USERS DOWNLOAD EPISODES")).toEqual(["NETFLIX"]);
     expect(missing("How Does Netflix Let Users Download Episodes?")).toEqual(["Netflix"]);
-    expect(missing("How does Apple Music let users create a playlist?")).toEqual(["Apple Music"]);
-    expect(missing("Netflix's download flow")).toEqual(["Netflix"]);
-    expect(missing("how do I download episodes on netflix")).toEqual(["netflix"]);
-    expect(missing("download episodes in the Netflix app")).toEqual(["Netflix"]);
+    expect(missing("how does tidal let me make a playlist, I wonder")).toEqual(["tidal"]);
+    expect(missing("how do I download episodes on netflix")).toEqual([]);
+    expect(missing("Download Episodes On Netflix")).toEqual(["Netflix"]);
+    expect(missing("Onboarding in Duolingo")).toEqual(["Duolingo"]);
+    expect(missing("NETFLIX'S DOWNLOAD FLOW")).toEqual(["NETFLIX"]);
   });
 
   it("ends a name without a known verb at the capitals of a mixed-case question", () => {
@@ -238,6 +278,21 @@ describe("resolveQuery", () => {
       "How do streaming services let users download episodes?",
       "download songs for offline listening",
       "Netflix download flow",
+      "turn on notifications",
+      "settings for notifications",
+      "pricing page for teams",
+      "Find a pricing page for teams",
+      "Show me error states in forms",
+      "sorting in tables",
+      "How do I upload files in bulk?",
+      "How do apps show a loading state on launch?",
+      "Find examples of a pricing page for SaaS",
+      "Show me an onboarding flow for kids",
+      "close modal on escape",
+      "How does autocomplete handle typos?",
+      "How does dark mode handle images?",
+      "Show me a settings screen on Mac",
+      "How do I sign in on Android?",
     ]) {
       expect(missing(query), query).toEqual([]);
     }
@@ -247,7 +302,7 @@ describe("resolveQuery", () => {
     const netflix = resolve("How does Netflix handle linear playback?");
     expect(netflix.apps).toEqual([]);
     expect(netflix.missingApps.map((name) => name.text)).toEqual(["Netflix"]);
-    expect(netflix.terms.find((term) => term.word === "linear")?.wholeWord).toBe(false);
+    expect(netflix.terms.map((term) => term.word)).toEqual(["netflix", "linear", "playback"]);
     expect(missing("How does Netflix let users play Spotify playlists?")).toEqual(["Netflix"]);
     expect(named("Spotify share on Instagram")).toEqual({
       apps: ["spotify", "spotify-ios"],
@@ -256,17 +311,12 @@ describe("resolveQuery", () => {
     expect(missing("Spotify share on Instagram")).toEqual([]);
   });
 
-  it("keeps a missing name's words when the query has too many terms", () => {
+  it("reports a missing name past the last term it searches", () => {
     const query = resolve(
       "create rename reorder share download delete archive pin sort filter export playlists in Tidal",
     );
     expect(query.terms).toHaveLength(8);
-    expect(query.terms.at(-1)).toEqual({
-      word: "tidal",
-      stem: "tidal",
-      wholeWord: true,
-    });
-    expect(query.missingApps).toEqual([{ text: "Tidal", stems: ["tidal"] }]);
+    expect(query.missingApps).toEqual([{ text: "Tidal", words: ["tidal"] }]);
   });
 
   it("holds an app given outside the query and reports no missing app", () => {
@@ -285,7 +335,9 @@ describe("searchMatch", () => {
   const netflix = resolve("How does Netflix let users download episodes?");
 
   it("reports a missing name when no result contains its words", () => {
-    expect(searchMatch(netflix, "relaxed", new Set(["download", "episod"]), false)).toEqual({
+    expect(
+      searchMatch(netflix, "relaxed", new Set(["download", "episod"]), new Set(), false),
+    ).toEqual({
       mode: "relaxed",
       app: null,
       appWithoutResults: null,
@@ -295,37 +347,34 @@ describe("searchMatch", () => {
     });
   });
 
-  it("reads a missing name some result contains as an ordinary word", () => {
-    const merge = resolve("deploy on merge");
-    expect(merge.missingApps).toEqual([{ text: "merge", stems: ["merg"] }]);
-    expect(searchMatch(merge, "strict", new Set(["deploy", "merg"]), false)).toMatchObject({
+  it("reads a missing name the index has as a word as an ordinary word", () => {
+    const merge = resolve("deploy previews on Merge");
+    expect(merge.missingApps).toEqual([{ text: "Merge", words: ["merge"] }]);
+    const matched = new Set(["deploy", "preview", "merg"]);
+    expect(searchMatch(merge, "strict", matched, new Set(["merge"]), false)).toMatchObject({
       appNotFound: null,
-      matchedTerms: ["deploy", "merge"],
+      matchedTerms: ["deploy", "previews", "merge"],
     });
-    const netflixWord = searchMatch(
-      netflix,
-      "strict",
-      new Set(["netflix", "download", "episod"]),
-      false,
-    );
-    expect(netflixWord.appNotFound).toBeNull();
+    expect(searchMatch(merge, "strict", matched, new Set(), false).appNotFound).toBe("Merge");
   });
 
   it("names the app the results come from", () => {
     const spotify = resolve("How does Spotify let users create a playlist?");
-    expect(searchMatch(spotify, "strict", new Set(["creat", "playlist"]), true)).toEqual({
-      mode: "strict",
-      app: "spotify",
-      appWithoutResults: null,
-      appNotFound: null,
-      matchedTerms: ["create", "playlist"],
-      unmatchedTerms: [],
-    });
+    expect(searchMatch(spotify, "strict", new Set(["creat", "playlist"]), new Set(), true)).toEqual(
+      {
+        mode: "strict",
+        app: "spotify",
+        appWithoutResults: null,
+        appNotFound: null,
+        matchedTerms: ["create", "playlist"],
+        unmatchedTerms: [],
+      },
+    );
   });
 
   it("names a loosely named app that had no results when every app answers instead", () => {
     const resend = resolve("how do I resend an invite");
-    expect(searchMatch(resend, "relaxed", new Set(["invit"]), false)).toEqual({
+    expect(searchMatch(resend, "relaxed", new Set(["invit"]), new Set(), false)).toEqual({
       mode: "relaxed",
       app: null,
       appWithoutResults: "resend",
