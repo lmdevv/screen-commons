@@ -4,7 +4,7 @@
     "holdout": { "minAnswered": 10, "maxWrongApp": 0 }
   },
   "screens": {
-    "tuning": { "maxWrongApp": 0 },
-    "holdout": { "maxWrongApp": 0 }
+    "tuning": { "minAnswered": 3, "maxWrongApp": 0 },
+    "holdout": { "minAnswered": 2, "maxWrongApp": 0 }
   }
 }

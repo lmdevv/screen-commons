@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { judge, rowStats, shortfalls, tally } from "./score.mjs";
@@ -106,4 +107,19 @@ test("a split falls short on too few answers or any wrong-app answer", () => {
 
 test("a split the run skipped is not gated", () => {
   assert.deepEqual(shortfalls({ holdout: { flows: counts({}) } }, gate), []);
+});
+
+test("the gate fails a run whose screen search answers nothing", () => {
+  const thresholds = JSON.parse(
+    readFileSync(new URL("./thresholds.json", import.meta.url), "utf8"),
+  );
+  const passing = counts({ "hit@1": 12, "app-not-found": 3 });
+  const summary = {
+    tuning: { flows: passing, screens: counts({ miss: 14, empty: 3 }) },
+    holdout: { flows: passing, screens: counts({ miss: 15, empty: 2 }) },
+  };
+  assert.deepEqual(shortfalls(summary, thresholds), [
+    "screens tuning answered 0 < 3",
+    "screens holdout answered 0 < 2",
+  ]);
 });
