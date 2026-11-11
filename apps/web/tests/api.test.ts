@@ -628,6 +628,9 @@ describe("ranked search", () => {
     "Following an artist",
   ];
   let riffsSlug: string;
+  const word = `Stave${suffix}`;
+  let wordSlug: string;
+  const prefixed = `Lin${suffix}`;
 
   beforeAll(async () => {
     const upload = (name: string) =>
@@ -646,10 +649,25 @@ describe("ranked search", () => {
       });
     }
     const decoy = await upload(`Decoy ${suffix}`);
+    for (const name of [
+      "Creating a playlist",
+      "Stories",
+      "Progress bar",
+      "Progress ring",
+      "Inviting a teammate",
+    ]) {
+      await adminApi.createFlow({
+        appId: decoy.app.id,
+        name,
+        steps: decoy.screens.map((item) => ({ screenId: item.id })),
+      });
+    }
+    wordSlug = (await upload(word)).app.slug;
+    const longer = await upload(`${prefixed}ar ${suffix}`);
     await adminApi.createFlow({
-      appId: decoy.app.id,
+      appId: longer.app.id,
       name: "Creating a playlist",
-      steps: decoy.screens.map((item) => ({ screenId: item.id })),
+      steps: longer.screens.map((item) => ({ screenId: item.id })),
     });
   });
 
@@ -666,6 +684,7 @@ describe("ranked search", () => {
     expect(page.match).toEqual({
       mode: "strict",
       app: riffsSlug,
+      appWithoutResults: null,
       appNotFound: null,
       matchedTerms: ["create", "playlist"],
       unmatchedTerms: [],
@@ -690,6 +709,7 @@ describe("ranked search", () => {
     expect(page.match).toEqual({
       mode: "relaxed",
       app: null,
+      appWithoutResults: null,
       appNotFound: missing,
       matchedTerms: ["create", "playlist"],
       unmatchedTerms: [missing.toLowerCase()],
@@ -719,6 +739,56 @@ describe("ranked search", () => {
     const named = await member.client().listFlows({ q: `show me ${riffs} flows` });
     expect(named.items.map((item) => item.id)).toEqual(latest.items.map((item) => item.id));
     expect(named.match).toMatchObject({ mode: "none", app: riffsSlug });
+  });
+
+  it("searches every app when the app a query names has no matching items", async () => {
+    const client = member.client();
+    const page = await client.listFlows({ q: `${word} progress bar`, limit: 1 });
+    expect(page.items.map((item) => item.name)).toEqual(["Progress bar"]);
+    expect(page.match).toMatchObject({
+      mode: "relaxed",
+      app: null,
+      appWithoutResults: wordSlug,
+      matchedTerms: ["progress", "bar"],
+    });
+    const next = await client.listFlows({
+      q: `${word} progress bar`,
+      limit: 1,
+      cursor: page.nextCursor!,
+    });
+    expect(next.items.map((item) => item.id)).not.toContain(page.items[0]!.id);
+    expect(next.match).toMatchObject({ appWithoutResults: wordSlug });
+  });
+
+  it("reads an app name between other words as an ordinary word", async () => {
+    const page = await member.client().listFlows({ q: `how do I ${word.toLowerCase()} an invite` });
+    expect(page.match).toMatchObject({ app: null, appWithoutResults: null });
+    expect(page.items.map((item) => item.name)).toContain("Inviting a teammate");
+  });
+
+  it("finds a plural from the singular and the other way round", async () => {
+    const client = member.client();
+    for (const q of [`Decoy ${suffix} stories`, `Decoy ${suffix} story`]) {
+      expect((await client.listFlows({ q })).items.map((item) => item.name)).toEqual(["Stories"]);
+    }
+  });
+
+  it("reports a missing app whose name only starts another app's name", async () => {
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${prefixed} let users create a playlist?` });
+    expect(page.match).toMatchObject({ app: null, appNotFound: prefixed });
+  });
+
+  it("returns nothing for a query with no word to search for", async () => {
+    for (const list of [
+      member.client().listFlows({ q: "how does it work" }),
+      member.client().listScreens({ q: "how does it work" }),
+    ]) {
+      const page = await list;
+      expect(page.items).toEqual([]);
+      expect(page.match).toMatchObject({ mode: "unsearchable", matchedTerms: [] });
+    }
   });
 });
 

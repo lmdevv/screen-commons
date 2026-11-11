@@ -242,6 +242,7 @@ export async function startMockApi(): Promise<MockApi> {
           match: {
             mode: "strict",
             app: null,
+            appWithoutResults: null,
             appNotFound: null,
             matchedTerms: url.searchParams.getAll("q"),
             unmatchedTerms: [],
