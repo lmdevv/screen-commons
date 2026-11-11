@@ -617,6 +617,290 @@ describe("flows", () => {
   });
 });
 
+describe("ranked search", () => {
+  const riffs = `Riffs ${suffix}`;
+  const playlistFlows = [
+    "Creating a playlist from a song",
+    "Creating a playlist",
+    "Deleting a playlist",
+    "Creating a playlist folder",
+    "Playlist",
+    "Following an artist",
+  ];
+  let riffsSlug: string;
+  const word = `Stave${suffix}`;
+  let wordSlug: string;
+  const prefixed = `Lin${suffix}`;
+
+  beforeAll(async () => {
+    const upload = (name: string) =>
+      adminApi.captures({
+        app: { name },
+        source: "seed",
+        screens: [captureScreen(), captureScreen()],
+      });
+    const riffsBatch = await upload(riffs);
+    riffsSlug = riffsBatch.app.slug;
+    for (const name of playlistFlows) {
+      await adminApi.createFlow({
+        appId: riffsBatch.app.id,
+        name,
+        steps: riffsBatch.screens.map((item) => ({ screenId: item.id })),
+      });
+    }
+    const decoy = await upload(`Decoy ${suffix}`);
+    for (const name of [
+      "Creating a playlist",
+      "Stories",
+      "Progress bar",
+      "Progress ring",
+      "Inviting a teammate",
+      "Signing up",
+      "Logging out",
+      "Updating notification settings",
+    ]) {
+      await adminApi.createFlow({
+        appId: decoy.app.id,
+        name,
+        steps: decoy.screens.map((item) => ({ screenId: item.id })),
+      });
+    }
+    wordSlug = (await upload(word)).app.slug;
+    const longer = await upload(`${prefixed}ar ${suffix}`);
+    await adminApi.createFlow({
+      appId: longer.app.id,
+      name: "Creating a playlist",
+      steps: longer.screens.map((item) => ({ screenId: item.id })),
+    });
+  });
+
+  it("ranks the flows of the app a question names", async () => {
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${riffs} let users create a playlist?` });
+    expect(page.items.map((item) => item.name)).toEqual([
+      "Creating a playlist",
+      "Creating a playlist folder",
+      "Creating a playlist from a song",
+    ]);
+    expect(page.items.every((item) => item.app.slug === riffsSlug)).toBe(true);
+    expect(page.match).toEqual({
+      mode: "strict",
+      app: riffsSlug,
+      appWithoutResults: null,
+      appNotFound: null,
+      matchedTerms: ["create", "playlist"],
+      unmatchedTerms: [],
+    });
+  });
+
+  it("fills a short strict result with partial matches, most terms first", async () => {
+    const page = await member.client().listFlows({ q: `${riffs} delete playlists` });
+    expect(page.items[0]!.name).toBe("Deleting a playlist");
+    expect(page.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["Playlist", "Creating a playlist"]),
+    );
+    expect(page.items.map((item) => item.name)).not.toContain("Following an artist");
+    expect(page.match).toMatchObject({ mode: "relaxed", app: riffsSlug });
+  });
+
+  it("reports an app the catalog lacks and still answers from other apps", async () => {
+    const missing = `Qx${suffix}`;
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${missing} let users create a playlist?` });
+    expect(page.match).toEqual({
+      mode: "relaxed",
+      app: null,
+      appWithoutResults: null,
+      appNotFound: missing,
+      matchedTerms: ["create", "playlist"],
+      unmatchedTerms: [missing.toLowerCase()],
+    });
+    expect(page.items.map((item) => item.name)).toContain("Creating a playlist");
+  });
+
+  it("pages a ranked search without repeating or skipping a flow", async () => {
+    const client = member.client();
+    const whole = await client.listFlows({ q: "playlist", app: riffsSlug, limit: 20 });
+    expect(whole.items).toHaveLength(5);
+    const paged: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await client.listFlows({ q: "playlist", app: riffsSlug, limit: 2, cursor });
+      expect(page.match.mode).toBe("strict");
+      paged.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(paged).toEqual(whole.items.map((item) => item.id));
+  });
+
+  it("keeps the latest order when there is nothing to rank by", async () => {
+    const latest = await member.client().listFlows({ app: riffsSlug });
+    expect(latest.items).toHaveLength(playlistFlows.length);
+    expect(latest.match.mode).toBe("none");
+    const named = await member.client().listFlows({ q: `show me ${riffs} flows` });
+    expect(named.items.map((item) => item.id)).toEqual(latest.items.map((item) => item.id));
+    expect(named.match).toMatchObject({ mode: "none", app: riffsSlug });
+  });
+
+  it("keeps an app named first or last when it has no match, and says so", async () => {
+    const page = await member.client().listFlows({ q: `${word} progress bar` });
+    expect(page.items).toEqual([]);
+    expect(page.match).toEqual({
+      mode: "relaxed",
+      app: wordSlug,
+      appWithoutResults: null,
+      appNotFound: null,
+      matchedTerms: [],
+      unmatchedTerms: ["progress", "bar"],
+    });
+  });
+
+  it("searches every app when an app named in passing has no match", async () => {
+    const client = member.client();
+    const invite = await client.listFlows({ q: `how do I ${word.toLowerCase()} an invite` });
+    expect(invite.items.map((item) => item.name)).toContain("Inviting a teammate");
+    expect(invite.match).toMatchObject({ app: null, appWithoutResults: wordSlug });
+
+    const q = `show me a ${word.toLowerCase()} progress bar`;
+    const page = await client.listFlows({ q, limit: 1 });
+    expect(page.items.map((item) => item.name)).toEqual(["Progress bar"]);
+    expect(page.match).toMatchObject({
+      mode: "relaxed",
+      app: null,
+      appWithoutResults: wordSlug,
+      matchedTerms: ["progress", "bar"],
+    });
+    const next = await client.listFlows({ q, limit: 1, cursor: page.nextCursor! });
+    expect(next.items.map((item) => item.id)).not.toContain(page.items[0]!.id);
+    expect(next.match).toEqual(page.match);
+  });
+
+  it("keeps an app named in passing when it has a match", async () => {
+    const page = await member.client().listFlows({ q: `create a ${riffs} playlist` });
+    expect(page.items.every((item) => item.app.slug === riffsSlug)).toBe(true);
+    expect(page.match).toMatchObject({ mode: "strict", app: riffsSlug, appWithoutResults: null });
+  });
+
+  it("never reads an app, or a missing one, from capitals", async () => {
+    const client = member.client();
+    const title = await client.listFlows({ q: "How to Create a Playlist" });
+    expect(title.items[0]!.name).toBe("Creating a playlist");
+    expect(title.match).toMatchObject({ mode: "strict", app: null, appNotFound: null });
+    const named = await client.listFlows({ q: `${riffs} Playlist Folder` });
+    expect(named.items[0]!.name).toBe("Creating a playlist folder");
+    expect(named.match).toMatchObject({ app: riffsSlug, appNotFound: null });
+  });
+
+  it("reads a word the catalog contains, or a UI word, as no missing app", async () => {
+    const client = member.client();
+    const ring = await client.listFlows({ q: "progress on Ring" });
+    expect(ring.items[0]!.name).toBe("Progress ring");
+    expect(ring.match).toMatchObject({ appNotFound: null, matchedTerms: ["progress", "ring"] });
+    for (const q of ["tooltip on hover", "show error on submit", "zoom in on map"]) {
+      expect((await client.listFlows({ q })).match.appNotFound, q).toBeNull();
+    }
+  });
+
+  it("reads a lowercase word after for, in or on as no missing app, and matches its other forms", async () => {
+    for (const q of ["turn on notifications", "settings for notifications"]) {
+      const page = await member.client().listFlows({ q });
+      expect(
+        page.items.map((item) => item.name),
+        q,
+      ).toContain("Updating notification settings");
+      expect(page.match, q).toMatchObject({ appNotFound: null });
+      expect(page.match.matchedTerms, q).toContain("notifications");
+    }
+  });
+
+  it("reports a capitalized missing name that only starts a word some flow has", async () => {
+    const page = await member.client().listFlows({ q: "How does Notifi let users mute alerts?" });
+    expect(page.match).toMatchObject({ app: null, appNotFound: "Notifi" });
+    expect(page.items.map((item) => item.name)).toContain("Updating notification settings");
+  });
+
+  it("finds every spelling of signing up and logging out", async () => {
+    const client = member.client();
+    for (const q of [
+      `Decoy ${suffix} signup`,
+      `Decoy ${suffix} sign up`,
+      `Decoy ${suffix} register`,
+    ]) {
+      expect(
+        (await client.listFlows({ q })).items.map((item) => item.name),
+        q,
+      ).toEqual(["Signing up"]);
+    }
+    for (const q of [`Decoy ${suffix} logout`, `Decoy ${suffix} log out`]) {
+      expect(
+        (await client.listFlows({ q })).items.map((item) => item.name),
+        q,
+      ).toEqual(["Logging out"]);
+    }
+  });
+
+  it("reports the app a question asks about over a name it uses in passing", async () => {
+    const asked = `Qz${suffix}`;
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${asked} handle ${word.toLowerCase()} playlists?` });
+    expect(page.match).toMatchObject({ app: null, appWithoutResults: null, appNotFound: asked });
+  });
+
+  it("finds a plural from the singular and the other way round", async () => {
+    const client = member.client();
+    for (const q of [`Decoy ${suffix} stories`, `Decoy ${suffix} story`]) {
+      expect((await client.listFlows({ q })).items.map((item) => item.name)).toEqual(["Stories"]);
+    }
+  });
+
+  it("reports a missing app whose name only starts another app's name", async () => {
+    const page = await member
+      .client()
+      .listFlows({ q: `How does ${prefixed} let users create a playlist?` });
+    expect(page.match).toMatchObject({ app: null, appNotFound: prefixed });
+  });
+
+  it("finds a named app behind more than fifty shorter names that share a word", async () => {
+    const shared = `Crowd${suffix}`;
+    for (let index = 1; index <= 51; index += 1) {
+      await adminApi.captures({
+        app: { name: `${shared} ${index}` },
+        source: "seed",
+        screens: [captureScreen()],
+      });
+    }
+    const named = await adminApi.captures({
+      app: { name: `Grand ${shared}` },
+      source: "seed",
+      screens: [captureScreen(), captureScreen()],
+    });
+    await adminApi.createFlow({
+      appId: named.app.id,
+      name: "Creating a playlist",
+      steps: named.screens.map((item) => ({ screenId: item.id })),
+    });
+    const page = await member
+      .client()
+      .listFlows({ q: `How does Grand ${shared} let users create a playlist?` });
+    expect(page.match).toMatchObject({ app: named.app.slug, appNotFound: null });
+    expect(page.items.map((item) => item.name)).toEqual(["Creating a playlist"]);
+  }, 120_000);
+
+  it("returns nothing for a query with no word to search for", async () => {
+    for (const list of [
+      member.client().listFlows({ q: "how does it work" }),
+      member.client().listScreens({ q: "how does it work" }),
+    ]) {
+      const page = await list;
+      expect(page.items).toEqual([]);
+      expect(page.match).toMatchObject({ mode: "unsearchable", matchedTerms: [] });
+    }
+  });
+});
+
 describe("visibility + review", () => {
   it("keeps member uploads pending until an admin approves them", async () => {
     const meta = {

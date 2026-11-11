@@ -31,6 +31,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
+      - name: Test the search eval scorer
+        run: node --test '.agents/skills/verify-screen-commons/eval/*.test.mjs'
       - run: pnpm build
 
   agent-journey:

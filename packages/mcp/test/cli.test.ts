@@ -154,10 +154,12 @@ describe("commands", () => {
     expect(code).toBe(0);
     const page = JSON.parse(stdout) as {
       schemaVersion: number;
+      match: { matchedTerms: string[] };
       items: { url: string }[];
       nextCursor: string;
     };
     expect(page.schemaVersion).toBe(1);
+    expect(page.match.matchedTerms).toEqual(["more"]);
     expect(page.nextCursor).toBe("c1");
     expect(page.items[0]!.url).toBe(`${api.url}/screens/scr_1`);
   });

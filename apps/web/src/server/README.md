@@ -54,10 +54,17 @@ src/server/
   `maxThumbnailBytes`, 512 KiB logos) and the batch by `LIMITS.maxBatchBytes` (28 MiB decoded) —
   split larger batches. Images are then decoded, validated and stored one at a time.
 - **Pagination.** `{ items, nextCursor }`; pass `nextCursor` back as `cursor`. Cursors are opaque
-  and tied to the sort (`latest` | `popular`). Popular = `save_count * 4 + view_count` (apps also
-  add their published screens' scores).
-- **Search.** FTS5 with prefix matching; all terms must match (AND). When the viewer has no AND
-  results under the same filters and visibility, terms are OR-ed instead.
+  and tied to the sort (`latest` | `popular`), or for a screen or flow search to its mode
+  (`strict` | `relaxed`). Popular = `save_count * 4 + view_count` (apps also add their published
+  screens' scores).
+- **Search.** FTS5 with prefix matching. `listApps` and `search` need every term (AND), and OR
+  them when the viewer has no AND results under the same filters and visibility. `listScreens`
+  and `listFlows` read the query with `planSearchQuery` and `resolveQuery` (core): a run of words
+  equal to a visible app's name or slug filters to that app, results rank by bm25, and when fewer
+  than `MIN_STRICT_RESULTS` rows contain every term, rows with some of them follow, most terms
+  first. That is at most two ranked queries. An app named between other words gives way to every
+  app when it matches nothing. A query with no searchable word returns no rows. Pages carry
+  `match`.
 - **Media.** Entity media URLs (`imageUrl` / `thumbUrl` / `logoUrl` on apps, screens, flows,
   collections — REST, server functions) are always relative `/media/<kind>/<sha256>[.v<n>[-kind]].<ext>` paths.
   The one exception is the `POST /api/v1/captures` response (`submitCaptures`), where every URL
@@ -115,9 +122,9 @@ Types come from `@screen-commons/core`. Query option factories for all reads liv
 | `getTaxonomy`      | GET    | —                                                                                                                       | `Taxonomy` (platforms, categories, patterns, elements, flowTypes)             |
 | `listApps`         | GET    | `ListAppsQuery` `{ platform?, category?, q?, sort?, cursor?, limit? }`                                                  | `Page<AppSummary>`                                                            |
 | `getApp`           | GET    | `{ slug, platform? }` (slug or id)                                                                                      | `AppDetail`                                                                   |
-| `listScreens`      | GET    | `ListScreensQuery` `{ app?, platform?, pattern?, element?, version?, q?, sort?, cursor?, limit? }` (`app` = slug or id) | `Page<Screen>`                                                                |
+| `listScreens`      | GET    | `ListScreensQuery` `{ app?, platform?, pattern?, element?, version?, q?, sort?, cursor?, limit? }` (`app` = slug or id) | `SearchPage<Screen>`                                                          |
 | `getScreen`        | GET    | `{ id }`                                                                                                                | `ScreenDetail` (+ `previousId`/`nextId` in app grid order, `flows`)           |
-| `listFlows`        | GET    | `ListFlowsQuery` `{ app?, platform?, type?, q?, cursor?, limit? }`                                                      | `Page<FlowSummary>`                                                           |
+| `listFlows`        | GET    | `ListFlowsQuery` `{ app?, platform?, type?, q?, cursor?, limit? }`                                                      | `SearchPage<FlowSummary>`                                                     |
 | `getFlow`          | GET    | `{ id }`                                                                                                                | `FlowDetail` (steps ordered by position, each with a full `Screen`)           |
 | `search`           | GET    | `SearchQuery` `{ q, platform?, limit? }`                                                                                | `SearchResult` `{ apps, screens, flows, terms }` (relevance ranked)           |
 | `createScreen`     | POST   | `FormData`: `image` File, `thumbnail` File, `meta` JSON `CreateScreenInput`                                             | `{ screen: Screen }`                                                          |

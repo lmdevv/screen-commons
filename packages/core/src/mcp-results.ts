@@ -7,8 +7,11 @@ import type {
   FlowSummary,
   Screen,
   ScreenDetail,
+  SearchMatch,
+  SearchPage,
 } from "./index";
 import { LIMITS } from "./limits";
+import { MIN_STRICT_RESULTS } from "./search-query";
 import { base64ToBytes, readImageHeader } from "./utils";
 
 /**
@@ -60,6 +63,62 @@ export function compactContribution(origin: string, item: Contribution) {
     ...(item.kind === "screen" ? compactScreen(origin, item) : compactFlow(origin, item)),
     reviewReason: item.reviewReason,
     createdAt: item.createdAt,
+  };
+}
+
+export function screenSearchResult(origin: string, page: SearchPage<Screen>) {
+  return {
+    match: page.match,
+    items: page.items.map((screen) => compactScreen(origin, screen)),
+    nextCursor: page.nextCursor,
+  };
+}
+
+export function flowSearchResult(origin: string, page: SearchPage<FlowSummary>) {
+  return {
+    match: page.match,
+    items: page.items.map((flow) => compactFlow(origin, flow)),
+    nextCursor: page.nextCursor,
+  };
+}
+
+export function describeMatch(match: SearchMatch, noun: "screen" | "flow"): string {
+  const quoted = (terms: string[]) => terms.map((term) => `"${term}"`).join(", ");
+  const appEmpty =
+    match.app !== null && match.matchedTerms.length === 0 && match.unmatchedTerms.length > 0;
+  return [
+    match.appNotFound &&
+      `The catalog has no app named "${match.appNotFound}", so these results come from other apps.`,
+    appEmpty
+      ? `The app "${match.app}" has no ${noun} matching ${quoted(match.unmatchedTerms)}.`
+      : match.app && `Only results from the app "${match.app}", which the query names.`,
+    match.appWithoutResults &&
+      `The app "${match.appWithoutResults}" has no ${noun} matching the rest of the query, so these results come from every app.`,
+    match.mode === "strict" &&
+      match.matchedTerms.length > 0 &&
+      `Every result contains ${quoted(match.matchedTerms)}.`,
+    match.mode === "relaxed" &&
+      match.matchedTerms.length > 0 &&
+      `Fewer than ${MIN_STRICT_RESULTS} results contain every search term, so results that contain some of them follow.`,
+    match.mode === "none" && "No search terms, so results are in the default order.",
+    match.mode === "unsearchable" &&
+      "The query has no word to search for, only words such as how, does and app, so there are no results. Name a feature, such as create playlist.",
+    !appEmpty &&
+      match.unmatchedTerms.length > 0 &&
+      `No result contains ${quoted(match.unmatchedTerms)}.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** A server from before `match` sends none, and then the result has no match line. */
+export function searchToolResult(result: { match?: SearchMatch }, noun: "screen" | "flow") {
+  return {
+    content: [
+      ...(result.match ? [{ type: "text" as const, text: describeMatch(result.match, noun) }] : []),
+      { type: "text" as const, text: JSON.stringify(result) },
+    ],
+    structuredContent: result,
   };
 }
 

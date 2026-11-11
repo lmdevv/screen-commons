@@ -277,11 +277,38 @@ curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
       "createdAt": "2026-10-07T03:59:53.952Z"
     }
   ],
-  "nextCursor": null
+  "nextCursor": null,
+  "match": {
+    "mode": "none",
+    "app": null,
+    "appWithoutResults": null,
+    "appNotFound": null,
+    "matchedTerms": [],
+    "unmatchedTerms": []
+  }
 }
 ```
 
 `saved` is `true` when the screen is in any of your collections. `source` is `upload`, `extension`, `mcp` or `seed`.
+
+#### Search with q
+
+With `q`, screens rank by how well they match. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating" and `story` finds "Stories". `signup`, `sign up` and `register` find each other, as do the spellings of logging in and logging out. A `q` with no other word, such as `how does it work`, returns no screens. `sort` applies only when `q` names an app and nothing else, such as `Spotify`, which lists that app's screens in `sort` order. Flow search works the same way.
+
+When the question uses the name or slug of an app in the catalog, in any case, only that app's screens return. Capitals never make a word an app name. When the name is the first or last word, follows "does", "in", "on", "for" or "my", or comes before "'s", "app", "flows" or "screens", as in `Linear cycles view` or `How does Spotify let users create a playlist?`, it holds even when none of that app's screens match the other words, and `match` says so. A name between other words, as in `how do I resend an invite`, gives way to every app when that app has no matching screen.
+
+A name the catalog doesn't have is reported as `appNotFound` only when the question asks about it with a capital, as in "does Netflix let", "Netflix's", or "in Netflix" or "on Netflix" at the end, and no screen contains the word. In a question without capitals, only "does netflix" followed by a verb such as let, allow, handle, have, support, implement or show counts. A lowercase word in a question with capitals, such as notifications in `Turn on notifications`, and a platform such as Android or Mac are never one.
+
+`match` says how the query was read:
+
+| Field               | Description                                                                                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`              | `strict`: every item contains every word. `relaxed`: fewer than 3 items did, so items that contain some of the words follow, most words first. `none`: no `q`, or a `q` that only names an app, so the default order. `unsearchable`: `q` has no word to search for, so no items. |
+| `app`               | Slug of the app the query names, or `null`.                                                                                                                                                                                                                                       |
+| `appWithoutResults` | Slug of an app the query names between other words when none of its items match, or `null`. The items then come from every app.                                                                                                                                                   |
+| `appNotFound`       | An app the query names that the catalog doesn't have, as typed, or `null`. The items then come from other apps.                                                                                                                                                                   |
+| `matchedTerms`      | Query words that some item contains.                                                                                                                                                                                                                                              |
+| `unmatchedTerms`    | Query words that no item contains.                                                                                                                                                                                                                                                |
 
 ### Get a screen
 
@@ -469,7 +496,7 @@ GET /api/v1/flows
 | `cursor`   | string | Pagination cursor.                    |
 | `limit`    | number | 1–100, default 30.                    |
 
-Flows are listed newest first.
+Flows are listed newest first. With `q`, they rank by how well they match, as [screen search](#list-screens) describes.
 
 ```json
 {
@@ -501,7 +528,15 @@ Flows are listed newest first.
       "createdAt": "2026-10-07T03:59:53.952Z"
     }
   ],
-  "nextCursor": null
+  "nextCursor": null,
+  "match": {
+    "mode": "none",
+    "app": null,
+    "appWithoutResults": null,
+    "appNotFound": null,
+    "matchedTerms": [],
+    "unmatchedTerms": []
+  }
 }
 ```
 

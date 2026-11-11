@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { judge, OUTCOMES, rowStats, tally } from "../eval/score.mjs";
+import { judge, OUTCOMES, rowStats, shortfalls, tally } from "../eval/score.mjs";
 
 const SURFACES = {
   flows: { path: "flows", mcpDefaultLimit: 8 },
@@ -74,6 +74,11 @@ export default async function searchEval(h) {
   writeFileSync(join(h.out, "eval.txt"), table);
   process.stderr.write(table);
   h.record("eval summary", { split: report.split, rows: report.rows, summary: report.summary });
+  const thresholds = JSON.parse(
+    readFileSync(new URL("../eval/thresholds.json", import.meta.url), "utf8"),
+  );
+  const failed = shortfalls(report.summary, thresholds);
+  assert.deepEqual(failed, [], `Search eval below eval/thresholds.json: ${failed.join("; ")}`);
 }
 
 function formatTable(report) {

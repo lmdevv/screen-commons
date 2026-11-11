@@ -815,6 +815,7 @@ async function callTool(client, name, args = {}) {
   const content = result.content ?? [];
   return {
     isError: Boolean(result.isError),
+    structured: result.structuredContent ?? null,
     text: content
       .filter((item) => item.type === "text")
       .map((item) => item.text)

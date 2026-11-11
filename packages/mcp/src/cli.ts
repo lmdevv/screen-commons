@@ -21,10 +21,12 @@ import {
   createScreenCommonsClient,
   createdFlowResult,
   flowDetailResult,
+  flowSearchResult,
   readImageHeader,
   referenceBundleSchema,
   referenceMarkdown,
   screenDetailResult,
+  screenSearchResult,
   statusWarnings,
   suggestPatterns,
   updateFlowInputSchema,
@@ -918,10 +920,7 @@ const COMMANDS: Tree = {
           q: queryText(context),
           ...flagsOf(values, ["platform", "pattern", "element", "app", "limit", "cursor"]),
         } as ListScreensQuery);
-        return {
-          items: page.items.map((screen) => compactScreen(origin, screen)),
-          nextCursor: page.nextCursor,
-        };
+        return screenSearchResult(origin, page);
       },
     },
     get: {
@@ -1011,10 +1010,7 @@ const COMMANDS: Tree = {
           q: queryText(context),
           ...flagsOf(values, ["platform", "type", "app", "limit", "cursor"]),
         } as ListFlowsQuery);
-        return {
-          items: page.items.map((flow) => compactFlow(origin, flow)),
-          nextCursor: page.nextCursor,
-        };
+        return flowSearchResult(origin, page);
       },
     },
     get: {

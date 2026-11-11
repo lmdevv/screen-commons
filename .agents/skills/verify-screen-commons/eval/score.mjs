@@ -36,3 +36,21 @@ export function rowStats(rows) {
     known[Math.min(known.length - 1, Math.ceil(fraction * known.length) - 1)];
   return { calls: known.length, median: at(0.5), p95: at(0.95) };
 }
+
+export function shortfalls(summary, thresholds) {
+  const found = [];
+  for (const [surface, splits] of Object.entries(thresholds)) {
+    for (const [split, { minAnswered = 0, maxWrongApp = Infinity }] of Object.entries(splits)) {
+      const counts = summary[split]?.[surface];
+      if (!counts) continue;
+      const answered = counts["hit@1"] + counts["app-not-found"];
+      if (answered < minAnswered) {
+        found.push(`${surface} ${split} answered ${answered} < ${minAnswered}`);
+      }
+      if (counts["wrong-app"] > maxWrongApp) {
+        found.push(`${surface} ${split} wrong-app ${counts["wrong-app"]} > ${maxWrongApp}`);
+      }
+    }
+  }
+  return found;
+}

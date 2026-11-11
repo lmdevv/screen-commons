@@ -7,14 +7,15 @@ import {
   catalogTools,
   compactApp,
   compactContribution,
-  compactFlow,
-  compactScreen,
   createdFlowResult,
   deletedResult,
   flowDetailResult,
   flowImageSteps,
+  flowSearchResult,
   imageTypeNote,
   screenDetailResult,
+  screenSearchResult,
+  searchToolResult,
   toolErrorText,
   type CatalogToolName,
 } from "@screen-commons/core";
@@ -47,20 +48,16 @@ async function imageContent(url: string): Promise<CallToolResult["content"][numb
 
 function createHandlers(principal: Principal, origin: string) {
   const handlers: { [N in CatalogToolName]: Handler<N> } = {
-    search_screens: async ({ query, ...rest }) => {
-      const page = await services.listScreens(principal, { ...rest, q: query });
-      return json({
-        items: page.items.map((screen) => compactScreen(origin, screen)),
-        nextCursor: page.nextCursor,
-      });
-    },
-    search_flows: async ({ query, ...rest }) => {
-      const page = await services.listFlows(principal, { ...rest, q: query });
-      return json({
-        items: page.items.map((flow) => compactFlow(origin, flow)),
-        nextCursor: page.nextCursor,
-      });
-    },
+    search_screens: async ({ query, ...rest }) =>
+      searchToolResult(
+        screenSearchResult(origin, await services.listScreens(principal, { ...rest, q: query })),
+        "screen",
+      ),
+    search_flows: async ({ query, ...rest }) =>
+      searchToolResult(
+        flowSearchResult(origin, await services.listFlows(principal, { ...rest, q: query })),
+        "flow",
+      ),
     list_apps: async ({ query, ...rest }) => {
       const page = await services.listApps(principal, { ...rest, q: query });
       return json({

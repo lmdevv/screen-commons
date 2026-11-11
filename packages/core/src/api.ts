@@ -31,6 +31,32 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/**
+ * How a screen or flow search read its query. `strict`: every item contains every term.
+ * `relaxed`: fewer than `MIN_STRICT_RESULTS` items did, so items that contain some of the terms
+ * follow them, most terms first. `none`: no query, so items keep the default order.
+ * `unsearchable`: the query has only words search skips, such as "how does it work", so no items.
+ */
+export type SearchMode = "strict" | "relaxed" | "none" | "unsearchable";
+
+export interface SearchMatch {
+  mode: SearchMode;
+  /** Slug of the app the query names. Items come only from apps with that name or slug. */
+  app: string | null;
+  /** Slug of an app the query names in passing when none of its items match. Items come from every app. */
+  appWithoutResults: string | null;
+  /** An app the query names that the catalog doesn't have, as typed. Items come from other apps. */
+  appNotFound: string | null;
+  /** Query words that some item contains. */
+  matchedTerms: string[];
+  /** Query words that no item contains. */
+  unmatchedTerms: string[];
+}
+
+export interface SearchPage<T> extends Page<T> {
+  match: SearchMatch;
+}
+
 export const ERROR_CODES = [
   "bad_request",
   "unauthorized",
@@ -233,9 +259,9 @@ export interface ApiResponses {
   taxonomy: Taxonomy;
   listApps: Page<AppSummary>;
   getApp: AppDetail;
-  listScreens: Page<Screen>;
+  listScreens: SearchPage<Screen>;
   getScreen: ScreenDetail;
-  listFlows: Page<FlowSummary>;
+  listFlows: SearchPage<FlowSummary>;
   getFlow: FlowDetail;
   listContributions: Page<Contribution>;
   search: SearchResult;

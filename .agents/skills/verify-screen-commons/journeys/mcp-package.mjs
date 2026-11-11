@@ -33,7 +33,7 @@ export default async function mcpPackage(h) {
   assert.equal(packaged.isError, false);
   assert.equal(packaged.text, hosted.text, "one format");
 
-  const { id } = JSON.parse(packaged.text).items[0];
+  const { id } = packaged.structured.items[0];
   const screen = await h.call(client, "get_screen from the package", "get_screen", { id });
   assert.equal(screen.images[0].mimeType, "image/webp");
 

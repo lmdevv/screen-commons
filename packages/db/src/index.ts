@@ -35,6 +35,29 @@ export function jsonArrayContains(column: SQLWrapper, value: string): SQL {
   return sql`EXISTS (SELECT 1 FROM json_each(${column}) WHERE value = ${value})`;
 }
 
+export interface FtsTerm {
+  phrases: readonly (readonly string[])[];
+}
+
+export function ftsMatch(
+  terms: readonly FtsTerm[],
+  operator: "AND" | "OR",
+  {
+    minPrefix = 1,
+    wholeWords = false,
+    exceptColumns = [],
+  }: { minPrefix?: number; wholeWords?: boolean; exceptColumns?: readonly string[] } = {},
+): string {
+  const token = (text: string) =>
+    `"${text.replaceAll('"', '""')}"${wholeWords || text.length < minPrefix ? "" : "*"}`;
+  const match = terms
+    .map(
+      ({ phrases }) => `(${phrases.map((phrase) => phrase.map(token).join(" + ")).join(" OR ")})`,
+    )
+    .join(` ${operator} `);
+  return exceptColumns.length > 0 ? `-{${exceptColumns.join(" ")}} : (${match})` : match;
+}
+
 /**
  * Turn free text into a safe FTS5 MATCH expression with prefix matching on every term:
  * `pricing tab` → `"pricing"* "tab"*` (implicit AND). Returns null when nothing is searchable.

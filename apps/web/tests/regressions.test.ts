@@ -508,7 +508,10 @@ describe("7. hidden full-text matches don't suppress visible results", () => {
 
     // the contributor still gets the strict match first
     const own = await member.client().listScreens({ q: `${termA} ${termB}` });
-    expect(own.items.map((item) => item.id)).toEqual([hidden.screens[0]!.id]);
+    expect(own.items.map((item) => item.id)).toEqual([
+      hidden.screens[0]!.id,
+      visible.screens[0]!.id,
+    ]);
   });
 });
 

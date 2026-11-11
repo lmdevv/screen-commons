@@ -2,26 +2,36 @@ import {
   CATEGORIES,
   ELEMENTS,
   FLOW_TYPES,
+  MIN_STRICT_RESULTS,
   PATTERNS,
   TAXONOMY,
+  appNameKeys,
   listAppsQuerySchema,
   listFlowsQuerySchema,
   listScreensQuerySchema,
+  planSearchQuery,
+  resolveQuery,
+  searchMatch,
   searchQuerySchema,
   type AppDetail,
   type AppSummary,
   type FlowDetail,
   type FlowSummary,
+  type NamedApp,
   type Page,
+  type ResolvedQuery,
   type Screen,
   type ScreenDetail,
+  type SearchPage,
   type SearchResult,
+  type SearchTerm,
   type Taxonomy,
 } from "@screen-commons/core";
 import {
   app,
   flow,
   flowStep,
+  ftsMatch,
   ftsQuery,
   inJsonArray,
   jsonArrayContains,
@@ -37,6 +47,7 @@ import {
   SAVE_WEIGHT,
   afterCursor,
   appSummaries,
+  decodeCursor,
   encodeCursor,
   flowSummaries,
   orderByIds,
@@ -107,6 +118,226 @@ function appFilter(
     parts.push(sql`${column} IN (SELECT id FROM app WHERE platform = ${platform})`);
   }
   return parts;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ranked search of screens and flows
+// ---------------------------------------------------------------------------------------------
+
+/** bm25() takes weights by position, so `weights` keys follow each FTS table's column order. */
+const RANKED = {
+  screen: {
+    table: screen,
+    fts: "screen_fts",
+    ftsId: "screen_id",
+    appColumns: ["app_name", "source_url"],
+    weights: {
+      screen_id: 0,
+      title: 10,
+      app_name: 0,
+      patterns: 3,
+      elements: 3,
+      tags: 3,
+      source_url: 0,
+      text: 1,
+    },
+  },
+  flow: {
+    table: flow,
+    fts: "flow_fts",
+    ftsId: "flow_id",
+    appColumns: ["app_name"],
+    weights: { flow_id: 0, name: 10, description: 0, type: 3, app_name: 0 },
+  },
+};
+
+type RankedSurface = (typeof RANKED)[keyof typeof RANKED];
+
+/** Shorter stems match whole words, since a one- or two-letter prefix matches most of the index. */
+const MIN_PREFIX = 3;
+
+const MAX_NAMED_APPS = 50;
+const fewestExtraWordsFirst = sql`length(${app.name})`;
+
+const RANK_MODES = ["strict", "relaxed"] as const;
+type RankMode = (typeof RANK_MODES)[number];
+
+type QueryApp = NamedApp & { id: string };
+type Search = ResolvedQuery<QueryApp>;
+
+function namedAppFilter(column: typeof screen.appId | typeof flow.appId, search: Search) {
+  return search.apps.length > 0
+    ? inJsonArray(
+        column,
+        search.apps.map((named) => named.id),
+      )
+    : undefined;
+}
+
+const NO_QUERY: Search = { apps: [], holdsWithoutResults: false, terms: [], missingApps: [] };
+
+const checkedWords = (search: Search) => [
+  ...new Set(search.missingApps.flatMap((name) => name.words)),
+];
+
+const hasBit = (mask: number, index: number) => Math.floor(mask / 2 ** index) % 2 === 1;
+
+const keepNamedAppRowsIfAny = (rows: SQL) =>
+  sql`SELECT * FROM (SELECT *, max(in_app) OVER () AS app_hit FROM (${rows})) WHERE in_app = app_hit`;
+
+async function readQuery(
+  viewer: Viewer,
+  q: string | undefined,
+  appFilterValue: string | undefined,
+): Promise<Search> {
+  if (!q) return NO_QUERY;
+  const plan = planSearchQuery(q);
+  const { names, slugs } = appNameKeys(plan);
+  const apps =
+    names.length === 0
+      ? []
+      : await getDb()
+          .select({ id: app.id, slug: app.slug, name: app.name })
+          .from(app)
+          .where(
+            and(
+              visibleSql(app, viewer, "list"),
+              appFilterValue
+                ? or(eq(app.slug, appFilterValue), eq(app.id, appFilterValue))
+                : or(
+                    inJsonArray(app.slug, slugs),
+                    ftsFilter(
+                      app.id,
+                      "app_fts",
+                      `{name} : (${names.map((name) => `"${name}"`).join(" OR ")})`,
+                    ),
+                  ),
+            ),
+          )
+          .orderBy(
+            sql`${inJsonArray(app.slug, slugs)} OR ${inJsonArray(sql`lower(${app.name})`, names)} DESC`,
+            fewestExtraWordsFirst,
+          )
+          .limit(MAX_NAMED_APPS);
+  return resolveQuery(plan, apps, Boolean(appFilterValue));
+}
+
+const unsearchable = (q: string | undefined, search: Search) =>
+  Boolean(q) && search.terms.length === 0 && search.apps.length === 0;
+
+const UNSEARCHABLE_PAGE = {
+  items: [],
+  nextCursor: null,
+  match: searchMatch(NO_QUERY, "unsearchable", new Set(), new Set(), false),
+};
+
+function rankedPage(
+  surface: RankedSurface,
+  conditions: SQL,
+  search: Search,
+  mode: RankMode,
+  after: { key: number; id: string } | undefined,
+  limit: number,
+): SQL {
+  const { terms } = search;
+  const fts = sql.raw(surface.fts);
+  const weights = sql.raw(Object.values(surface.weights).join(", "));
+  const match = (subset: SearchTerm[], operator: "AND" | "OR") =>
+    ftsMatch(subset, operator, { minPrefix: MIN_PREFIX, exceptColumns: surface.appColumns });
+  const joined = sql`${fts} JOIN ${surface.table} ON ${surface.table.id} = ${fts}.${sql.raw(surface.ftsId)}`;
+  const known = checkedWords(search).map((word, index) => {
+    const whole = ftsMatch([{ phrases: [[word]] }], "AND", {
+      wholeWords: true,
+      exceptColumns: surface.appColumns,
+    });
+    return sql`EXISTS (SELECT 1 FROM ${joined} WHERE ${fts} MATCH ${whole} AND ${conditions}) * ${2 ** index}`;
+  });
+  const knownMask = known.length > 0 ? sql.join(known, sql` + `) : sql`0`;
+  const inApp = namedAppFilter(surface.table.appId, search);
+  const namedAppIfAny = mode === "relaxed" && !search.holdsWithoutResults && search.apps.length > 0;
+  const flags = (mode === "relaxed" ? terms : []).map((term, index) => ({
+    column: sql.raw(`m${index}`),
+    match: match([term], "AND"),
+    bit: 2 ** index,
+  }));
+  const scored = sql`SELECT ${surface.table.id} AS id, -bm25(${fts}, ${weights}) AS score, ${inApp ?? sql`0`} AS in_app, ${knownMask} AS known${sql.join(
+    flags.map(
+      ({ column, match: flag }) =>
+        sql`, ${fts}.rowid IN (SELECT rowid FROM ${fts} WHERE ${fts} MATCH ${flag}) AS ${column}`,
+    ),
+  )} FROM ${joined} WHERE ${fts} MATCH ${match(terms, mode === "strict" ? "AND" : "OR")} AND ${and(conditions, namedAppIfAny ? undefined : inApp)}`;
+  const scoped = namedAppIfAny ? keepNamedAppRowsIfAny(scored) : scored;
+  const termsInRow = sql.join(
+    flags.map(({ column }) => column),
+    sql` + `,
+  );
+  const scoreBelowOne = sql`score / (1 + score)`;
+  const termsInAnyRow = sql.join(
+    flags.map(({ column, bit }) => sql`max(${column}) OVER () * ${bit}`),
+    sql` + `,
+  );
+  const keyed =
+    mode === "strict"
+      ? sql`SELECT id, in_app, known, score AS key, ${2 ** terms.length - 1} AS mask FROM (${scoped})`
+      : sql`SELECT id, in_app, known, ${termsInRow} + ${scoreBelowOne} AS key, ${termsInAnyRow} AS mask FROM (${scoped})`;
+  return sql`SELECT * FROM (${keyed}) ${after ? sql`WHERE key < ${after.key} OR (key = ${after.key} AND id < ${after.id})` : sql``} ORDER BY key DESC, id DESC LIMIT ${limit}`;
+}
+
+interface RankedRow<Row> {
+  row: Row;
+  key: number;
+  mask: number;
+  inApp: number;
+  known: number;
+}
+
+function selectRanked<Table extends typeof screen | typeof flow>(table: Table, page: SQL) {
+  return getDb()
+    .select({
+      row: table,
+      key: sql<number>`ranked.key`,
+      mask: sql<number>`ranked.mask`,
+      inApp: sql<number>`ranked.in_app`,
+      known: sql<number>`ranked.known`,
+    })
+    .from(table)
+    .innerJoin(sql`(${page}) AS ranked`, sql`ranked.id = ${table.id}`)
+    .orderBy(sql`ranked.key DESC`, desc(table.id));
+}
+
+async function rankedSearch<Row extends { id: string }>(
+  surface: RankedSurface,
+  conditions: SQL,
+  search: Search,
+  cursor: string | undefined,
+  limit: number,
+  select: (page: SQL) => Promise<RankedRow<Row>[]>,
+): Promise<SearchPage<Row>> {
+  const run = (mode: RankMode, after: { key: number; id: string } | undefined, size: number) =>
+    select(rankedPage(surface, conditions, search, mode, after, size));
+  const after = cursor ? decodeCursor(cursor, RANK_MODES) : undefined;
+  const firstSize = Math.max(limit + 1, MIN_STRICT_RESULTS);
+  let mode: RankMode = after?.sort ?? "strict";
+  let rows = await run(mode, after, after ? limit + 1 : firstSize);
+  const relaxable =
+    search.terms.length > 1 || (search.apps.length > 0 && !search.holdsWithoutResults);
+  if (!after && rows.length < MIN_STRICT_RESULTS && relaxable) {
+    mode = "relaxed";
+    rows = await run(mode, undefined, firstSize);
+  }
+  const { mask = 0, known = 0, inApp } = rows[0] ?? {};
+  const page = toPage(rows, limit, ({ row, key }) => encodeCursor(mode, key, row.id));
+  return {
+    items: page.rows.map(({ row }) => row),
+    nextCursor: page.nextCursor,
+    match: searchMatch(
+      search,
+      mode,
+      new Set(search.terms.filter((_, index) => hasBit(mask, index)).map((term) => term.stem)),
+      new Set(checkedWords(search).filter((_, index) => hasBit(known, index))),
+      search.holdsWithoutResults || inApp === 1,
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -255,39 +486,41 @@ export async function getApp(
 
 const screenScore = sql<number>`(${screen.saveCount} * ${sql.raw(String(SAVE_WEIGHT))} + ${screen.viewCount})`;
 
-export async function listScreens(viewer: Viewer, input: unknown = {}): Promise<Page<Screen>> {
+export async function listScreens(
+  viewer: Viewer,
+  input: unknown = {},
+): Promise<SearchPage<Screen>> {
   const query = parseInput(listScreensQuerySchema, input);
-  const keyset: Keyset =
-    query.sort === "popular"
-      ? { sort: "popular", key: screenScore, id: screen.id }
-      : { sort: "latest", key: screen.createdAt, id: screen.id };
-  const conditions: (SQL | undefined)[] = [
+  const search = await readQuery(viewer, query.q, query.app);
+  const conditions = and(
     visibleSql(screen, viewer, "list"),
     ...appFilter(screen.appId, query.app, query.platform),
     query.pattern ? jsonArrayContains(screen.patterns, query.pattern) : undefined,
     query.element ? jsonArrayContains(screen.elements, query.element) : undefined,
     query.version ? eq(screen.version, query.version) : undefined,
-  ];
-  const cursor = afterCursor(keyset, query.cursor);
-  const select = async (match: string | null, paged: boolean, limit: number) =>
-    getDb()
-      .select({ row: screen, score: screenScore })
-      .from(screen)
-      .where(
-        and(
-          ...conditions,
-          paged ? cursor : undefined,
-          match ? ftsFilter(screen.id, "screen_fts", match) : undefined,
-        ),
-      )
-      .orderBy(...orderByKeyset(keyset))
-      .limit(limit);
-  const rows = await withFtsFallback(
-    ftsModes(query.q),
-    (match) => select(match, true, query.limit + 1),
-    async (match) => (await select(match, false, 1)).length > 0,
-    Boolean(query.cursor),
-  );
+  )!;
+  if (search.terms.length > 0) {
+    const ranked = await rankedSearch(
+      RANKED.screen,
+      conditions,
+      search,
+      query.cursor,
+      query.limit,
+      (page) => selectRanked(screen, page),
+    );
+    return { ...ranked, items: await screensToApi(viewer, ranked.items) };
+  }
+  if (unsearchable(query.q, search)) return UNSEARCHABLE_PAGE;
+  const keyset: Keyset =
+    query.sort === "popular"
+      ? { sort: "popular", key: screenScore, id: screen.id }
+      : { sort: "latest", key: screen.createdAt, id: screen.id };
+  const rows = await getDb()
+    .select({ row: screen, score: screenScore })
+    .from(screen)
+    .where(and(conditions, namedAppFilter(screen.appId, search), afterCursor(keyset, query.cursor)))
+    .orderBy(...orderByKeyset(keyset))
+    .limit(query.limit + 1);
   const page = toPage(rows, query.limit, ({ row, score }) =>
     encodeCursor(keyset.sort, keyset.sort === "popular" ? score : row.createdAt.getTime(), row.id),
   );
@@ -297,6 +530,7 @@ export async function listScreens(viewer: Viewer, input: unknown = {}): Promise<
       page.rows.map(({ row }) => row),
     ),
     nextCursor: page.nextCursor,
+    match: searchMatch(search, "none", new Set(), new Set(), true),
   };
 }
 
@@ -377,38 +611,44 @@ export async function getScreen(viewer: Viewer, id: string): Promise<ScreenDetai
 // Flows
 // ---------------------------------------------------------------------------------------------
 
-export async function listFlows(viewer: Viewer, input: unknown = {}): Promise<Page<FlowSummary>> {
+export async function listFlows(
+  viewer: Viewer,
+  input: unknown = {},
+): Promise<SearchPage<FlowSummary>> {
   const query = parseInput(listFlowsQuerySchema, input);
-  const keyset: Keyset = { sort: "latest", key: flow.createdAt, id: flow.id };
-  const conditions: (SQL | undefined)[] = [
+  const search = await readQuery(viewer, query.q, query.app);
+  const conditions = and(
     visibleSql(flow, viewer, "list"),
     ...appFilter(flow.appId, query.app, query.platform),
     query.type ? eq(flow.type, query.type) : undefined,
-  ];
-  const cursor = afterCursor(keyset, query.cursor);
-  const select = async (match: string | null, paged: boolean, limit: number) =>
-    getDb()
-      .select()
-      .from(flow)
-      .where(
-        and(
-          ...conditions,
-          paged ? cursor : undefined,
-          match ? ftsFilter(flow.id, "flow_fts", match) : undefined,
-        ),
-      )
-      .orderBy(...orderByKeyset(keyset))
-      .limit(limit);
-  const rows = await withFtsFallback(
-    ftsModes(query.q),
-    (match) => select(match, true, query.limit + 1),
-    async (match) => (await select(match, false, 1)).length > 0,
-    Boolean(query.cursor),
-  );
+  )!;
+  if (search.terms.length > 0) {
+    const ranked = await rankedSearch(
+      RANKED.flow,
+      conditions,
+      search,
+      query.cursor,
+      query.limit,
+      (page) => selectRanked(flow, page),
+    );
+    return { ...ranked, items: await flowSummaries(viewer, ranked.items) };
+  }
+  if (unsearchable(query.q, search)) return UNSEARCHABLE_PAGE;
+  const keyset: Keyset = { sort: "latest", key: flow.createdAt, id: flow.id };
+  const rows = await getDb()
+    .select()
+    .from(flow)
+    .where(and(conditions, namedAppFilter(flow.appId, search), afterCursor(keyset, query.cursor)))
+    .orderBy(...orderByKeyset(keyset))
+    .limit(query.limit + 1);
   const page = toPage(rows, query.limit, (row) =>
     encodeCursor("latest", row.createdAt.getTime(), row.id),
   );
-  return { items: await flowSummaries(viewer, page.rows), nextCursor: page.nextCursor };
+  return {
+    items: await flowSummaries(viewer, page.rows),
+    nextCursor: page.nextCursor,
+    match: searchMatch(search, "none", new Set(), new Set(), true),
+  };
 }
 
 export async function getFlow(

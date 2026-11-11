@@ -52,8 +52,8 @@ export default async function search(h) {
     query: "billed yearly",
   });
   assert.equal(mcp.isError, false);
-  assert.ok(JSON.parse(mcp.text).items.every((screen) => screen.patterns.includes("pricing")));
-  assert.ok(JSON.parse(mcp.text).items.length >= 3);
+  assert.ok(mcp.structured.items.every((screen) => screen.patterns.includes("pricing")));
+  assert.ok(mcp.structured.items.length >= 3);
 
   const anonymous = await h.api("search?q=pricing", { token: null });
   assert.equal(anonymous.status, 401);

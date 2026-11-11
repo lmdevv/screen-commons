@@ -27,7 +27,7 @@ import { createScreenCommonsMcpServer, type ScreenCommonsMcp } from "../src/serv
 import { API_KEY, startMockApi, type MockApi } from "./mock-api";
 
 type ToolContent = { type: string; text?: string; data?: string; mimeType?: string };
-type ToolResponse = { content: ToolContent[]; isError?: boolean };
+type ToolResponse = { content: ToolContent[]; isError?: boolean; structuredContent?: unknown };
 
 const chrome = findChrome();
 let api: MockApi;
@@ -142,7 +142,11 @@ describe("catalog tools", () => {
     const { client } = await connect();
     const result = await call(client, "search_screens", { query: "more", pattern: "pricing" });
     expect(result.isError).toBeFalsy();
-    const data = JSON.parse(textOf(result));
+    const [line, json] = result.content.map((item) => item.text);
+    expect(line).toBe('Every result contains "more".');
+    const data = JSON.parse(json!);
+    expect(result.structuredContent).toEqual(data);
+    expect(data.match).toMatchObject({ mode: "strict", matchedTerms: ["more"] });
     expect(data.items[0]).toMatchObject({
       id: "scr_1",
       title: "Pricing – Linear",

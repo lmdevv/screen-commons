@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { judge, rowStats, tally } from "./score.mjs";
+import { judge, rowStats, shortfalls, tally } from "./score.mjs";
 
 const playlist = { app: "Spotify", flows: ["Creating a playlist", "Creating a new playlist"] };
 const flow = (app, name) => ({ app, flows: [name] });
@@ -78,4 +79,47 @@ test("tally counts every outcome per split and surface", () => {
 test("row stats use nearest rank and skip calls without a count", () => {
   assert.deepEqual(rowStats([5, null, 1, 3, 2, 4]), { calls: 5, median: 3, p95: 5 });
   assert.equal(rowStats([null, null]), null);
+});
+
+const counts = (overrides) => ({
+  "hit@1": 0,
+  "hit@3": 0,
+  "app-not-found": 0,
+  miss: 0,
+  "wrong-app": 0,
+  empty: 0,
+  ...overrides,
+});
+const gate = { flows: { tuning: { minAnswered: 12, maxWrongApp: 0 } } };
+
+test("a split passes with enough hits at 1 and missing apps, and no wrong app", () => {
+  const summary = { tuning: { flows: counts({ "hit@1": 9, "app-not-found": 3, miss: 5 }) } };
+  assert.deepEqual(shortfalls(summary, gate), []);
+});
+
+test("a split falls short on too few answers or any wrong-app answer", () => {
+  const summary = { tuning: { flows: counts({ "hit@1": 11, "hit@3": 5, "wrong-app": 1 }) } };
+  assert.deepEqual(shortfalls(summary, gate), [
+    "flows tuning answered 11 < 12",
+    "flows tuning wrong-app 1 > 0",
+  ]);
+});
+
+test("a split the run skipped is not gated", () => {
+  assert.deepEqual(shortfalls({ holdout: { flows: counts({}) } }, gate), []);
+});
+
+test("the gate fails a run whose screen search answers nothing", () => {
+  const thresholds = JSON.parse(
+    readFileSync(new URL("./thresholds.json", import.meta.url), "utf8"),
+  );
+  const passing = counts({ "hit@1": 12, "app-not-found": 3 });
+  const summary = {
+    tuning: { flows: passing, screens: counts({ miss: 14, empty: 3 }) },
+    holdout: { flows: passing, screens: counts({ miss: 15, empty: 2 }) },
+  };
+  assert.deepEqual(shortfalls(summary, thresholds), [
+    "screens tuning answered 0 < 3",
+    "screens holdout answered 0 < 2",
+  ]);
 });
