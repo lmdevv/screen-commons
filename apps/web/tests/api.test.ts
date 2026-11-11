@@ -244,12 +244,15 @@ describe("cli login", () => {
 
   it("still answers approved after the code's own expiry and another login's cleanup", async () => {
     const login = await startLogin();
-    const deadline = Date.now() + 6_000;
-    await d1(
-      `UPDATE verification SET expires_at = ${deadline} WHERE identifier = 'cli-login:${login.code}'`,
-    );
+    const shiftExpiry = (ms: number) =>
+      d1(
+        `UPDATE verification SET expires_at = expires_at - ${ms} WHERE identifier = 'cli-login:${login.code}'`,
+      );
+    // The code now expires 60 s after it started, past the 30 s test timeout.
+    await shiftExpiry(9 * 60_000);
     await decided(admin, login.code, "approve");
-    await new Promise((done) => setTimeout(done, deadline + 500 - Date.now()));
+    // As if two minutes passed: the code's own expiry is behind us, the approval's is not.
+    await shiftExpiry(2 * 60_000);
     await startLogin();
     expect(await login.poll()).toEqual({ status: "approved", keyId: expect.any(String) });
     expect((await keyClient(login.token).me()).email).toBe(inject("admin").email);

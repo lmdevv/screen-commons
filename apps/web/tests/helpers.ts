@@ -144,8 +144,17 @@ export async function wranglerLocal(args: string[]): Promise<string> {
   return stdout;
 }
 
-/** Run SQL against the test server's local D1. */
+/**
+ * Run SQL against the test server's local D1. Wrangler does not wait for the lock while the
+ * server writes, so a statement that SQLite refused as busy (and so never ran) runs again.
+ */
 export async function d1(sql: string): Promise<unknown[]> {
-  const output = await wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
-  return (JSON.parse(output) as { results: unknown[] }[])[0]?.results ?? [];
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const output = await wranglerLocal(["d1", "execute", "DB", "--json", "--command", sql]);
+      return (JSON.parse(output) as { results: unknown[] }[])[0]?.results ?? [];
+    } catch (error) {
+      if (attempt === 5 || !String(error).includes("SQLITE_BUSY")) throw error;
+    }
+  }
 }
