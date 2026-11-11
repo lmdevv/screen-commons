@@ -2,7 +2,7 @@
   "version": "6",
   "dialect": "sqlite",
   "id": "e0308018-6562-4ef1-9972-316dc4571e62",
-  "prevId": "64a9c3fa-21d6-4d03-b4af-d4fefc0be57f",
+  "prevId": "50989cef-8b7c-4043-ab08-ff912961487a",
   "tables": {
     "account": {
       "name": "account",
@@ -684,9 +684,14 @@
           "columns": ["app_id"],
           "isUnique": false
         },
-        "flow_contributor_idx": {
-          "name": "flow_contributor_idx",
-          "columns": ["contributor_id"],
+        "flow_contributor_created_idx": {
+          "name": "flow_contributor_created_idx",
+          "columns": ["contributor_id", "created_at", "id"],
+          "isUnique": false
+        },
+        "flow_contributor_status_created_idx": {
+          "name": "flow_contributor_status_created_idx",
+          "columns": ["contributor_id", "status", "created_at", "id"],
           "isUnique": false
         }
       },
@@ -1074,9 +1079,14 @@
           "columns": ["display_version"],
           "isUnique": false
         },
-        "screen_contributor_idx": {
-          "name": "screen_contributor_idx",
-          "columns": ["contributor_id"],
+        "screen_contributor_created_idx": {
+          "name": "screen_contributor_created_idx",
+          "columns": ["contributor_id", "created_at", "id"],
+          "isUnique": false
+        },
+        "screen_contributor_status_created_idx": {
+          "name": "screen_contributor_status_created_idx",
+          "columns": ["contributor_id", "status", "created_at", "id"],
           "isUnique": false
         }
       },
