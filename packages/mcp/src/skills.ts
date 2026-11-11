@@ -127,7 +127,6 @@ async function copyState(target: string, skill: Shipped): Promise<CopyState> {
   return (await treeHash(target)) === skill.hash ? "current" : "modified";
 }
 
-/** By real path, so a symlinked `~/.claude`, or `.claude/skills` linked to `.agents/skills`, counts. */
 async function linkState(link: string, target: string): Promise<LinkState> {
   const real = (path: string) => realpath(path).catch(() => null);
   const linkReal = await real(link);

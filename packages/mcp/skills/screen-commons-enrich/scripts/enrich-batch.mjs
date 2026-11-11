@@ -26,8 +26,9 @@ bad batch. Set SCREEN_COMMONS_CLI to the command that runs the CLI when it isn't
 const MAX_ITEMS = 25;
 const FIELDS = { screen: ["title", "text"], flow: ["type", "labels"] };
 const SAFE_ID = /^\w[\w-]*$/u;
-// Exit 3 is also `forbidden`, which is about one item; any other 3 or a 5 holds for every item.
-const stops = ({ code, error }) => code === 5 || (code === 3 && !error.startsWith("forbidden:"));
+const EXIT = { refused: 3, unreachable: 5 };
+const stops = ({ code, error }) =>
+  code === EXIT.unreachable || (code === EXIT.refused && !error.startsWith("forbidden:"));
 
 class BadBatch extends Error {}
 
@@ -54,14 +55,17 @@ async function cli(args) {
       CLI_CANDIDATES.shift();
       continue;
     }
-    if (result.error) return { code: 5, error: result.error.message };
+    if (result.error) return { code: EXIT.unreachable, error: result.error.message };
     if (result.code === 0) return { value: JSON.parse(result.stdout) };
     return {
       code: result.code,
       error: result.stderr.trim().split("\n")[0] || `exit ${result.code}`,
     };
   }
-  return { code: 5, error: "Neither screen-commons nor npx is on PATH. Set SCREEN_COMMONS_CLI" };
+  return {
+    code: EXIT.unreachable,
+    error: "Neither screen-commons nor npx is on PATH. Set SCREEN_COMMONS_CLI",
+  };
 }
 
 const oneLine = (text) => text.replace(/\s+/gu, " ").trim();
