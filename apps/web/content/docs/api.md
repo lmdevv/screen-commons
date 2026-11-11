@@ -293,11 +293,11 @@ curl "http://localhost:5173/api/v1/screens?pattern=pricing&limit=1" \
 
 #### Search with q
 
-With `q`, screens rank by how well they match. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating" and `story` finds "Stories". A `q` with no other word, such as `how does it work`, returns no screens. `sort` applies only when `q` names an app and nothing else, such as `Spotify`, which lists that app's screens in `sort` order. Flow search works the same way.
+With `q`, screens rank by how well they match. `q` can be a whole question, such as `How does Spotify let users create a playlist?`. Words such as how, does and users are skipped, and each other word also matches its other forms, so `create` finds "Creating" and `story` finds "Stories". `signup`, `sign up` and `register` find each other, as do the spellings of logging in and logging out. A `q` with no other word, such as `how does it work`, returns no screens. `sort` applies only when `q` names an app and nothing else, such as `Spotify`, which lists that app's screens in `sort` order. Flow search works the same way.
 
 When the question uses the name or slug of an app in the catalog, in any case, only that app's screens return. Capitals never make a word an app name. When the name is the first or last word, follows "does", "in", "on", "for" or "my", or comes before "'s", "app", "flows" or "screens", as in `Linear cycles view` or `How does Spotify let users create a playlist?`, it holds even when none of that app's screens match the other words, and `match` says so. A name between other words, as in `how do I resend an invite`, gives way to every app when that app has no matching screen.
 
-A name the catalog doesn't have is reported as `appNotFound` only when the question asks about it, as in "does Netflix let", "in Netflix" or "on Netflix" at the end, "for Netflix" at the end, or "Netflix's", and no screen contains it. A word such as hover, submit or mobile after "on" or "in" is never one.
+A name the catalog doesn't have is reported as `appNotFound` only when the question asks about it with a capital, as in "does Netflix let", "Netflix's", or "in Netflix" or "on Netflix" at the end, and no screen contains the word. In a question without capitals, only "does netflix let" counts. A lowercase word in a question with capitals, such as notifications in `Turn on notifications`, and a platform such as Android or Mac are never one.
 
 `match` says how the query was read:
 
