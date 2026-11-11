@@ -1,5 +1,7 @@
 import {
+  catalogPrompts,
   catalogTools,
+  promptResult,
   readImageHeader,
   type CaptureBatchResult,
   type SearchMatch,
@@ -86,7 +88,7 @@ describe("remote MCP (/mcp)", () => {
     const body = (await response.json()) as RpcResponse;
     expect(body.result).toMatchObject({
       serverInfo: { name: "screen-commons" },
-      capabilities: { tools: expect.any(Object) },
+      capabilities: { tools: expect.any(Object), prompts: expect.any(Object) },
     });
   });
 
@@ -111,6 +113,39 @@ describe("remote MCP (/mcp)", () => {
     expect(
       tools.find((tool) => tool.name === "list_my_contributions")?.annotations?.readOnlyHint,
     ).toBe(true);
+  });
+
+  it("lists the shared prompts", async () => {
+    const body = (await (await rpc("prompts/list")).json()) as RpcResponse;
+    const prompts = body.result!.prompts as {
+      name: string;
+      description: string;
+      arguments: { name: string; required?: boolean }[];
+    }[];
+    expect(prompts.map((prompt) => prompt.name).sort()).toEqual(Object.keys(catalogPrompts).sort());
+    const research = prompts.find((prompt) => prompt.name === "research_flow")!;
+    expect(research.description).toBe(catalogPrompts.research_flow.description);
+    expect(research.arguments).toEqual([
+      expect.objectContaining({ name: "question", required: true }),
+    ]);
+  });
+
+  it("renders research_flow with its question", async () => {
+    const question = "How does Spotify let users create a playlist?";
+    const body = (await (
+      await rpc("prompts/get", { name: "research_flow", arguments: { question } })
+    ).json()) as RpcResponse;
+    expect(body.result).toEqual(promptResult(catalogPrompts.research_flow.text({ question })));
+    const text = (body.result!.messages as { content: { text: string } }[])[0]!.content.text;
+    expect(text).toContain(question);
+    for (const step of ["list_apps", "match.appNotFound", "search_flows", "get_flow"]) {
+      expect(text).toContain(step);
+    }
+
+    const missing = (await (
+      await rpc("prompts/get", { name: "research_flow", arguments: {} })
+    ).json()) as RpcResponse;
+    expect(missing.error?.code).toBe(-32602);
   });
 
   it("search_screens finds screens by text and filters", async () => {

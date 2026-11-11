@@ -57,8 +57,29 @@ export default async function mcpLocal(h) {
   }
   h.record("both servers share one catalog contract", { catalog, local: names });
 
-  const prompts = (await local.listPrompts()).prompts.map((prompt) => prompt.name).sort();
-  assert.deepEqual(prompts, ["capture_site", "find_inspiration"]);
+  const localPrompts = (await local.listPrompts()).prompts;
+  const prompts = localPrompts.map((prompt) => prompt.name).sort();
+  assert.deepEqual(prompts, ["capture_site", "find_inspiration", "research_flow"]);
+  const remotePrompts = (await remote.listPrompts()).prompts;
+  assert.deepEqual(remotePrompts.map((prompt) => prompt.name).sort(), [
+    "find_inspiration",
+    "research_flow",
+  ]);
+  for (const shared of remotePrompts) {
+    const twin = localPrompts.find((each) => each.name === shared.name);
+    assert.deepEqual(twin, shared, `${shared.name} has one contract`);
+  }
+  const question = { question: "How does Fixture Tunes let users create a playlist?" };
+  const research = await local.getPrompt({ name: "research_flow", arguments: question });
+  assert.deepEqual(
+    await remote.getPrompt({ name: "research_flow", arguments: question }),
+    research,
+    "research_flow renders the same on both servers",
+  );
+  h.record("shared prompts", {
+    remote: remotePrompts,
+    research_flow: research.messages[0].content.text,
+  });
   const prompt = await local.getPrompt({
     name: "capture_site",
     arguments: { url: "https://example.com" },

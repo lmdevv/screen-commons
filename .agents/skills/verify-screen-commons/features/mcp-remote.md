@@ -49,7 +49,7 @@ Run `control drive mcp-remote --run <id>`, which performs these steps.
 ## Gotchas
 
 - Results are JSON text, identical to the local server's; [Local MCP](./mcp-local.md) compares them.
-- The remote server has tools only. `listPrompts` and `listResources` return `Method not found`, and its capabilities don't advertise them.
+- The remote server has tools and the shared prompts `find_inspiration` and `research_flow`, but no resources. `listResources` returns `Method not found`, and its capabilities don't advertise resources.
 - After an approval the review pane moves to the next item, which may be another journey's. Prove the approval with the toast and a `get_screen`, not that screenshot.
 - The server is stateless, so "open connection" means the client object: each call authenticates again.
 - The SDK client throws on some refusals rather than returning `isError`. `h.call` turns both into `isError: true`.
