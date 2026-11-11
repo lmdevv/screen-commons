@@ -92,7 +92,7 @@ describe("scan-personal-data", () => {
             localId: "f",
             name: "Pay",
             steps: [
-              { screen: "s0", label: "Card 4242 4242 4242 4242" },
+              { screen: "s0", label: "Card 4242 4242 4242 4242 12/34" },
               { screen: "s1", label: "Done" },
             ],
           },
@@ -105,7 +105,7 @@ describe("scan-personal-data", () => {
       { path: "screens[0].text", kind: "email", match: "jane.doe@gmail.com" },
       { path: "screens[1].title", kind: "phone", match: "(415) 555-0132" },
       { path: "screens[1].title", kind: "phone", match: "+44 20 7946 0958" },
-      { path: "flows[0].steps[0].label", kind: "card", match: "4242 4242 4242 4242" },
+      { path: "flows[0].steps[0].label", kind: "card", match: "4242 4242 4242 4242 12" },
     ]);
     expect(stderr).toContain("email jane.doe@gmail.com");
   });
@@ -225,6 +225,18 @@ process.exit(result.status ?? 1);
       error: "flow flow_1 has 2 steps, but labels has 1",
     });
     expect(report.items[1]).toMatchObject({ result: "would-change" });
+  });
+
+  it("refuses a field of the wrong type or an id that looks like a flag", async () => {
+    for (const item of [
+      { screen: "scr_1", title: null },
+      { flow: "flow_1", labels: [1, 2] },
+      { screen: "--help", title: "x" },
+    ]) {
+      const { code, calls } = await enrich({ items: [item] });
+      expect(code).toBe(2);
+      expect(calls).toEqual([]);
+    }
   });
 
   it("refuses a batch of more than 25 items before reading any", async () => {

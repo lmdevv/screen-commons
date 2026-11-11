@@ -6,14 +6,14 @@ import {
   mkdir,
   readFile,
   readdir,
-  readlink,
+  realpath,
   rename,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { version } from "../package.json";
@@ -127,11 +127,12 @@ async function copyState(target: string, skill: Shipped): Promise<CopyState> {
   return (await treeHash(target)) === skill.hash ? "current" : "modified";
 }
 
+/** By real path, so a symlinked `~/.claude`, or `.claude/skills` linked to `.agents/skills`, counts. */
 async function linkState(link: string, target: string): Promise<LinkState> {
-  const stat = await lstat(link).catch(() => null);
-  if (!stat) return "missing";
-  if (!stat.isSymbolicLink()) return "foreign";
-  return resolve(dirname(link), await readlink(link)) === target ? "ours" : "foreign";
+  const real = (path: string) => realpath(path).catch(() => null);
+  const linkReal = await real(link);
+  if (linkReal !== null && linkReal === (await real(target))) return "ours";
+  return (await lstat(link).catch(() => null)) ? "foreign" : "missing";
 }
 
 async function swapInFreshCopy(target: string, skill: Shipped) {
@@ -160,9 +161,16 @@ export async function installSkills(scope: Scope) {
     const link = join(where.claude, skill.name);
     const result = COPY_RESULT[await copyState(target, skill)];
     if (result === "installed" || result === "updated") await swapInFreshCopy(target, skill);
+    if (result === "skipped") {
+      skills.push({ name: skill.name, path: target, result, link: "skipped" as const });
+      continue;
+    }
     const linked = await linkState(link, target);
-    // A junction on Windows, which needs no privilege; a relative symlink elsewhere.
-    if (linked === "missing") await symlink(relative(where.claude, target), link, "junction");
+    if (linked === "missing") {
+      const from = relative(await realpath(where.claude), await realpath(target));
+      // A junction on Windows, which needs no privilege; a relative symlink elsewhere.
+      await symlink(from, link, "junction");
+    }
     skills.push({ name: skill.name, path: target, result, link: LINK_RESULT[linked] });
   }
   return {

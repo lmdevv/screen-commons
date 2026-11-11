@@ -25,7 +25,9 @@ bad batch. Set SCREEN_COMMONS_CLI to the command that runs the CLI when it isn't
 
 const MAX_ITEMS = 25;
 const FIELDS = { screen: ["title", "text"], flow: ["type", "labels"] };
-const STOP_CODES = new Set([3, 5]);
+const SAFE_ID = /^\w[\w-]*$/u;
+// Exit 3 is also `forbidden`, which is about one item; any other 3 or a 5 holds for every item.
+const stops = ({ code, error }) => code === 5 || (code === 3 && !error.startsWith("forbidden:"));
 
 class BadBatch extends Error {}
 
@@ -85,8 +87,15 @@ function parseBatch(path) {
     if (extra.length > 0) {
       throw new BadBatch(`items[${index}] can't set ${extra.join(", ")} on a ${kind[0]}`);
     }
-    if (item.labels !== undefined && !Array.isArray(item.labels)) {
-      throw new BadBatch(`items[${index}].labels must be a list`);
+    if (!SAFE_ID.test(item[kind[0]])) throw new BadBatch(`items[${index}] has a bad id`);
+    for (const field of ["title", "text", "type"]) {
+      if (item[field] !== undefined && typeof item[field] !== "string") {
+        throw new BadBatch(`items[${index}].${field} must be text`);
+      }
+    }
+    const label = (value) => value === null || typeof value === "string";
+    if (item.labels !== undefined && !(Array.isArray(item.labels) && item.labels.every(label))) {
+      throw new BadBatch(`items[${index}].labels must be a list of text or null`);
     }
     return { kind: kind[0], id: item[kind[0]], want: item };
   });
@@ -159,7 +168,7 @@ async function main() {
     const read = await cli([`${item.kind}s`, "get", item.id]);
     if (read.error) {
       Object.assign(entry, { result: "failed", error: read.error });
-      if (STOP_CODES.has(read.code)) stopped = `${item.id}: ${read.error}`;
+      if (stops(read)) stopped = `${item.id}: ${read.error}`;
       continue;
     }
     try {
@@ -188,7 +197,7 @@ async function main() {
     ]);
     if (write.error) {
       Object.assign(entry, { result: "failed", error: write.error });
-      if (STOP_CODES.has(write.code)) stopped = `${item.id}: ${write.error}`;
+      if (stops(write)) stopped = `${item.id}: ${write.error}`;
       continue;
     }
     entry.result = saved(item.kind, entry.changes, write.value) ? "saved" : "saved-differently";

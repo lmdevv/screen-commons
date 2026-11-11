@@ -11,6 +11,7 @@ import {
   readlink,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -879,9 +880,29 @@ describe("skills", () => {
     const result = await install(home);
     expect(result.code).toBe(1);
     expect(result.stderr).toMatch(/^skills_skipped: screen-commons-research: /u);
-    expect(results(result.report)["screen-commons-research"]).toEqual(["skipped", "linked"]);
+    expect(results(result.report)["screen-commons-research"]).toEqual(["skipped", "skipped"]);
     expect(results(result.report)["screen-commons-enrich"]).toEqual(["installed", "linked"]);
     expect(await readFile(join(mine, "SKILL.md"), "utf8")).toBe("my own");
+    await expect(lstat(join(home, ".claude/skills/screen-commons-research"))).rejects.toThrow();
+  });
+
+  it("links through a symlinked .claude, and accepts .claude/skills linked to .agents/skills", async () => {
+    const dotfiles = await mkdtemp(join(dir, "dotfiles-"));
+    const home = await mkdtemp(join(dir, "home-"));
+    await symlink(dotfiles, join(home, ".claude"));
+    const viaDotfiles = await install(home);
+    expect(viaDotfiles.code).toBe(0);
+    expect(
+      await readFile(join(home, ".claude/skills/screen-commons-research/SKILL.md"), "utf8"),
+    ).toBe(await shipped("screen-commons-research"));
+
+    const shared = await mkdtemp(join(dir, "home-"));
+    await mkdir(join(shared, ".agents/skills"), { recursive: true });
+    await mkdir(join(shared, ".claude"));
+    await symlink(join(shared, ".agents/skills"), join(shared, ".claude/skills"));
+    const sameFolder = await install(shared);
+    expect(sameFolder.code).toBe(0);
+    expect(results(sameFolder.report)["screen-commons-enrich"]).toEqual(["installed", "unchanged"]);
   });
 
   it("--project installs into this folder with relative links, and leaves HOME alone", async () => {

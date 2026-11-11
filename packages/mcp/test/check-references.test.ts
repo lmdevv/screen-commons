@@ -174,6 +174,15 @@ describe("check-references", () => {
     ]);
   });
 
+  it("never hands the CLI an id that looks like a flag", async () => {
+    const bundle = await writeBundle("flag-id", {
+      extra: `- Screen: [--help](${api.url}/screens/--help)`,
+    });
+    const { code, report } = await check([bundle]);
+    expect(code).toBe(1);
+    expect(report.problems).toEqual([{ bundle, id: "--help", problem: "is not a catalog id" }]);
+  });
+
   it("fails an answer that cites an id no checked bundle holds", async () => {
     const bundle = await writeBundle("for-answer");
     const invented = "01jc5zq8w3k2m4n6p7r9s0t1vx";
