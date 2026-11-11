@@ -745,6 +745,89 @@ describe("visibility + review", () => {
   });
 });
 
+describe("admin metadata edits", () => {
+  let screenId: string;
+  let flowId: string;
+  let flowScreenIds: string[];
+  const edits = (kind: "screen" | "flow", id: string) =>
+    d1(
+      `SELECT updated_by FROM contribution_edit WHERE kind = '${kind}' AND item_id = '${id}' ORDER BY id`,
+    );
+
+  beforeAll(async () => {
+    const published = await member.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      screens: [captureScreen({ title: "Member menu" })],
+    });
+    screenId = published.screens[0]!.id;
+    await admin.client().review("screen", screenId, "approve");
+    const pending = await member.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      flow: { name: `Make a list ${suffix}` },
+      screens: [captureScreen({ title: "List one" }), captureScreen({ title: "List two" })],
+    });
+    flowId = pending.flow!.id;
+    flowScreenIds = pending.screens.map((item) => item.id);
+  });
+
+  it("an admin updates another member's screen", async () => {
+    const word = `blend${suffix}`;
+    const screen = await adminApi.updateScreen(screenId, {
+      title: "Create playlist menu",
+      text: `Playlist ${word} Folder`,
+    });
+    expect(screen).toMatchObject({ title: "Create playlist menu", status: "published" });
+    const adminId = (await adminApi.me()).id;
+    expect(await edits("screen", screenId)).toEqual([{ updated_by: adminId }]);
+    const found = await other.client().search({ q: word });
+    expect(found.screens.map((item) => item.id)).toEqual([screenId]);
+
+    const flow = await adminApi.updateFlow(flowId, { type: "creating" });
+    expect(flow).toMatchObject({ type: "creating", status: "pending" });
+    expect(await edits("flow", flowId)).toEqual([{ updated_by: adminId }]);
+
+    await member.client().updateScreen(screenId, { title: "Member's own title" });
+    expect((await other.client().getScreen(screenId)).title).toBe("Member's own title");
+    expect(await edits("screen", screenId)).toEqual([{ updated_by: adminId }]);
+  });
+
+  it("an admin only adds steps the flow's contributor can see", async () => {
+    const hidden = await other.client().captures({
+      app: { slug: batch.app.slug, name: "Acme" },
+      screens: [captureScreen({ title: "Someone else's draft" })],
+    });
+    await expectApiError(
+      adminApi.updateFlow(flowId, {
+        steps: [{ screenId: flowScreenIds[0]! }, { screenId: hidden.screens[0]!.id }],
+      }),
+      400,
+      "bad_request",
+    );
+    const reordered = await adminApi.updateFlow(flowId, {
+      steps: [{ screenId: flowScreenIds[1]! }, { screenId: flowScreenIds[0]! }],
+    });
+    expect(reordered.steps.map((step) => step.screen.id)).toEqual(flowScreenIds.toReversed());
+    const seen = await member.client().getFlow(flowId);
+    expect(seen.steps.map((step) => step.screen.id)).toEqual(flowScreenIds.toReversed());
+  });
+
+  it("a member still cannot", async () => {
+    await expectApiError(
+      other.client().updateScreen(screenId, { title: "Hijacked" }),
+      403,
+      "forbidden",
+    );
+    expect((await other.client().getScreen(screenId)).title).not.toBe("Hijacked");
+  });
+
+  it("an admin cannot delete it", async () => {
+    await expectApiError(adminApi.deleteScreen(screenId), 403, "forbidden");
+    await expectApiError(adminApi.deleteFlow(flowId), 403, "forbidden");
+    expect((await member.client().getScreen(screenId)).id).toBe(screenId);
+    expect((await member.client().getFlow(flowId)).id).toBe(flowId);
+  });
+});
+
 describe("collections + saves", () => {
   it("saves and unsaves items in the default collection", async () => {
     const client = other.client();

@@ -10,6 +10,7 @@ import {
   flow,
   flowStep,
   collectionItem,
+  contributionEdit,
   inJsonArray,
   type FlowRow,
   type ScreenRow,
@@ -20,7 +21,7 @@ import { z } from "zod";
 
 import { getDb } from "../env";
 import { badRequest, forbidden, notFound, parseInput } from "../errors";
-import type { Principal } from "../principal";
+import { isAdmin, type Principal } from "../principal";
 import { getScreen, getFlow } from "./catalog";
 import { dropScreenFromFlows } from "./review";
 import {
@@ -32,7 +33,12 @@ import {
   visibleSql,
 } from "./shared";
 
-async function requireOwner(principal: Principal, kind: "screen" | "flow", id: string) {
+async function requireChangeable(
+  principal: Principal,
+  kind: "screen" | "flow",
+  id: string,
+  change: "update" | "delete",
+) {
   kind = parseInput(z.enum(["screen", "flow"]), kind);
   const table = kind === "screen" ? screen : flow;
   const [row] = await getDb()
@@ -41,29 +47,51 @@ async function requireOwner(principal: Principal, kind: "screen" | "flow", id: s
     .where(and(eq(table.id, id), visibleSql(table, principal, "detail")))
     .limit(1);
   if (!row) throw notFound(kind === "screen" ? "Screen" : "Flow");
-  if (row.contributorId !== principal.user.id)
-    throw forbidden("Only the contributor can change this contribution");
-  return row;
+  if (row.contributorId === principal.user.id) return row;
+  if (change === "update" && isAdmin(principal)) return row;
+  throw forbidden(
+    change === "update"
+      ? "Only the contributor or an admin can edit this contribution"
+      : "Only the contributor can delete this contribution",
+  );
+}
+
+/** The audit row for an edit to someone else's contribution, which only an admin can make. */
+function editRecord(
+  principal: Principal,
+  kind: "screen" | "flow",
+  row: { id: string; contributorId: string | null },
+): BatchItem<"sqlite">[] {
+  if (row.contributorId === principal.user.id) return [];
+  return [
+    getDb().insert(contributionEdit).values({ kind, itemId: row.id, updatedBy: principal.user.id }),
+  ];
 }
 
 export async function updateScreen(principal: Principal, id: string, input: unknown) {
-  await requireOwner(principal, "screen", id);
+  const row = await requireChangeable(principal, "screen", id, "update");
   const patch = parseInput(updateScreenInputSchema, input);
-  await getDb()
-    .update(screen)
-    .set({ ...patch, updatedAt: new Date() })
-    .where(eq(screen.id, id));
+  await getDb().batch([
+    getDb()
+      .update(screen)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(screen.id, id)),
+    ...editRecord(principal, "screen", row),
+  ]);
   return getScreen(principal, id);
 }
 
 export async function updateFlow(principal: Principal, id: string, input: unknown) {
-  const row = await requireOwner(principal, "flow", id);
+  const row = await requireChangeable(principal, "flow", id, "update");
   const patch = parseInput(updateFlowInputSchema, input);
   if (!patch.steps) {
-    await getDb()
-      .update(flow)
-      .set({ ...patch, updatedAt: new Date() })
-      .where(eq(flow.id, id));
+    await getDb().batch([
+      getDb()
+        .update(flow)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(flow.id, id)),
+      ...editRecord(principal, "flow", row),
+    ]);
     return getFlow(principal, id, { countView: false });
   }
   const ids = patch.steps.map((step) => step.screenId);
@@ -74,7 +102,9 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
       and(
         eq(screen.appId, row.appId),
         inJsonArray(screen.id, ids),
-        visibleSql(screen, principal, "detail"),
+        row.contributorId === principal.user.id
+          ? visibleSql(screen, principal, "detail")
+          : sql`(${screen.status} = 'published' OR ${screen.contributorId} = ${row.contributorId})`,
         sql`${screen.status} != 'rejected'`,
       ),
     );
@@ -105,6 +135,7 @@ export async function updateFlow(principal: Principal, id: string, input: unknow
           label: step.label ?? null,
         }),
     ),
+    ...editRecord(principal, "flow", row),
   ]);
   return getFlow(principal, id, { countView: false });
 }
@@ -114,7 +145,7 @@ export async function deleteContribution(
   kind: "screen" | "flow",
   id: string,
 ) {
-  await requireOwner(principal, kind, id);
+  await requireChangeable(principal, kind, id, "delete");
   const db = getDb();
   const table = kind === "screen" ? screen : flow;
   const writes: BatchItem<"sqlite">[] = kind === "screen" ? dropScreenFromFlows(id) : [];

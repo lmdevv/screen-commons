@@ -315,6 +315,15 @@ export const apiKey = sqliteTable(
   (table) => [index("api_key_user_idx").on(table.userId)],
 );
 
+/** One row per edit someone other than the contributor made, which today means an admin's. */
+export const contributionEdit = sqliteTable("contribution_edit", {
+  id: integer("id").primaryKey(),
+  kind: text("kind").$type<"screen" | "flow">().notNull(),
+  itemId: text("item_id").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  createdAt: createdAt(),
+});
+
 /**
  * Singleton row claimed by the first user ever created (see migrations/0002_integrity.sql: an
  * AFTER INSERT trigger on `user` claims it atomically and promotes that user to admin).

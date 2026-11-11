@@ -43,7 +43,7 @@ screen-commons flows update <id> --patch '{"description":null}'
 
 `upload --app <slug>` adds to an app that exists. `--app-name <name>` on its own creates the app if it's new.
 
-You can edit and delete only what you contributed.
+You can edit and delete what you contributed. An admin can also edit anyone's screens and flows, but not delete them.
 
 ## Output and exit codes
 
