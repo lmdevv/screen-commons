@@ -29,6 +29,7 @@ import {
 } from "@screen-commons/core";
 import {
   app,
+  appFacet,
   flow,
   flowStep,
   ftsMatch,
@@ -38,7 +39,7 @@ import {
   screen,
   type ScreenRow,
 } from "@screen-commons/db";
-import { and, asc, desc, eq, gt, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import { alias, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { getDb } from "../env";
@@ -52,6 +53,7 @@ import {
   flowSummaries,
   orderByIds,
   orderByKeyset,
+  ownPendingSql,
   screensToApi,
   toPage,
   visibleSql,
@@ -397,9 +399,10 @@ export async function listApps(viewer: Viewer, input: unknown = {}): Promise<Pag
     query.category ? eq(app.category, query.category) : undefined,
   ];
   const cursor = afterCursor(keyset, query.cursor);
+  const score = query.sort === "popular" ? appScore : sql<number>`0`;
   const select = async (match: string | null, paged: boolean, limit: number) =>
     getDb()
-      .select({ row: app, score: appScore })
+      .select({ row: app, score })
       .from(app)
       .where(
         and(
@@ -428,6 +431,11 @@ export async function listApps(viewer: Viewer, input: unknown = {}): Promise<Pag
   };
 }
 
+const facetCounts = (facets: { kind: string; value: string; count: number }[], kind: string) =>
+  facets
+    .filter((facet) => facet.kind === kind)
+    .map((facet) => ({ slug: facet.value, count: Number(facet.count) }));
+
 /** One app by slug (or id). Slugs are unique per platform; `web` wins when ambiguous. */
 export async function getApp(
   viewer: Viewer,
@@ -449,20 +457,21 @@ export async function getApp(
     .limit(1);
   if (!row) throw notFound("App");
 
-  const visible = visibleSql(screen, viewer, "list");
-  const [[summary], versions, patterns, elements] = await Promise.all([
+  // Unary + keeps SQLite on the contributor/status index: the dedupe index it prefers for
+  // (app_id, contributor_id) reads every screen the viewer contributed here, not just pending ones.
+  const ownPending = and(sql`+${screen.appId} = ${row.id}`, ownPendingSql(screen, viewer));
+  const [[summary], facets] = await Promise.all([
     appSummaries(viewer, [row]),
-    db
-      .select({ version: screen.version })
-      .from(screen)
-      .where(and(eq(screen.appId, row.id), visible, sql`${screen.version} IS NOT NULL`))
-      .groupBy(screen.version)
-      .orderBy(sql`max(${screen.capturedAt}) DESC`),
-    db.all<{ slug: string; count: number }>(
-      sql`SELECT j.value AS slug, count(*) AS count FROM screen, json_each(screen.patterns) j WHERE ${screen.appId} = ${row.id} AND ${visible} GROUP BY j.value ORDER BY count DESC, slug`,
-    ),
-    db.all<{ slug: string; count: number }>(
-      sql`SELECT j.value AS slug, count(*) AS count FROM screen, json_each(screen.elements) j WHERE ${screen.appId} = ${row.id} AND ${visible} GROUP BY j.value ORDER BY count DESC, slug`,
+    db.all<{ kind: "pattern" | "element" | "version"; value: string; count: number }>(
+      sql`SELECT kind, value, sum(count) AS count FROM (
+        SELECT ${appFacet.kind} AS kind, ${appFacet.value} AS value, ${appFacet.count} AS count,
+          ${appFacet.lastCapturedAt} AS at
+        FROM ${appFacet} WHERE ${appFacet.appId} = ${row.id} AND ${appFacet.kind} IN ('pattern', 'element', 'version')
+        UNION ALL SELECT 'pattern', j.value, 1, NULL FROM ${screen}, json_each(${screen.patterns}) j WHERE ${ownPending}
+        UNION ALL SELECT 'element', j.value, 1, NULL FROM ${screen}, json_each(${screen.elements}) j WHERE ${ownPending}
+        UNION ALL SELECT 'version', ${screen.version}, 1, ${screen.capturedAt} FROM ${screen}
+          WHERE ${ownPending} AND ${screen.version} IS NOT NULL
+      ) GROUP BY kind, value ORDER BY max(at) DESC, count DESC, value`,
     ),
   ]);
   await db
@@ -473,9 +482,9 @@ export async function getApp(
   return {
     ...summary!,
     description: row.description,
-    versions: versions.flatMap(({ version }) => (version ? [version] : [])),
-    patterns: patterns.map(({ slug, count }) => ({ slug, count: Number(count) })),
-    elements: elements.map(({ slug, count }) => ({ slug, count: Number(count) })),
+    versions: facets.filter((facet) => facet.kind === "version").map((facet) => facet.value),
+    patterns: facetCounts(facets, "pattern"),
+    elements: facetCounts(facets, "element"),
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -549,36 +558,20 @@ export async function getScreen(viewer: Viewer, id: string): Promise<ScreenDetai
   const db = getDb();
   const row = await getScreenRow(viewer, id);
   const sameApp = and(eq(screen.appId, row.appId), visibleSql(screen, viewer, "list"));
-  const created = row.createdAt;
+  const position = sql`(${row.createdAt.getTime()}, ${row.id})`;
   const [[apiScreen], [previous], [next], flows] = await Promise.all([
     screensToApi(viewer, [row]),
     // Neighbours in the app grid order (newest first): previous is newer, next is older.
     db
       .select({ id: screen.id })
       .from(screen)
-      .where(
-        and(
-          sameApp,
-          or(
-            gt(screen.createdAt, created),
-            and(eq(screen.createdAt, created), gt(screen.id, row.id)),
-          ),
-        ),
-      )
+      .where(and(sameApp, sql`(${screen.createdAt}, ${screen.id}) > ${position}`))
       .orderBy(asc(screen.createdAt), asc(screen.id))
       .limit(1),
     db
       .select({ id: screen.id })
       .from(screen)
-      .where(
-        and(
-          sameApp,
-          or(
-            lt(screen.createdAt, created),
-            and(eq(screen.createdAt, created), lt(screen.id, row.id)),
-          ),
-        ),
-      )
+      .where(and(sameApp, sql`(${screen.createdAt}, ${screen.id}) < ${position}`))
       .orderBy(desc(screen.createdAt), desc(screen.id))
       .limit(1),
     db

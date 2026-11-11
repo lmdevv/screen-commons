@@ -1188,6 +1188,41 @@ describe("D1 row counter", () => {
     expect(off.status).toBe(200);
     expect(off.headers.has("x-sc-d1-rows")).toBe(false);
   });
+
+  it("keeps screen, flow and app reads flat as an app grows", async () => {
+    const app = { name: `Flat ${suffix}`, websiteUrl: `https://flat-${suffix}.example.org` };
+    const tagged = () =>
+      captureScreen({ patterns: ["pricing"], elements: ["toggle"], version: "v1" });
+    const first = await adminApi.captures({
+      app,
+      flow: { name: "Upgrading", type: "checkout" },
+      screens: [tagged(), tagged(), tagged()],
+    });
+    const paths = [
+      `/api/v1/screens/${first.screens[0]!.id}`,
+      `/api/v1/apps/${first.app.slug}`,
+      `/api/v1/flows/${first.flow!.id}`,
+      "/api/v1/apps?limit=5",
+    ];
+    const measure = async () => {
+      const rows = new Map<string, number>();
+      for (const path of paths) {
+        const response = await member.fetch(path);
+        expect(response.status, path).toBe(200);
+        rows.set(path, Number(response.headers.get("x-sc-d1-rows")));
+      }
+      return rows;
+    };
+    const before = await measure();
+    await adminApi.captures({
+      app: { slug: first.app.slug, name: app.name },
+      flow: { name: "Browsing", type: "onboarding" },
+      screens: Array.from({ length: 40 }, tagged),
+    });
+    expect((await adminApi.getApp(first.app.slug)).screenCount).toBe(43);
+    const after = await measure();
+    for (const path of paths) expect(after.get(path), path).toBeLessThan(before.get(path)! + 10);
+  });
 });
 
 describe("my contributions", () => {

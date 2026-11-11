@@ -9,6 +9,7 @@ import {
 } from "@screen-commons/core";
 import {
   app,
+  appFacet,
   collection,
   collectionItem,
   flow,
@@ -20,8 +21,8 @@ import {
   type FlowRow,
   type ScreenRow,
 } from "@screen-commons/db";
-import { and, asc, count, desc, eq, lte, sql, type SQL } from "drizzle-orm";
-import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { and, asc, count, desc, eq, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { alias, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import { getDb } from "../env";
 import { badRequest } from "../errors";
@@ -54,7 +55,12 @@ export function visibleSql(table: Moderated, viewer: Viewer, mode: "list" | "det
   if (mode === "detail") {
     return sql`(${table.status} = 'published' OR ${table.contributorId} = ${viewer.user.id})`;
   }
-  return sql`(${table.status} = 'published' OR (${table.status} = 'pending' AND ${table.contributorId} = ${viewer.user.id}))`;
+  return sql`(${table.status} = 'published' OR ${ownPendingSql(table, viewer)})`;
+}
+
+export function ownPendingSql(table: Moderated, viewer: Viewer): SQL {
+  if (!viewer) return sql`0`;
+  return sql`(${table.status} = 'pending' AND ${table.contributorId} = ${viewer.user.id})`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -205,40 +211,55 @@ export async function screensToApi(viewer: Viewer, rows: ScreenRow[]): Promise<S
   });
 }
 
+async function ownPendingCounts(viewer: Viewer, table: typeof screen | typeof flow, ids: string[]) {
+  if (!viewer) return [];
+  return getDb()
+    .select({ appId: table.appId, total: count() })
+    .from(table)
+    .where(and(inJsonArray(table.appId, ids), ownPendingSql(table, viewer)))
+    .groupBy(table.appId);
+}
+
 export async function appSummaries(viewer: Viewer, rows: AppRow[]): Promise<AppSummary[]> {
   if (rows.length === 0) return [];
   const db = getDb();
   const ids = rows.map((row) => row.id);
-  const ranked = db
-    .select({
-      id: screen.id,
-      appId: screen.appId,
-      thumbKey: screen.thumbKey,
-      width: screen.thumbWidth,
-      height: screen.thumbHeight,
-      rank: sql<number>`row_number() OVER (PARTITION BY ${screen.appId} ORDER BY ${screen.createdAt} DESC, ${screen.id} DESC)`.as(
-        "rank",
-      ),
-    })
-    .from(screen)
-    .where(and(inJsonArray(screen.appId, ids), visibleSql(screen, viewer, "list")))
-    .as("ranked");
+  const newest = alias(screen, "newest");
+  const newestThree = db
+    .select({ id: newest.id })
+    .from(newest)
+    .where(and(sql`${newest.appId} = wanted.value`, visibleSql(newest, viewer, "list")))
+    .orderBy(desc(newest.createdAt), desc(newest.id))
+    .limit(3);
 
-  const [screenCounts, flowCounts, previews] = await Promise.all([
+  const [published, pendingScreens, pendingFlows, previews] = await Promise.all([
     db
-      .select({ appId: screen.appId, total: count() })
-      .from(screen)
-      .where(and(inJsonArray(screen.appId, ids), visibleSql(screen, viewer, "list")))
-      .groupBy(screen.appId),
+      .select({ appId: appFacet.appId, kind: appFacet.kind, total: appFacet.count })
+      .from(appFacet)
+      .where(and(inJsonArray(appFacet.appId, ids), inArray(appFacet.kind, ["screen", "flow"]))),
+    ownPendingCounts(viewer, screen, ids),
+    ownPendingCounts(viewer, flow, ids),
     db
-      .select({ appId: flow.appId, total: count() })
-      .from(flow)
-      .where(and(inJsonArray(flow.appId, ids), visibleSql(flow, viewer, "list")))
-      .groupBy(flow.appId),
-    db.select().from(ranked).where(lte(ranked.rank, 3)).orderBy(asc(ranked.rank)),
+      .select({
+        id: screen.id,
+        appId: screen.appId,
+        thumbKey: screen.thumbKey,
+        width: screen.thumbWidth,
+        height: screen.thumbHeight,
+      })
+      .from(sql`json_each(${JSON.stringify(ids)}) AS wanted`)
+      .innerJoin(screen, sql`${screen.id} IN ${newestThree}`)
+      .orderBy(desc(screen.createdAt), desc(screen.id)),
   ]);
-  const screensBy = new Map(screenCounts.map((row) => [row.appId, row.total]));
-  const flowsBy = new Map(flowCounts.map((row) => [row.appId, row.total]));
+  const screensBy = new Map<string, number>();
+  const flowsBy = new Map<string, number>();
+  const tally = (by: Map<string, number>, appId: string, total: number) =>
+    by.set(appId, (by.get(appId) ?? 0) + total);
+  for (const { appId, kind, total } of published) {
+    tally(kind === "screen" ? screensBy : flowsBy, appId, total);
+  }
+  for (const { appId, total } of pendingScreens) tally(screensBy, appId, total);
+  for (const { appId, total } of pendingFlows) tally(flowsBy, appId, total);
 
   return rows.map((row) => ({
     ...toAppRef(row),
