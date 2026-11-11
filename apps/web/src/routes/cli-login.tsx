@@ -71,6 +71,7 @@ function CliLogin() {
           title="CLI login approved"
           description={`Go back to your terminal on ${login.device}. It saves its key, and you can close this tab.`}
         >
+          {failed}
           <div className="mt-8">
             <Button variant="outline" render={<Link to="/settings" search={{ tab: "keys" }} />}>
               Manage keys
