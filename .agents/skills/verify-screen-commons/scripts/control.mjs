@@ -15,8 +15,9 @@
  *   control.mjs mcp-config [--client <claude|cursor|codex|opencode>]   that agent's config for the
  *                                              run's two MCP servers (default claude)
  *   control.mjs agent --prompt <text> [--client <claude|codex>] [--timeout <seconds>]   one session
- *                                              of that real agent with only those two servers;
- *                                              its transcript goes to test-results/verify/
+ *                 [--skills] [--signed-out]    of that real agent with only those two servers, plus
+ *                                              with --skills the package's skills, its CLI and a
+ *                                              shell; its transcript goes to test-results/verify/
  *   control.mjs seed <fixture>                 publish fixtures/<fixture>.json through the CLI
  *   control.mjs list                           every run on this machine and whether it is alive
  *   control.mjs teardown                       stop the server, delete state, keep the evidence
@@ -914,15 +915,15 @@ const MCP_CONFIG_FORMATS = {
     ].join("\n"),
 };
 
-function mcpConfig(run, client) {
+function mcpConfig(run, client, token = run.adminKey) {
   const format = MCP_CONFIG_FORMATS[client];
   if (!format) {
     throw new Error(`Bad --client "${client}": use ${Object.keys(MCP_CONFIG_FORMATS).join(", ")}`);
   }
-  const { PATH: _path, ...env } = localMcpEnv(run);
+  const { PATH: _path, ...env } = localMcpEnv(run, { token });
   return format({
     url: `${run.base}/mcp`,
-    headers: { Authorization: `Bearer ${run.adminKey}` },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     entry: buildLocalMcp(run),
     env,
   });
@@ -935,6 +936,33 @@ function commandMcpConfig(flags) {
 
 const DEFAULT_AGENT_SECONDS = 300;
 const SCREEN_COMMONS_SERVERS = ["screen-commons-remote", "screen-commons-local"];
+const CLAUDE_SKILL_TOOLS = ["Skill", "Bash", "Read", "Write", "Edit", "Glob", "Grep"];
+
+function prepareSkillsHome(run, home, token) {
+  const cli = join(mcpBuildDir(run.id), "cli.js");
+  const bin = join(home, "bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, "screen-commons"),
+    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(cli)} "$@"\n`,
+    { mode: 0o755 },
+  );
+  if (token) {
+    const profiles = join(home, ".config/screen-commons/profiles");
+    mkdirSync(profiles, { recursive: true, mode: 0o700 });
+    writeFileSync(
+      join(profiles, "default.json"),
+      JSON.stringify({ version: 1, url: run.base, apiKey: token }),
+      { mode: 0o600 },
+    );
+  }
+  execFileSync(process.execPath, [cli, "skills", "install"], {
+    cwd: home,
+    env: { PATH: process.env.PATH ?? "", HOME: home, XDG_CONFIG_HOME: join(home, ".config") },
+    stdio: "pipe",
+  });
+  return { PATH: `${bin}:${process.env.PATH ?? ""}`, SCREEN_COMMONS_URL: run.base };
+}
 
 function claudeToolName(name) {
   const match = /^mcp__(.+?)__(.+)$/u.exec(name);
@@ -990,9 +1018,10 @@ function codexLogin(codexHome) {
 const AGENTS = {
   claude: {
     install: "npm install -g @anthropic-ai/claude-code",
-    setup({ home, prompt, config }) {
+    setup({ home, prompt, config, skills }) {
       const configPath = join(home, "mcp.json");
       writeFileSync(configPath, config);
+      const tools = skills ? CLAUDE_SKILL_TOOLS : [];
       return {
         args: [
           "-p",
@@ -1004,9 +1033,9 @@ const AGENTS = {
           "--mcp-config",
           configPath,
           "--tools",
-          "",
+          tools.join(","),
           "--allowedTools",
-          SCREEN_COMMONS_SERVERS.map((server) => `mcp__${server}`).join(","),
+          [...SCREEN_COMMONS_SERVERS.map((server) => `mcp__${server}`), ...tools].join(","),
           "--permission-prompts",
           "none",
         ],
@@ -1035,7 +1064,7 @@ const AGENTS = {
   },
   codex: {
     install: "npm install -g @openai/codex",
-    setup({ home, work, prompt, config }) {
+    setup({ home, work, prompt, config, skills }) {
       const codexHome = join(home, ".codex");
       mkdirSync(codexHome, { recursive: true });
       const off = [
@@ -1046,8 +1075,7 @@ const AGENTS = {
         "in_app_browser",
         "multi_agent",
         "plugins",
-        "shell_tool",
-        "unified_exec",
+        ...(skills ? [] : ["shell_tool", "unified_exec"]),
       ];
       writeFileSync(
         join(codexHome, "config.toml"),
@@ -1059,6 +1087,7 @@ const AGENTS = {
           "",
           "[features]",
           ...off.map((feature) => `${feature} = false`),
+          ...(skills ? ["", "[sandbox_workspace_write]", "network_access = true"] : []),
         ].join("\n"),
       );
       const login = codexLogin(codexHome);
@@ -1069,7 +1098,7 @@ const AGENTS = {
           "--skip-git-repo-check",
           "--ignore-rules",
           "--sandbox",
-          "read-only",
+          skills ? "workspace-write" : "read-only",
           "-C",
           work,
           prompt,
@@ -1122,7 +1151,10 @@ function agentBin(client) {
   return bin;
 }
 
-function startAgent(run, { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS }) {
+function startAgent(
+  run,
+  { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS, skills = false, signedOut = false },
+) {
   const bin = agentBin(client);
   const agent = AGENTS[client];
   if (!prompt) throw new Error("control.mjs agent needs --prompt <text>");
@@ -1130,7 +1162,10 @@ function startAgent(run, { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS 
   const work = join(home, "work");
   mkdirSync(work, { recursive: true });
   mkdirSync(dir, { recursive: true });
-  const { args, env, finish } = agent.setup({ home, work, prompt, config: mcpConfig(run, client) });
+  const token = signedOut ? null : run.adminKey;
+  const config = mcpConfig(run, client, token);
+  const skillsEnv = skills ? prepareSkillsHome(run, home, token) : {};
+  const { args, env, finish } = agent.setup({ home, work, prompt, config, skills });
 
   const transcript = join(dir, "transcript.jsonl");
   const stderr = join(dir, "stderr.log");
@@ -1149,11 +1184,13 @@ function startAgent(run, { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS 
       XDG_DATA_HOME: join(home, ".local/share"),
       XDG_STATE_HOME: join(home, ".local/state"),
       XDG_CACHE_HOME: join(home, ".cache"),
+      // __NIXOS_SET_ENVIRONMENT_DONE stops a NixOS login shell, which Codex runs commands in, resetting PATH.
       ...Object.fromEntries(
-        ["LANG", "SSL_CERT_FILE", "NIX_SSL_CERT_FILE"]
+        ["LANG", "SSL_CERT_FILE", "NIX_SSL_CERT_FILE", "__NIXOS_SET_ENVIRONMENT_DONE"]
           .filter((name) => process.env[name])
           .map((name) => [name, process.env[name]]),
       ),
+      ...skillsEnv,
       ...env,
     },
   });
@@ -1195,6 +1232,8 @@ function startAgent(run, { client, prompt, dir, seconds = DEFAULT_AGENT_SECONDS 
       const result = {
         client,
         prompt,
+        skills,
+        signedOut,
         bin,
         args: args.map((arg) => (arg === prompt ? "<prompt>" : arg)),
         home,
@@ -1224,7 +1263,14 @@ async function commandAgent(flags) {
   if (!/^\d+$/u.test(flags.timeout ?? "1") || !(seconds > 0 && seconds <= 3600))
     throw new Error(`Bad --timeout "${flags.timeout}": use seconds, up to 3600`);
   const dir = join(EVIDENCE, run.id, `agent-${client}-${Date.now().toString(36)}`);
-  const session = startAgent(run, { client, prompt: flags.prompt, dir, seconds });
+  const session = startAgent(run, {
+    client,
+    prompt: flags.prompt,
+    dir,
+    seconds,
+    skills: Boolean(flags.skills),
+    signedOut: Boolean(flags["signed-out"]),
+  });
   for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => session.stop(signal));
   log(`[${run.id}] ${client} is running; transcript at ${join(dir, "transcript.jsonl")}`);
   const result = await session.done;
@@ -1577,10 +1623,17 @@ async function commandDrive(flags, positional) {
       localEntry ??= buildLocalMcp(run);
       return join(mcpBuildDir(run.id), "cli.js");
     },
-    async agent({ client = "claude", prompt, seconds = 240 }) {
+    async agent({ client = "claude", prompt, seconds = 240, skills, signedOut }) {
       assertRunning();
       const label = next(`agent ${client}`);
-      const session = startAgent(run, { client, prompt, dir: join(out, label), seconds });
+      const session = startAgent(run, {
+        client,
+        prompt,
+        dir: join(out, label),
+        seconds,
+        skills,
+        signedOut,
+      });
       closers.push(async () => session.stop("the journey ended"));
       const result = await session.done;
       steps.push({ step: `agent ${client}`, proof: `${label}/result.json` });
@@ -1938,6 +1991,8 @@ function parse(argv) {
     if (["--run", "--timeout", "--client", "--prompt"].includes(rest[index])) {
       if (rest[index + 1] === undefined) throw new Error(`${rest[index]} needs a value`);
       flags[rest[index].slice(2)] = rest[++index];
+    } else if (["--skills", "--signed-out"].includes(rest[index])) {
+      flags[rest[index].slice(2)] = true;
     } else if (rest[index].startsWith("--")) throw new Error(`Unknown option ${rest[index]}`);
     else positional.push(rest[index]);
   }

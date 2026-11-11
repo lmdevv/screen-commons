@@ -77,12 +77,13 @@ Screen Commons reads the real type and dimensions from each file's header and re
 
 ## Content policy
 
-Screen Commons is a reference library of public product UI. Before you upload:
+Screen Commons is a reference library of real product UI. Before you upload:
 
-- **Capture public pages only.** Marketing sites, docs, pricing, sign-up and sign-in pages are fine. Don't upload internal tools, private dashboards or anything behind someone else's login.
-- **Remove personal data.** No real names, email addresses, avatars, messages, addresses or payment details, whether yours or anyone else's. Use demo or test accounts when you capture product screens.
+- **Capture public pages, or the product signed in to a demo or test account.** Marketing sites, docs, pricing, sign-up and sign-in pages are fine. So is product UI behind a login when the account is a demo or test account made for capturing. Don't capture a personal or work account, internal tools, or anything behind someone else's login.
+- **Publish no personal data.** No real names, email addresses, phone numbers, avatars, messages, addresses or payment details, whether yours or anyone else's. Fill a test account with made-up data.
+- **Record how you captured each screen.** Tag it `public-page` when anyone can open the page signed out, or `test-account` when you were signed in to a demo or test account.
 - **Never include secrets.** No API keys, tokens, passwords, QR codes, invoice links or internal URLs.
-- **Respect site terms.** Follow each site's terms of service and `robots.txt`. Don't crawl aggressively.
+- **Follow site terms.** Follow each site's terms of service and `robots.txt`. Don't crawl aggressively.
 - **Keep it UI.** No ads, illegal content or images you don't have the right to share.
 
 > **Warning**
