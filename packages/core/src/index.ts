@@ -8,6 +8,7 @@ export * from "./utils";
 export * from "./bridge";
 export * from "./mcp";
 export * from "./mcp-results";
+export * from "./prompts";
 export * from "./image-policy";
 export * from "./image-download";
 export * from "./bundle";

@@ -149,6 +149,7 @@ Call either MCP server by hand, with the same real client the journeys use:
 ```bash
 .agents/skills/verify-screen-commons/scripts/control.mjs mcp remote tools --run <id>
 .agents/skills/verify-screen-commons/scripts/control.mjs mcp local call search_screens '{"query":"billed yearly"}' --run <id>
+.agents/skills/verify-screen-commons/scripts/control.mjs mcp remote prompt research_flow '{"question":"How does Fixture Tunes let users create a playlist?"}' --run <id>
 ```
 
 To point an actual agent at the run, `control mcp-config --client <claude|cursor|codex|opencode> --run <id>` prints both servers in that agent's own config format: JSON for all but Codex, which takes TOML for `config.toml`. It defaults to `claude`. It contains the run's admin key, which dies with the run, and scratch `HOME` and config directories. Each drive and `mcp local` rebuilds the same per-run build the config points at, so restart that agent's server if a tool misbehaves after one. Use it for exploration: the journeys are the proof.

@@ -12,6 +12,8 @@
  *   control.mjs r2                             list the run's local R2 keys
  *   control.mjs mcp <remote|local> tools       list a server's tools with a real MCP client
  *   control.mjs mcp <remote|local> call <tool> ['<json args>']   call one tool the same way
+ *   control.mjs mcp <remote|local> prompts     list a server's prompts
+ *   control.mjs mcp <remote|local> prompt <name> ['<json args>']   render one prompt's messages
  *   control.mjs mcp-config [--client <claude|cursor|codex|opencode>]   that agent's config for the
  *                                              run's two MCP servers (default claude)
  *   control.mjs agent --prompt <text> [--client <claude|codex>] [--timeout <seconds>]   one session
@@ -834,8 +836,13 @@ const describeCall = ({ isError, text, images }) => ({
 
 async function commandMcp(flags, [kind, action, tool, json]) {
   const run = resolveRun(flags);
-  if (!["remote", "local"].includes(kind) || !["tools", "call"].includes(action)) {
-    throw new Error("Usage: control.mjs mcp <remote|local> <tools|call <tool> ['<json args>']>");
+  if (
+    !["remote", "local"].includes(kind) ||
+    !["tools", "call", "prompts", "prompt"].includes(action)
+  ) {
+    throw new Error(
+      "Usage: control.mjs mcp <remote|local> <tools|call <tool> ['<json args>']|prompts|prompt <name> ['<json args>']>",
+    );
   }
   requireHealthy(run);
   const client =
@@ -845,6 +852,14 @@ async function commandMcp(flags, [kind, action, tool, json]) {
   try {
     if (action === "tools") {
       output((await client.listTools()).tools.map(({ name, title }) => ({ name, title })));
+    } else if (action === "prompts") {
+      output((await client.listPrompts()).prompts.map(({ name, title }) => ({ name, title })));
+    } else if (action === "prompt") {
+      const { messages } = await client.getPrompt({
+        name: tool,
+        arguments: json ? JSON.parse(json) : {},
+      });
+      output(messages);
     } else {
       const result = await callTool(client, tool, json ? JSON.parse(json) : {});
       output(describeCall(result));

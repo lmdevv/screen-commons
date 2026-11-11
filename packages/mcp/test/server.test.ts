@@ -121,6 +121,7 @@ describe("tools, prompts and resources", () => {
     expect(prompts.map((prompt) => prompt.name).sort()).toEqual([
       "capture_site",
       "find_inspiration",
+      "research_flow",
     ]);
     const prompt = await client.getPrompt({
       name: "capture_site",

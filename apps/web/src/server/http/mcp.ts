@@ -4,6 +4,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import {
   LIMITS,
   bytesToBase64,
+  catalogPrompts,
   catalogTools,
   compactApp,
   compactContribution,
@@ -13,11 +14,13 @@ import {
   flowImageSteps,
   flowSearchResult,
   imageTypeNote,
+  promptResult,
   screenDetailResult,
   screenSearchResult,
   searchToolResult,
   toolErrorText,
   type CatalogToolName,
+  type PromptSpec,
 } from "@screen-commons/core";
 import type { z } from "zod";
 
@@ -173,6 +176,13 @@ function createServer(principal: Principal, origin: string): McpServer {
           };
         }
       }) as never,
+    );
+  }
+  for (const spec of Object.values<PromptSpec>(catalogPrompts)) {
+    server.registerPrompt(
+      spec.name,
+      { title: spec.title, description: spec.description, argsSchema: spec.args },
+      (args) => promptResult(spec.text(args)),
     );
   }
   return server;

@@ -5,7 +5,7 @@ Agents run `screen-commons-mcp` next to them over stdio. It proxies the catalog 
 ## Sub-features
 
 - `local-contract` exposes the same definition for each catalog tool as the remote server, except a `path` image on `upload_screen`, plus 6 browser tools and `publish_manifest`.
-- `local-extras` serves the `capture_site` and `find_inspiration` prompts and the `screen-commons://taxonomy` resource.
+- `local-extras` serves the `capture_site` prompt, the shared `find_inspiration` and `research_flow` prompts, and the `screen-commons://taxonomy` resource.
 - `local-catalog` proxies search, read, upload, flow creation, edits and deletes to the instance, with the same results as the remote server.
 - `local-upload-sources` uploads by URL and by local file path, with one result format.
 - `local-status` reports the active driver and the bridge state.
@@ -33,7 +33,7 @@ Preconditions:
 Run `control drive mcp-local --run <id>`, which performs these steps.
 
 - **Contract.** `h.localMcp()` connects to `screen-commons-mcp`. Its tools are the remote server's 13 plus the 6 browser tools and `publish_manifest`. Each catalog tool's whole definition, including annotations, deep-equals the remote one. `upload_screen` also does once its `path` branch and its advice on which image source to send are removed.
-- **Extras.** `listPrompts` returns both prompts, and `capture_site` mentions `capture_pages`. `readResource` on `screen-commons://taxonomy` includes `signing-up`.
+- **Extras.** `listPrompts` returns the three prompts, and `capture_site` mentions `capture_pages`. The remote server lists only `find_inspiration` and `research_flow`, with the same contract, and renders `research_flow` with the same text. `readResource` on `screen-commons://taxonomy` includes `signing-up`.
 - **Same as remote.** Each of these runs on both servers, and the text and image bytes must be identical: `search_screens` by text, with filters and with no match; `get_screen` as a thumbnail and full size; `list_apps`, `get_app`, `search_flows`, `get_flow` with images, `get_taxonomy`; and the refusals for a missing slug (`not_found: …`), a missing screen, an invalid pattern (`-32602`), bytes that aren't an image (`unsupported_media_type: …`) and a one-step flow.
 - **Upload.** `upload_screen` returns the same fields from both servers, joining one app, with `status` `published`. A mislabeled image gets the same `note` from both. D1 has `source = mcp`. `create_flow` returns the same fields and steps from both.
 - **Upload sources.** A 1920×1320 WebP by URL returns the same JSON from both servers, and the same screen again by `path`. `get_screen` returns its exact bytes and size. A PNG by `path` twice is one screen. An 18 MB PNG by `path` uploads encoded at 3000×2000 and at most 15 MiB, and by URL it fails with `payload_too_large`. A 404, a page, a redirect loop, a redirect to another scheme and a `file:` URL get the same refusal from both servers. A missing path, a directory and a text file are refused, and the remote server refuses `path` with `-32602` and names the alternatives.

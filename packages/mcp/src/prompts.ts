@@ -1,5 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CATEGORY_SLUGS, FLOW_TYPE_SLUGS, PATTERN_SLUGS, TAXONOMY } from "@screen-commons/core";
+import {
+  CATEGORY_SLUGS,
+  TAXONOMY,
+  catalogPrompts,
+  promptResult,
+  type PromptSpec,
+} from "@screen-commons/core";
 import { z } from "zod";
 
 export const TAXONOMY_RESOURCE_URI = "screen-commons://taxonomy";
@@ -39,40 +45,13 @@ export function registerPrompts(server: McpServer) {
     }),
   );
 
-  server.registerPrompt(
-    "find_inspiration",
-    {
-      title: "Find UI inspiration in Screen Commons",
-      description:
-        "Search the catalog for screens and flows that match a design problem and look at the best ones.",
-      argsSchema: {
-        query: z
-          .string()
-          .describe("What you are designing, e.g. 'pricing page with monthly/yearly toggle'"),
-        platform: z.string().optional().describe("web, ios or android"),
-      },
-    },
-    ({ query, platform }) => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: [
-              `Find UI inspiration in Screen Commons for: ${query}${platform ? ` (platform: ${platform})` : ""}.`,
-              "",
-              `1. Map the request to taxonomy terms if possible (patterns: ${PATTERN_SLUGS.join(", ")}). Call get_taxonomy for UI elements and flow types.`,
-              "2. Call search_screens with the free-text query and, when it fits, a pattern/element filter. If the problem is a multi-step journey, also call search_flows (flow types: " +
-                FLOW_TYPE_SLUGS.join(", ") +
-                ").",
-              "3. Open the 3–5 most relevant results with get_screen (thumbnail first; full=true when details matter) or get_flow with includeImages=true.",
-              "4. Summarize what the strongest examples do well (layout, hierarchy, copy, components) and link each one.",
-            ].join("\n"),
-          },
-        },
-      ],
-    }),
-  );
+  for (const spec of Object.values<PromptSpec>(catalogPrompts)) {
+    server.registerPrompt(
+      spec.name,
+      { title: spec.title, description: spec.description, argsSchema: spec.args },
+      (args) => promptResult(spec.text(args)),
+    );
+  }
 
   server.registerResource(
     "taxonomy",
